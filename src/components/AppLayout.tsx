@@ -46,8 +46,8 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         }`}
       >
         <div className="p-5 flex items-center gap-3 border-b border-sidebar-border">
-          <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
-            <GraduationCap className="w-5 h-5 text-primary-foreground" />
+          <div className="w-9 h-9 rounded-lg  flex items-center justify-center">
+            <img src="/logo-capol.webp" alt="Logo" className="w-full h-full object-contain" />
           </div>
           <span className="font-bold text-lg">Plataforma CAPOL</span>
         </div>
