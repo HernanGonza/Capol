@@ -8,18 +8,22 @@ import { Link } from "react-router-dom";
 const StudentDashboard = () => {
   const { user } = useAuth();
 
-  const { data: enrollments, isLoading } = useQuery({
-    queryKey: ["student-courses", user?.id],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("enrollments")
-        .select("*, courses(*)")
-        .eq("user_id", user!.id);
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user,
-  });
+  const { data: activeSubscriptions, isLoading } = useQuery({
+  queryKey: ["student-active-courses", user?.id],
+  queryFn: async () => {
+    const { data, error } = await supabase
+      .from("subscriptions")
+      .select("*, courses(*)")
+      .eq("user_id", user!.id)
+      .eq("status", "active")
+      // Filtramos que la fecha de fin sea mayor a ahora o nula
+      .or(`ends_at.gt.${new Date().toISOString()},ends_at.is.null`);
+      
+    if (error) throw error;
+    return data;
+  },
+  enabled: !!user,
+});
 
   return (
     <div className="space-y-6 animate-fade-in">
