@@ -56,6 +56,7 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
   };
 
   return (
+<<<<<<< HEAD
     <div className="max-w-5xl mx-auto space-y-10 animate-fade-in pb-20">
       {/* Header mejorado */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
@@ -67,6 +68,16 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
             <h1 className="text-3xl font-black tracking-tight text-slate-900">{lesson.title}</h1>
             <p className="text-muted-foreground font-medium">{lesson.description || "Lección interactiva"}</p>
           </div>
+=======
+    <div className="space-y-6 animate-fade-in">
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
+          <ArrowLeft className="w-5 h-5" />
+        </Button>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold truncate" title={lesson.title}>{lesson.title}</h1>
+          <p className="text-muted-foreground truncate" title={lesson.description || ""}>{lesson.description}</p>
+>>>>>>> 78169c06d28a0250dfd0e7e0b6be4a5a9907af4c
         </div>
         
         <Button 
