@@ -5,7 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { ArrowLeft, CheckCircle, Video, MessageSquare, Code, Play } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
-import Terminal from "@/components/Terminal"; // Importamos tu terminal
+import Terminal from "@/components/Terminal"; 
 import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 
@@ -56,33 +56,26 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
   };
 
   return (
-<<<<<<< HEAD
     <div className="max-w-5xl mx-auto space-y-10 animate-fade-in pb-20">
-      {/* Header mejorado */}
+      {/* Header unificado (Resuelve el conflicto de Git) */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
-        <div className="flex items-center gap-4">
-          <Button variant="outline" size="icon" onClick={onBack} className="rounded-full shadow-sm">
+        <div className="flex items-center gap-4 min-w-0">
+          <Button variant="outline" size="icon" onClick={onBack} className="rounded-full shadow-sm shrink-0">
             <ArrowLeft className="w-5 h-5" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-slate-900">{lesson.title}</h1>
-            <p className="text-muted-foreground font-medium">{lesson.description || "Lección interactiva"}</p>
+          <div className="min-w-0">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 truncate" title={lesson.title}>
+              {lesson.title}
+            </h1>
+            <p className="text-muted-foreground font-medium truncate" title={lesson.description || ""}>
+              {lesson.description || "Lección interactiva"}
+            </p>
           </div>
-=======
-    <div className="space-y-6 animate-fade-in">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold truncate" title={lesson.title}>{lesson.title}</h1>
-          <p className="text-muted-foreground truncate" title={lesson.description || ""}>{lesson.description}</p>
->>>>>>> 78169c06d28a0250dfd0e7e0b6be4a5a9907af4c
         </div>
         
         <Button 
           onClick={() => completeMutation.mutate()} 
-          className="gradient-primary text-primary-foreground font-bold px-6 shadow-lg shadow-primary/20"
+          className="gradient-primary text-primary-foreground font-bold px-6 shadow-lg shadow-primary/20 shrink-0"
           disabled={completeMutation.isPending}
         >
           <CheckCircle className="w-4 h-4 mr-2" />
@@ -98,7 +91,6 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
             {/* BLOQUE DE TEXTO */}
             {block.type === 'text' && (
               <div className="prose prose-slate max-w-none prose-lg prose-headings:font-black prose-p:text-slate-600 prose-strong:text-slate-900">
-                {/* Usamos un div simple pero podrías usar ReactMarkdown aquí */}
                 <div className="whitespace-pre-wrap leading-relaxed">
                   {block.value}
                 </div>
