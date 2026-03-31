@@ -49,7 +49,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
           <div className="w-9 h-9 rounded-lg gradient-primary flex items-center justify-center">
             <GraduationCap className="w-5 h-5 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">EduPlatform</span>
+          <span className="font-bold text-lg">Plataforma CAPOL</span>
         </div>
 
         <nav className="flex-1 p-3 space-y-1">
