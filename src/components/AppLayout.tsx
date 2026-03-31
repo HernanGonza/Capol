@@ -29,7 +29,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       ]
     : [
         { to: "/dashboard", label: "Mis Cursos", icon: BookOpen },
-        { to: "/student/subscriptions", label: "Mi Suscripción", icon: CreditCard },
+        { to: "/student/subscriptions", label: "Mis Suscripciones", icon: CreditCard },
       ];
 
   return (
