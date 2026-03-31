@@ -47,12 +47,12 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={onBack}>
+        <Button variant="ghost" size="icon" onClick={onBack} className="shrink-0">
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <div>
-          <h1 className="text-2xl font-bold">{lesson.title}</h1>
-          <p className="text-muted-foreground">{lesson.description}</p>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-bold truncate" title={lesson.title}>{lesson.title}</h1>
+          <p className="text-muted-foreground truncate" title={lesson.description || ""}>{lesson.description}</p>
         </div>
       </div>
 

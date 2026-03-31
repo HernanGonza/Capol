@@ -163,7 +163,7 @@ const CourseView = () => {
             return (
               <Card
                 key={lesson.id}
-                className={`group transition-all duration-200 ${
+                className={`group transition-all duration-200 min-w-0 ${
                   unlocked 
                     ? "hover:shadow-md cursor-pointer border-l-4 border-l-transparent hover:border-l-primary" 
                     : "opacity-60 bg-muted/30"
@@ -188,10 +188,13 @@ const CourseView = () => {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h3 className={`font-semibold text-lg truncate ${!unlocked && "text-muted-foreground"}`}>
+                    <h3 
+                      className={`font-semibold text-lg truncate ${!unlocked && "text-muted-foreground"}`}
+                      title={lesson.title}
+                    >
                       {lesson.title}
                     </h3>
-                    <div className="flex items-center gap-4 text-xs text-muted-foreground mt-1">
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground mt-1">
                       {lesson.video_url && (
                         <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Video</span>
                       )}
