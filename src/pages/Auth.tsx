@@ -51,7 +51,7 @@ const Auth = () => {
       <Card className="w-full max-w-md animate-fade-in border-border/50 shadow-elevated">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-2">
-            <img src="public/logo-capol.webp" alt="Logo CAPOL" />
+            <img src="/logo-capol.webp" alt="Logo CAPOL" />
           </div>
           <CardTitle className="text-2xl font-bold">
             {isLogin ? "Iniciar Sesión" : "Crear Cuenta"}
