@@ -15,7 +15,7 @@ const CourseView = () => {
   const navigate = useNavigate();
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
 
-  // 1. Verificar Suscripción Activa para este curso
+  // 1. Verificar Suscripción Activa
   const { data: subscription, isLoading: isLoadingSub } = useQuery({
     queryKey: ["check-subscription", user?.id, courseId],
     queryFn: async () => {
@@ -63,8 +63,8 @@ const CourseView = () => {
     enabled: !!courseId,
   });
 
-  // 4. Obtener progreso de lecciones
-  const { data: progress } = useQuery({
+  // 4. Obtener progreso de lecciones (Persistencia)
+  const { data: progress, refetch: refetchProgress } = useQuery({
     queryKey: ["lesson-progress", user?.id, courseId],
     queryFn: async () => {
       if (!lessons || lessons.length === 0) return [];
@@ -101,7 +101,7 @@ const CourseView = () => {
     );
   }
 
-  // BARRERA DE ACCESO: Si no hay suscripción activa o expiró
+  // Barrera de acceso
   const isExpired = subscription?.ends_at && new Date(subscription.ends_at) < new Date();
   
   if (!subscription || isExpired) {
@@ -122,7 +122,7 @@ const CourseView = () => {
           <Card className="bg-muted/50 border-none">
             <CardContent className="p-4 flex items-start gap-3 text-left text-sm">
               <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <p>Para recuperar el acceso, por favor contacta con administración o realiza el pago de la mensualidad correspondiente a <strong>{course?.title}</strong>.</p>
+              <p>Para recuperar el acceso, por favor contacta con administración o realiza el pago correspondiente a <strong>{course?.title}</strong>.</p>
             </CardContent>
           </Card>
           <Button onClick={() => navigate("/dashboard")} variant="outline" className="w-full">
@@ -133,13 +133,16 @@ const CourseView = () => {
     );
   }
 
-  // Vista de lección individual
+  // Vista de lección individual (Detalle)
   if (selectedLesson) {
     return (
       <AppLayout>
         <LessonContent
           lesson={selectedLesson}
-          onBack={() => setSelectedLessonId(null)}
+          onBack={() => {
+            setSelectedLessonId(null);
+            refetchProgress(); // Actualiza la lista al volver para mostrar el check verde
+          }}
           userId={user!.id}
         />
       </AppLayout>
@@ -149,13 +152,13 @@ const CourseView = () => {
   // Listado de lecciones del curso
   return (
     <AppLayout>
-      <div className="space-y-6 animate-fade-in">
-        <header>
-          <h1 className="text-3xl font-bold">{course?.title}</h1>
-          <p className="text-muted-foreground mt-2">{course?.description}</p>
+      <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+        <header className="border-b pb-6">
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{course?.title}</h1>
+          <p className="text-muted-foreground mt-2 text-lg">{course?.description}</p>
         </header>
 
-        <div className="grid gap-3">
+        <div className="grid gap-4">
           {lessons?.map((lesson, index) => {
             const unlocked = isLessonUnlocked(lesson);
             const completed = isLessonCompleted(lesson.id);
@@ -163,17 +166,20 @@ const CourseView = () => {
             return (
               <Card
                 key={lesson.id}
-                className={`group transition-all duration-200 min-w-0 ${
+                className={`group transition-all duration-200 overflow-hidden ${
                   unlocked 
-                    ? "hover:shadow-md cursor-pointer border-l-4 border-l-transparent hover:border-l-primary" 
-                    : "opacity-60 bg-muted/30"
+                    ? "hover:shadow-md cursor-pointer border-l-4" 
+                    : "opacity-60 bg-muted/30 cursor-not-allowed"
+                } ${
+                  completed ? "border-l-emerald-500 bg-emerald-50/20" : "border-l-transparent"
                 }`}
                 onClick={() => unlocked && setSelectedLessonId(lesson.id)}
               >
                 <CardContent className="p-5 flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${
+                  {/* Círculo de estado */}
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-colors ${
                     completed
-                      ? "bg-success/20 text-success"
+                      ? "bg-emerald-500 text-white"
                       : unlocked
                       ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground"
@@ -188,27 +194,31 @@ const CourseView = () => {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <h3 
-                      className={`font-semibold text-lg truncate ${!unlocked && "text-muted-foreground"}`}
-                      title={lesson.title}
-                    >
-                      {lesson.title}
-                    </h3>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground mt-1">
-                      {lesson.video_url && (
-                        <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Video</span>
+                    <div className="flex items-center gap-3">
+                      <h3 className={`font-semibold text-lg truncate ${!unlocked ? "text-muted-foreground" : "text-slate-800"}`}>
+                        {lesson.title}
+                      </h3>
+                      {completed && (
+                        <span className="text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded-full">
+                          Completada
+                        </span>
                       )}
-                      {lesson.unlock_date && !unlocked && (
+                    </div>
+                    
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
+                      {lesson.video_url && (
+                        <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Video Clase</span>
+                      )}
+                      {!unlocked && lesson.unlock_date && (
                         <span className="flex items-center gap-1 text-orange-600 font-medium">
                           <Calendar className="w-3.5 h-3.5" /> Disponible: {new Date(lesson.unlock_date).toLocaleDateString()}
                         </span>
                       )}
-                      {completed && <span className="text-success font-medium">Completada</span>}
                     </div>
                   </div>
 
                   {unlocked && (
-                    <ChevronRight className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                    <ChevronRight className={`w-5 h-5 transition-colors ${completed ? 'text-emerald-500' : 'text-muted-foreground group-hover:text-primary'}`} />
                   )}
                 </CardContent>
               </Card>
@@ -216,7 +226,9 @@ const CourseView = () => {
           })}
 
           {lessons?.length === 0 && (
-            <p className="text-center py-10 text-muted-foreground">Próximamente se añadirán lecciones a este curso.</p>
+            <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed">
+              <p className="text-muted-foreground font-medium">Próximamente se añadirán lecciones a este curso.</p>
+            </div>
           )}
         </div>
       </div>
