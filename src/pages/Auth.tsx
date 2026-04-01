@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "sonner";
 import { GraduationCap, Mail, Lock, User } from "lucide-react";
 
+
 const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
@@ -50,7 +51,7 @@ const Auth = () => {
       <Card className="w-full max-w-md animate-fade-in border-border/50 shadow-elevated">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto w-12 h-12 rounded-xl gradient-primary flex items-center justify-center mb-2">
-            <GraduationCap className="w-6 h-6 text-primary-foreground" />
+            <img src="public/logo-capol.webp" alt="Logo CAPOL" />
           </div>
           <CardTitle className="text-2xl font-bold">
             {isLogin ? "Iniciar Sesión" : "Crear Cuenta"}
