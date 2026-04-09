@@ -144,6 +144,7 @@ const CourseView = () => {
             refetchProgress(); // Actualiza la lista al volver para mostrar el check verde
           }}
           userId={user!.id}
+          courseTitle={course?.title}
         />
       </AppLayout>
     );

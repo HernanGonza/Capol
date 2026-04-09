@@ -29,9 +29,10 @@ interface Props {
   lesson: Lesson;
   onBack: () => void;
   userId: string;
+  courseTitle?: string;
 }
 
-const LessonContent = ({ lesson, onBack, userId }: Props) => {
+const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
   const queryClient = useQueryClient();
   const [showJitsi, setShowJitsi] = useState(false);
 
@@ -266,9 +267,11 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
           <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
             <CardContent className="p-0">
               {showJitsi ? (
-                <div className="h-[650px]">
+                <div className="h-[700px]">
                   <JitsiMeet 
-                    roomName={lesson.jitsi_room_name} 
+                    roomName={lesson.jitsi_room_name}
+                    courseTitle={courseTitle}
+                    lessonTitle={lesson.title}
                     onClose={() => setShowJitsi(false)}
                   />
                 </div>

@@ -38,6 +38,7 @@ const TeacherLessons = () => {
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [showJitsi, setShowJitsi] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [activeLesson, setActiveLesson] = useState<any>(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -163,6 +164,7 @@ const TeacherLessons = () => {
   const startLiveClass = (lesson: any) => {
     const roomName = lesson.jitsi_room_name || `lesson-${lesson.id}`;
     setActiveRoom(roomName);
+    setActiveLesson(lesson);
     setShowJitsi(true);
   };
 
@@ -177,6 +179,7 @@ const TeacherLessons = () => {
             onClick={() => {
               setShowJitsi(false);
               setActiveRoom(null);
+              setActiveLesson(null);
             }}
             className="shadow-lg"
           >
@@ -184,10 +187,13 @@ const TeacherLessons = () => {
           </Button>
         </div>
         <JitsiMeet 
-          roomName={activeRoom} 
+          roomName={activeRoom}
+          courseTitle={course?.title}
+          lessonTitle={activeLesson?.title}
           onClose={() => {
             setShowJitsi(false);
             setActiveRoom(null);
+            setActiveLesson(null);
           }}
         />
       </div>
