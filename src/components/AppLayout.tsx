@@ -9,7 +9,7 @@ import {
   CreditCard,
   LogOut,
   Menu,
-  X,
+  ChevronLeft,
   Shield,
   GraduationCap,
   UserPlus,
@@ -19,6 +19,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const { role, profile, signOut } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const isAdmin = role === "admin";
   const isTeacher = role === "teacher";
 
@@ -60,7 +61,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <div className="min-h-screen flex bg-background font-sans">
+    <div className="h-screen flex bg-background font-sans overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div 
@@ -71,27 +72,41 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 w-64 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border transition-transform duration-300 ease-in-out ${
+        className={`fixed lg:static inset-y-0 left-0 z-50 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border transition-all duration-300 ease-in-out ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        }`}
+        } ${collapsed ? "w-[72px]" : "w-64"}`}
       >
         {/* Header del Sidebar */}
-        <div className="p-6 flex items-center gap-3 border-b border-sidebar-border/50">
-          <div className="w-9 h-9 rounded-xl shadow-sm flex items-center justify-center overflow-hidden bg-white">
-            <img 
-              src="/logo-capol.webp" 
-              alt="Logo CAPOL" 
-              className="w-full h-full object-contain" 
-            />
-          </div>
-          <div className="flex flex-col">
-            <span className="font-bold text-sm tracking-tight leading-none">Plataforma</span>
-            <span className="font-black text-lg text-primary tracking-tighter">CAPOL</span>
-          </div>
+        <div className={`p-4 flex items-center border-b border-sidebar-border/50 ${collapsed ? "justify-center" : "justify-between"}`}>
+          <Link to="/" className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+            <div className="w-9 h-9 rounded-xl shadow-sm flex items-center justify-center overflow-hidden bg-white shrink-0">
+              <img 
+                src="/logo-capol.webp" 
+                alt="Logo CAPOL" 
+                className="w-full h-full object-contain" 
+              />
+            </div>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="font-bold text-sm tracking-tight leading-none">Plataforma</span>
+                <span className="font-black text-lg text-primary tracking-tighter">CAPOL</span>
+              </div>
+            )}
+          </Link>
+          
+          {/* Botón colapsar - solo desktop */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={() => setCollapsed(!collapsed)}
+            className="hidden lg:flex h-8 w-8 text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+          >
+            <ChevronLeft className={`w-4 h-4 transition-transform ${collapsed ? "rotate-180" : ""}`} />
+          </Button>
         </div>
 
         {/* Navegación Principal */}
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 p-3 space-y-1">
           {navItems.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/dashboard" && item.to !== "/teacher" && location.pathname.startsWith(item.to));
             return (
@@ -99,65 +114,83 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
                 key={item.to}
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${
+                title={collapsed ? item.label : undefined}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group ${
+                  collapsed ? "justify-center" : ""
+                } ${
                   active
                     ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
                     : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                 }`}
               >
-                <item.icon className={`w-4 h-4 transition-transform ${active ? "scale-110" : "group-hover:scale-110"}`} />
-                {item.label}
+                <item.icon className={`w-5 h-5 shrink-0 transition-transform ${active ? "scale-110" : "group-hover:scale-110"}`} />
+                {!collapsed && item.label}
               </Link>
             );
           })}
         </nav>
 
         {/* Footer del Sidebar (Perfil y Logout) */}
-        <div className="p-4 border-t border-sidebar-border/50 bg-sidebar-accent/30">
-          <div className="flex items-center gap-3 px-2 py-3 mb-3 bg-white/50 rounded-xl border border-white/20">
-            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner ${
-              isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
-            }`}>
-              {(profile?.full_name || "U")[0].toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-bold truncate text-sidebar-foreground">
-                {profile?.full_name || "Usuario"}
-              </p>
-              <div className="flex items-center gap-1">
-                {getRoleBadge()}
+        <div className={`p-3 border-t border-sidebar-border/50 bg-sidebar-accent/30 ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
+          {!collapsed && (
+            <div className="flex items-center gap-3 px-2 py-2 mb-2 bg-white/50 rounded-xl border border-white/20">
+              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0 ${
+                isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
+              }`}>
+                {(profile?.full_name || "U")[0].toUpperCase()}
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold truncate text-sidebar-foreground">
+                  {profile?.full_name || "Usuario"}
+                </p>
+                <div className="flex items-center gap-1">
+                  {getRoleBadge()}
+                </div>
               </div>
             </div>
-          </div>
+          )}
+          
+          {collapsed && (
+            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner ${
+              isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
+            }`} title={profile?.full_name || "Usuario"}>
+              {(profile?.full_name || "U")[0].toUpperCase()}
+            </div>
+          )}
           
           <Button
             variant="ghost"
-            size="sm"
-            className="w-full justify-start text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors font-semibold"
+            size={collapsed ? "icon" : "sm"}
+            className={`text-sidebar-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors font-semibold ${
+              collapsed ? "w-9 h-9" : "w-full justify-start"
+            }`}
             onClick={signOut}
+            title={collapsed ? "Cerrar sesión" : undefined}
           >
-            <LogOut className="w-4 h-4 mr-2" />
-            Cerrar sesión
+            <LogOut className={`w-4 h-4 ${collapsed ? "" : "mr-2"}`} />
+            {!collapsed && "Cerrar sesión"}
           </Button>
         </div>
       </aside>
 
       {/* Main content area */}
-      <div className="flex-1 flex flex-col min-h-screen relative min-w-0">
+      <div className="flex-1 flex flex-col h-screen overflow-hidden">
         {/* Header Mobile Only */}
-        <header className="h-16 border-b flex items-center justify-between px-6 lg:hidden bg-card/80 backdrop-blur-md sticky top-0 z-30">
+        <header className="h-14 border-b flex items-center justify-between px-4 lg:hidden bg-card/80 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="rounded-full">
-              <Menu className="w-6 h-6" />
+              <Menu className="w-5 h-5" />
             </Button>
             <span className="font-bold text-lg tracking-tighter">CAPOL</span>
           </div>
           <div className={`w-8 h-8 rounded-full ${isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"}`} />
         </header>
 
-        {/* Contenido Dinámico */}
-        <main className="flex-1 p-4 md:p-8 lg:p-10 max-w-7xl mx-auto w-full min-w-0">
-          {children}
+        {/* Contenido Dinámico - SCROLLEABLE */}
+        <main className="flex-1 overflow-y-auto">
+          <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>

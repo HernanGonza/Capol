@@ -23,6 +23,7 @@ interface Course {
   title: string;
   description: string | null;
   flyer_url: string | null;
+  flyer_type: string | null;
   image_url: string | null;
   lessons: { count: number }[];
   enrollments: { count: number }[];
@@ -41,6 +42,7 @@ const Landing = () => {
           title,
           description,
           flyer_url,
+          flyer_type,
           image_url,
           lessons (count),
           enrollments (count)
@@ -227,14 +229,25 @@ const Landing = () => {
                   className="group bg-transparent border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  {/* Flyer/Imagen */}
+                  {/* Flyer/Imagen/Video */}
                   <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
                     {course.flyer_url || course.image_url ? (
-                      <img 
-                        src={course.flyer_url || course.image_url || ''} 
-                        alt={course.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                      />
+                      course.flyer_type === "video" || course.flyer_url?.endsWith(".mp4") ? (
+                        <video 
+                          src={course.flyer_url || ''} 
+                          className="w-full h-full object-contain bg-black"
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                        />
+                      ) : (
+                        <img 
+                          src={course.flyer_url || course.image_url || ''} 
+                          alt={course.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                        />
+                      )
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
                         <GraduationCap className="w-20 h-20 text-white/20" />

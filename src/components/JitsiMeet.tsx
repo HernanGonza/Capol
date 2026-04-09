@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Video, VideoOff, Mic, MicOff, PhoneOff, Users, Maximize2 } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Users, Maximize2, AlertCircle, RefreshCw } from "lucide-react";
 
 interface Props {
   roomName: string;
@@ -34,6 +34,7 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
   const [isVideoOff, setIsVideoOff] = useState(true);
   const [participantCount, setParticipantCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const handleReadyToClose = useCallback(() => {
     if (apiRef.current) {
@@ -59,6 +60,7 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
   const handleVideoConferenceJoined = useCallback(() => {
     setIsConnected(true);
     setIsLoading(false);
+    setError(null);
     if (apiRef.current) {
       apiRef.current.getNumberOfParticipants().then(setParticipantCount);
     }
@@ -72,9 +74,17 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
     setIsVideoOff(data.muted);
   }, []);
 
-  useEffect(() => {
+  const handleVideoConferenceLeft = useCallback(() => {
+    setIsConnected(false);
+    onClose?.();
+  }, [onClose]);
+
+  const initJitsi = useCallback(() => {
+    if (!window.JitsiMeetExternalAPI || !containerRef.current) {
+      return null;
+    }
+
     const domain = "meet.jit.si";
-    
     const options = {
       roomName: `capol-${roomName}`,
       parentNode: containerRef.current,
@@ -101,7 +111,6 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
         toolbarButtons: [
           'camera',
           'chat',
-          'closedcaptions',
           'desktop',
           'fullscreen',
           'hangup',
@@ -130,66 +139,107 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
       height: "100%",
     };
 
-    const initJitsi = () => {
-      if (window.JitsiMeetExternalAPI && containerRef.current) {
-        try {
-          const api = new window.JitsiMeetExternalAPI(domain, options);
-          apiRef.current = api;
+    try {
+      const api = new window.JitsiMeetExternalAPI(domain, options);
+      apiRef.current = api;
 
-          api.addEventListener("readyToClose", handleReadyToClose);
-          api.addEventListener("participantJoined", handleParticipantJoined);
-          api.addEventListener("participantLeft", handleParticipantLeft);
-          api.addEventListener("videoConferenceJoined", handleVideoConferenceJoined);
-          api.addEventListener("audioMuteStatusChanged", handleAudioMuteStatusChanged);
-          api.addEventListener("videoMuteStatusChanged", handleVideoMuteStatusChanged);
+      api.addEventListener("readyToClose", handleReadyToClose);
+      api.addEventListener("participantJoined", handleParticipantJoined);
+      api.addEventListener("participantLeft", handleParticipantLeft);
+      api.addEventListener("videoConferenceJoined", handleVideoConferenceJoined);
+      api.addEventListener("videoConferenceLeft", handleVideoConferenceLeft);
+      api.addEventListener("audioMuteStatusChanged", handleAudioMuteStatusChanged);
+      api.addEventListener("videoMuteStatusChanged", handleVideoMuteStatusChanged);
 
-          return () => {
-            api.removeEventListener("readyToClose", handleReadyToClose);
-            api.removeEventListener("participantJoined", handleParticipantJoined);
-            api.removeEventListener("participantLeft", handleParticipantLeft);
-            api.removeEventListener("videoConferenceJoined", handleVideoConferenceJoined);
-            api.removeEventListener("audioMuteStatusChanged", handleAudioMuteStatusChanged);
-            api.removeEventListener("videoMuteStatusChanged", handleVideoMuteStatusChanged);
-            api.dispose();
-          };
-        } catch (error) {
-          console.error("Error initializing Jitsi:", error);
+      return api;
+    } catch (err) {
+      console.error("Error initializing Jitsi:", err);
+      setError("Error al iniciar la videoconferencia");
+      setIsLoading(false);
+      return null;
+    }
+  }, [
+    roomName,
+    profile?.full_name,
+    handleReadyToClose,
+    handleParticipantJoined,
+    handleParticipantLeft,
+    handleVideoConferenceJoined,
+    handleVideoConferenceLeft,
+    handleAudioMuteStatusChanged,
+    handleVideoMuteStatusChanged
+  ]);
+
+  const loadJitsiScript = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      // Si ya existe, resolver inmediatamente
+      if (window.JitsiMeetExternalAPI) {
+        resolve();
+        return;
+      }
+
+      // Verificar si ya hay un script cargando
+      const existingScript = document.querySelector('script[src*="external_api.js"]');
+      if (existingScript) {
+        existingScript.addEventListener('load', () => resolve());
+        existingScript.addEventListener('error', () => reject(new Error('Script failed to load')));
+        return;
+      }
+
+      const script = document.createElement("script");
+      script.src = "https://meet.jit.si/external_api.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Failed to load Jitsi script"));
+      document.head.appendChild(script);
+    });
+  }, []);
+
+  const retry = useCallback(async () => {
+    setError(null);
+    setIsLoading(true);
+    
+    try {
+      await loadJitsiScript();
+      initJitsi();
+    } catch (err) {
+      setError("No se pudo cargar Jitsi. Verifica tu conexión.");
+      setIsLoading(false);
+    }
+  }, [loadJitsiScript, initJitsi]);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const setup = async () => {
+      try {
+        await loadJitsiScript();
+        if (mounted) {
+          // Pequeño delay para asegurar que el DOM está listo
+          setTimeout(() => {
+            if (mounted) {
+              initJitsi();
+            }
+          }, 100);
+        }
+      } catch (err) {
+        if (mounted) {
+          setError("No se pudo cargar la videoconferencia");
           setIsLoading(false);
         }
       }
     };
 
-    if (window.JitsiMeetExternalAPI) {
-      const cleanup = initJitsi();
-      return cleanup;
-    }
-
-    const script = document.createElement("script");
-    script.src = "https://meet.jit.si/external_api.js";
-    script.async = true;
-    script.onload = initJitsi;
-    script.onerror = () => {
-      console.error("Failed to load Jitsi script");
-      setIsLoading(false);
-    };
-    document.head.appendChild(script);
+    setup();
 
     return () => {
+      mounted = false;
       if (apiRef.current) {
         apiRef.current.dispose();
         apiRef.current = null;
       }
     };
-  }, [
-    roomName, 
-    profile?.full_name, 
-    handleReadyToClose,
-    handleParticipantJoined,
-    handleParticipantLeft,
-    handleVideoConferenceJoined,
-    handleAudioMuteStatusChanged,
-    handleVideoMuteStatusChanged
-  ]);
+  }, [loadJitsiScript, initJitsi]);
 
   const toggleAudio = () => {
     apiRef.current?.executeCommand("toggleAudio");
@@ -215,7 +265,8 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
 
   return (
     <div className="relative w-full h-full min-h-[500px] bg-[#0a0a0f] rounded-2xl overflow-hidden">
-      {isLoading && (
+      {/* Loading State */}
+      {isLoading && !error && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f] z-10">
           <div className="relative">
             <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
@@ -226,12 +277,29 @@ const JitsiMeet = ({ roomName, onClose }: Props) => {
         </div>
       )}
 
+      {/* Error State */}
+      {error && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f] z-10">
+          <div className="w-16 h-16 rounded-full bg-red-500/20 flex items-center justify-center mb-4">
+            <AlertCircle className="w-8 h-8 text-red-400" />
+          </div>
+          <p className="text-white/80 font-medium mb-2">{error}</p>
+          <p className="text-sm text-white/40 mb-6">Intenta nuevamente</p>
+          <Button onClick={retry} variant="outline" className="border-white/20 text-white hover:bg-white/10">
+            <RefreshCw className="w-4 h-4 mr-2" />
+            Reintentar
+          </Button>
+        </div>
+      )}
+
+      {/* Jitsi Container */}
       <div 
         ref={containerRef} 
         className="w-full h-full"
         style={{ minHeight: "500px" }}
       />
 
+      {/* Custom Controls Overlay */}
       {isConnected && (
         <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10">
           <div className="flex items-center gap-2 px-3 py-2 text-white/70 text-sm font-medium">

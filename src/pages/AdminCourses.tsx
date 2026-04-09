@@ -10,10 +10,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, BookOpen, Edit, Layers, Users, CheckCircle2, Search, Upload, Image, X } from "lucide-react";
+import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const AdminCourses = () => {
@@ -21,9 +20,18 @@ const AdminCourses = () => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null);
-  const [form, setForm] = useState({ title: "", description: "", image_url: "", flyer_url: "", is_published: false });
+  const [form, setForm] = useState({ 
+    title: "", 
+    description: "", 
+    image_url: "", 
+    flyer_url: "", 
+    flyer_type: "image",
+    is_published: false 
+  });
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewType, setPreviewType] = useState<"image" | "video">("image");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: courses, isLoading } = useQuery({
@@ -59,24 +67,30 @@ const AdminCourses = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const isVideo = file.type.startsWith("video/");
+    const isImage = file.type.startsWith("image/");
+
     // Validar tipo de archivo
-    if (!file.type.startsWith("image/")) {
-      toast.error("Solo se permiten imágenes");
+    if (!isVideo && !isImage) {
+      toast.error("Solo se permiten imágenes o videos");
       return;
     }
 
-    // Validar tamaño (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("La imagen no puede superar 5MB");
+    // Validar tamaño (max 100MB para video, 10MB para imagen)
+    const maxSize = isVideo ? 100 * 1024 * 1024 : 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      toast.error(`El archivo no puede superar ${isVideo ? "100MB" : "10MB"}`);
       return;
     }
 
     setUploading(true);
+    setUploadProgress(0);
 
     try {
       // Crear preview local
       const localPreview = URL.createObjectURL(file);
       setPreviewUrl(localPreview);
+      setPreviewType(isVideo ? "video" : "image");
 
       // Generar nombre único
       const fileExt = file.name.split(".").pop();
@@ -86,7 +100,10 @@ const AdminCourses = () => {
       // Subir a Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from("course-flyers")
-        .upload(filePath, file);
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
       if (uploadError) throw uploadError;
 
@@ -95,18 +112,23 @@ const AdminCourses = () => {
         .from("course-flyers")
         .getPublicUrl(filePath);
 
-      setForm({ ...form, flyer_url: publicUrl });
-      toast.success("Flyer subido correctamente");
+      setForm({ 
+        ...form, 
+        flyer_url: publicUrl,
+        flyer_type: isVideo ? "video" : "image"
+      });
+      toast.success(`${isVideo ? "Video" : "Imagen"} subido correctamente`);
     } catch (error: any) {
-      toast.error("Error al subir imagen: " + error.message);
+      toast.error("Error al subir archivo: " + error.message);
       setPreviewUrl(null);
     } finally {
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
   const removeFlyer = () => {
-    setForm({ ...form, flyer_url: "" });
+    setForm({ ...form, flyer_url: "", flyer_type: "image" });
     setPreviewUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -120,6 +142,7 @@ const AdminCourses = () => {
         description: form.description,
         image_url: form.image_url,
         flyer_url: form.flyer_url,
+        flyer_type: form.flyer_type,
         is_published: form.is_published,
       };
 
@@ -141,22 +164,31 @@ const AdminCourses = () => {
   });
 
   const resetForm = () => {
-    setForm({ title: "", description: "", image_url: "", flyer_url: "", is_published: false });
+    setForm({ title: "", description: "", image_url: "", flyer_url: "", flyer_type: "image", is_published: false });
     setEditingCourse(null);
     setPreviewUrl(null);
+    setPreviewType("image");
   };
 
   const openEdit = (course: any) => {
     setEditingCourse(course);
+    const flyerType = course.flyer_type || (course.flyer_url?.includes(".mp4") ? "video" : "image");
     setForm({ 
       title: course.title, 
       description: course.description || "", 
       image_url: course.image_url || "", 
       flyer_url: course.flyer_url || "",
+      flyer_type: flyerType,
       is_published: course.is_published 
     });
     setPreviewUrl(course.flyer_url || null);
+    setPreviewType(flyerType as "image" | "video");
     setOpen(true);
+  };
+
+  // Helper para detectar si un flyer es video
+  const isVideoFlyer = (course: any) => {
+    return course.flyer_type === "video" || course.flyer_url?.endsWith(".mp4");
   };
 
   return (
@@ -187,17 +219,37 @@ const AdminCourses = () => {
                   <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
                 </div>
 
-                {/* Upload de Flyer */}
+                {/* Upload de Flyer (Imagen o Video) */}
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Flyer del Curso</Label>
                   
                   {previewUrl || form.flyer_url ? (
                     <div className="relative rounded-xl overflow-hidden border bg-muted/30">
-                      <img 
-                        src={previewUrl || form.flyer_url} 
-                        alt="Preview" 
-                        className="w-full h-40 object-cover"
-                      />
+                      {previewType === "video" || form.flyer_type === "video" ? (
+                        <video 
+                          src={previewUrl || form.flyer_url}
+                          className="w-full h-40 object-cover"
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                        />
+                      ) : (
+                        <img 
+                          src={previewUrl || form.flyer_url} 
+                          alt="Preview" 
+                          className="w-full h-40 object-cover"
+                        />
+                      )}
+                      <div className="absolute top-2 left-2">
+                        <Badge variant="secondary" className="bg-black/50 text-white border-none">
+                          {previewType === "video" || form.flyer_type === "video" ? (
+                            <><Film className="w-3 h-3 mr-1" /> Video</>
+                          ) : (
+                            <><ImageIcon className="w-3 h-3 mr-1" /> Imagen</>
+                          )}
+                        </Badge>
+                      </div>
                       <Button
                         type="button"
                         variant="destructive"
@@ -222,7 +274,7 @@ const AdminCourses = () => {
                         <>
                           <Upload className="w-8 h-8 text-muted-foreground mx-auto mb-2" />
                           <p className="text-sm font-medium">Click para subir flyer</p>
-                          <p className="text-xs text-muted-foreground">PNG, JPG hasta 5MB</p>
+                          <p className="text-xs text-muted-foreground">PNG, JPG, MP4 hasta 100MB</p>
                         </>
                       )}
                     </div>
@@ -231,7 +283,7 @@ const AdminCourses = () => {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/mp4,video/webm"
                     onChange={handleFileUpload}
                     className="hidden"
                   />
@@ -258,19 +310,37 @@ const AdminCourses = () => {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {courses?.map((course) => {
-              const health = course.total_enrollments > 0 ? (course.active_count / course.total_enrollments) * 100 : 0;
+              const hasVideoFlyer = isVideoFlyer(course);
               
               return (
                 <Card key={course.id} className="border-none shadow-card bg-white flex flex-col overflow-hidden">
                   {/* Flyer Preview */}
                   {course.flyer_url && (
                     <div className="relative h-32 bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
-                      <img 
-                        src={course.flyer_url} 
-                        alt={course.title}
-                        className="w-full h-full object-cover"
-                      />
+                      {hasVideoFlyer ? (
+                        <video 
+                          src={course.flyer_url}
+                          className="w-full h-full object-contain bg-black"
+                          muted
+                          loop
+                          autoPlay
+                          playsInline
+                        />
+                      ) : (
+                        <img 
+                          src={course.flyer_url} 
+                          alt={course.title}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
+                      {hasVideoFlyer && (
+                        <div className="absolute top-2 left-2">
+                          <Badge variant="secondary" className="bg-black/50 text-white border-none text-[10px]">
+                            <Film className="w-3 h-3 mr-1" /> VIDEO
+                          </Badge>
+                        </div>
+                      )}
                     </div>
                   )}
                   

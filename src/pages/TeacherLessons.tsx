@@ -22,8 +22,11 @@ import {
   GripVertical,
   Eye,
   Lock,
-  Unlock
+  Unlock,
+  Play,
+  X
 } from "lucide-react";
+import JitsiMeet from "@/components/JitsiMeet";
 
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -33,6 +36,8 @@ const TeacherLessons = () => {
   
   const [open, setOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [showJitsi, setShowJitsi] = useState(false);
+  const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -154,6 +159,40 @@ const TeacherLessons = () => {
     if (!lesson.unlock_date) return true;
     return new Date(lesson.unlock_date) <= new Date();
   };
+
+  const startLiveClass = (lesson: any) => {
+    const roomName = lesson.jitsi_room_name || `lesson-${lesson.id}`;
+    setActiveRoom(roomName);
+    setShowJitsi(true);
+  };
+
+  // Si está mostrando Jitsi, renderizar fullscreen
+  if (showJitsi && activeRoom) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black">
+        <div className="absolute top-4 right-4 z-50">
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => {
+              setShowJitsi(false);
+              setActiveRoom(null);
+            }}
+            className="shadow-lg"
+          >
+            <X className="w-4 h-4 mr-2" /> Cerrar Clase
+          </Button>
+        </div>
+        <JitsiMeet 
+          roomName={activeRoom} 
+          onClose={() => {
+            setShowJitsi(false);
+            setActiveRoom(null);
+          }}
+        />
+      </div>
+    );
+  }
 
   // Si está verificando acceso
   if (checkingAccess) {
@@ -334,6 +373,13 @@ const TeacherLessons = () => {
 
                     {/* Acciones */}
                     <div className="flex items-center gap-2">
+                      <Button 
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700 text-white"
+                        onClick={() => startLiveClass(lesson)}
+                      >
+                        <Play className="w-4 h-4 mr-1" /> Iniciar Clase
+                      </Button>
                       <Link to={`/admin/courses/${courseId}/lessons?edit=${lesson.id}`}>
                         <Button variant="outline" size="sm">
                           <Eye className="w-4 h-4 mr-1" /> Constructor
