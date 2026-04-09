@@ -265,7 +265,14 @@ const LessonContent = ({ lesson, onBack, userId }: Props) => {
         <div className="pt-16">
           <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
             <CardContent className="p-0">
-              {showJitsi ? <div className="h-[650px]"><JitsiMeet roomName={lesson.jitsi_room_name} /></div> : (
+              {showJitsi ? (
+                <div className="h-[650px]">
+                  <JitsiMeet 
+                    roomName={lesson.jitsi_room_name} 
+                    onClose={() => setShowJitsi(false)}
+                  />
+                </div>
+              ) : (
                 <div className="text-center py-20 px-10">
                   <Video className="w-16 h-16 text-primary mx-auto mb-6 animate-pulse" />
                   <h3 className="text-3xl font-black mb-4 tracking-tighter">Clase en Vivo</h3>

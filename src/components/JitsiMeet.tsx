@@ -1,61 +1,293 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Video, VideoOff, Mic, MicOff, PhoneOff, Users, Maximize2 } from "lucide-react";
 
 interface Props {
   roomName: string;
+  onClose?: () => void;
 }
 
-const JitsiMeet = ({ roomName }: Props) => {
+interface JitsiAPI {
+  dispose: () => void;
+  executeCommand: (command: string, ...args: any[]) => void;
+  addEventListener: (event: string, handler: (...args: any[]) => void) => void;
+  removeEventListener: (event: string, handler: (...args: any[]) => void) => void;
+  getNumberOfParticipants: () => Promise<number>;
+  isVideoMuted: () => Promise<boolean>;
+  isAudioMuted: () => Promise<boolean>;
+}
+
+declare global {
+  interface Window {
+    JitsiMeetExternalAPI: new (domain: string, options: any) => JitsiAPI;
+  }
+}
+
+const JitsiMeet = ({ roomName, onClose }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const apiRef = useRef<JitsiAPI | null>(null);
   const { profile } = useAuth();
+  
+  const [isConnected, setIsConnected] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const [isVideoOff, setIsVideoOff] = useState(true);
+  const [participantCount, setParticipantCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const handleReadyToClose = useCallback(() => {
+    if (apiRef.current) {
+      apiRef.current.dispose();
+      apiRef.current = null;
+    }
+    setIsConnected(false);
+    onClose?.();
+  }, [onClose]);
+
+  const handleParticipantJoined = useCallback(() => {
+    if (apiRef.current) {
+      apiRef.current.getNumberOfParticipants().then(setParticipantCount);
+    }
+  }, []);
+
+  const handleParticipantLeft = useCallback(() => {
+    if (apiRef.current) {
+      apiRef.current.getNumberOfParticipants().then(setParticipantCount);
+    }
+  }, []);
+
+  const handleVideoConferenceJoined = useCallback(() => {
+    setIsConnected(true);
+    setIsLoading(false);
+    if (apiRef.current) {
+      apiRef.current.getNumberOfParticipants().then(setParticipantCount);
+    }
+  }, []);
+
+  const handleAudioMuteStatusChanged = useCallback((data: { muted: boolean }) => {
+    setIsMuted(data.muted);
+  }, []);
+
+  const handleVideoMuteStatusChanged = useCallback((data: { muted: boolean }) => {
+    setIsVideoOff(data.muted);
+  }, []);
 
   useEffect(() => {
     const domain = "meet.jit.si";
+    
     const options = {
-      roomName,
+      roomName: `capol-${roomName}`,
       parentNode: containerRef.current,
       userInfo: {
         displayName: profile?.full_name || "Participante",
+        email: "",
       },
       configOverwrite: {
         startWithAudioMuted: true,
         startWithVideoMuted: true,
         prejoinPageEnabled: false,
+        disableDeepLinking: true,
+        enableWelcomePage: false,
+        enableClosePage: false,
+        disableInviteFunctions: true,
+        hideConferenceSubject: false,
+        hideConferenceTimer: false,
+        resolution: 720,
+        constraints: {
+          video: {
+            height: { ideal: 720, max: 720, min: 180 }
+          }
+        },
+        toolbarButtons: [
+          'camera',
+          'chat',
+          'closedcaptions',
+          'desktop',
+          'fullscreen',
+          'hangup',
+          'microphone',
+          'participants-pane',
+          'raisehand',
+          'settings',
+          'tileview',
+        ],
       },
       interfaceConfigOverwrite: {
         SHOW_JITSI_WATERMARK: false,
         SHOW_WATERMARK_FOR_GUESTS: false,
-        DEFAULT_BACKGROUND: "#1a1f2e",
+        SHOW_BRAND_WATERMARK: false,
+        SHOW_POWERED_BY: false,
+        DEFAULT_BACKGROUND: "#0a0a0f",
+        TOOLBAR_ALWAYS_VISIBLE: false,
+        HIDE_INVITE_MORE_HEADER: true,
+        MOBILE_APP_PROMO: false,
+        PROVIDER_NAME: "CAPOL",
+        APP_NAME: "CAPOL Clases",
+        TOOLBAR_TIMEOUT: 4000,
+        DEFAULT_REMOTE_DISPLAY_NAME: "Participante",
       },
       width: "100%",
-      height: 500,
+      height: "100%",
     };
 
-    const loadJitsi = () => {
-      if ((window as any).JitsiMeetExternalAPI) {
-        const api = new (window as any).JitsiMeetExternalAPI(domain, options);
-        return () => api.dispose();
+    const initJitsi = () => {
+      if (window.JitsiMeetExternalAPI && containerRef.current) {
+        try {
+          const api = new window.JitsiMeetExternalAPI(domain, options);
+          apiRef.current = api;
+
+          api.addEventListener("readyToClose", handleReadyToClose);
+          api.addEventListener("participantJoined", handleParticipantJoined);
+          api.addEventListener("participantLeft", handleParticipantLeft);
+          api.addEventListener("videoConferenceJoined", handleVideoConferenceJoined);
+          api.addEventListener("audioMuteStatusChanged", handleAudioMuteStatusChanged);
+          api.addEventListener("videoMuteStatusChanged", handleVideoMuteStatusChanged);
+
+          return () => {
+            api.removeEventListener("readyToClose", handleReadyToClose);
+            api.removeEventListener("participantJoined", handleParticipantJoined);
+            api.removeEventListener("participantLeft", handleParticipantLeft);
+            api.removeEventListener("videoConferenceJoined", handleVideoConferenceJoined);
+            api.removeEventListener("audioMuteStatusChanged", handleAudioMuteStatusChanged);
+            api.removeEventListener("videoMuteStatusChanged", handleVideoMuteStatusChanged);
+            api.dispose();
+          };
+        } catch (error) {
+          console.error("Error initializing Jitsi:", error);
+          setIsLoading(false);
+        }
       }
     };
 
-    if ((window as any).JitsiMeetExternalAPI) {
-      const cleanup = loadJitsi();
+    if (window.JitsiMeetExternalAPI) {
+      const cleanup = initJitsi();
       return cleanup;
     }
 
     const script = document.createElement("script");
     script.src = "https://meet.jit.si/external_api.js";
     script.async = true;
-    script.onload = loadJitsi;
+    script.onload = initJitsi;
+    script.onerror = () => {
+      console.error("Failed to load Jitsi script");
+      setIsLoading(false);
+    };
     document.head.appendChild(script);
 
     return () => {
-      script.remove();
+      if (apiRef.current) {
+        apiRef.current.dispose();
+        apiRef.current = null;
+      }
     };
-  }, [roomName, profile?.full_name]);
+  }, [
+    roomName, 
+    profile?.full_name, 
+    handleReadyToClose,
+    handleParticipantJoined,
+    handleParticipantLeft,
+    handleVideoConferenceJoined,
+    handleAudioMuteStatusChanged,
+    handleVideoMuteStatusChanged
+  ]);
+
+  const toggleAudio = () => {
+    apiRef.current?.executeCommand("toggleAudio");
+  };
+
+  const toggleVideo = () => {
+    apiRef.current?.executeCommand("toggleVideo");
+  };
+
+  const hangUp = () => {
+    apiRef.current?.executeCommand("hangup");
+  };
+
+  const toggleFullScreen = () => {
+    if (containerRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        containerRef.current.requestFullscreen();
+      }
+    }
+  };
 
   return (
-    <div ref={containerRef} className="rounded-lg overflow-hidden" style={{ minHeight: 500 }} />
+    <div className="relative w-full h-full min-h-[500px] bg-[#0a0a0f] rounded-2xl overflow-hidden">
+      {isLoading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0a0a0f] z-10">
+          <div className="relative">
+            <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin" />
+            <Video className="absolute inset-0 m-auto w-6 h-6 text-indigo-400" />
+          </div>
+          <p className="mt-4 text-white/60 font-medium">Conectando a la clase...</p>
+          <p className="text-sm text-white/40 mt-1">Preparando audio y video</p>
+        </div>
+      )}
+
+      <div 
+        ref={containerRef} 
+        className="w-full h-full"
+        style={{ minHeight: "500px" }}
+      />
+
+      {isConnected && (
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 p-2 bg-black/60 backdrop-blur-xl rounded-2xl border border-white/10">
+          <div className="flex items-center gap-2 px-3 py-2 text-white/70 text-sm font-medium">
+            <Users className="w-4 h-4" />
+            <span>{participantCount}</span>
+          </div>
+
+          <div className="w-px h-8 bg-white/10" />
+
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={toggleAudio}
+            className={`rounded-xl h-10 w-10 ${
+              isMuted 
+                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" 
+                : "bg-white/10 text-white hover:bg-white/20"
+            }`}
+          >
+            {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+          </Button>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={toggleVideo}
+            className={`rounded-xl h-10 w-10 ${
+              isVideoOff 
+                ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" 
+                : "bg-white/10 text-white hover:bg-white/20"
+            }`}
+          >
+            {isVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+          </Button>
+
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={toggleFullScreen}
+            className="rounded-xl h-10 w-10 bg-white/10 text-white hover:bg-white/20"
+          >
+            <Maximize2 className="w-5 h-5" />
+          </Button>
+
+          <div className="w-px h-8 bg-white/10" />
+
+          <Button
+            size="icon"
+            onClick={hangUp}
+            className="rounded-xl h-10 w-10 bg-red-500 hover:bg-red-600 text-white"
+          >
+            <PhoneOff className="w-5 h-5" />
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 

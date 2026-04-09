@@ -11,6 +11,8 @@ import {
   Menu,
   X,
   Shield,
+  GraduationCap,
+  UserPlus,
 } from "lucide-react";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
@@ -18,6 +20,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const isAdmin = role === "admin";
+  const isTeacher = role === "teacher";
 
   // Definición de rutas según el rol
   const navItems = isAdmin
@@ -26,11 +29,35 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/admin/courses", label: "Cursos", icon: BookOpen },
         { to: "/admin/students", label: "Alumnos", icon: Users },
         { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
+        { to: "/admin/teachers", label: "Profesores", icon: UserPlus },
+      ]
+    : isTeacher
+    ? [
+        { to: "/teacher", label: "Mi Panel", icon: LayoutDashboard },
+        { to: "/dashboard", label: "Vista Alumno", icon: BookOpen },
       ]
     : [
         { to: "/dashboard", label: "Mis Cursos", icon: BookOpen },
         { to: "/student/subscriptions", label: "Mis Suscripciones", icon: CreditCard },
       ];
+
+  const getRoleBadge = () => {
+    if (isAdmin) {
+      return (
+        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-orange-500">
+          <Shield className="w-3 h-3" /> Admin
+        </div>
+      );
+    }
+    if (isTeacher) {
+      return (
+        <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-indigo-400">
+          <GraduationCap className="w-3 h-3" /> Profesor
+        </div>
+      );
+    }
+    return <p className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/40">Alumno</p>;
+  };
 
   return (
     <div className="min-h-screen flex bg-background font-sans">
@@ -66,7 +93,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         {/* Navegación Principal */}
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => {
-            const active = location.pathname === item.to || (item.to !== "/dashboard" && location.pathname.startsWith(item.to));
+            const active = location.pathname === item.to || (item.to !== "/dashboard" && item.to !== "/teacher" && location.pathname.startsWith(item.to));
             return (
               <Link
                 key={item.to}
@@ -88,7 +115,9 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         {/* Footer del Sidebar (Perfil y Logout) */}
         <div className="p-4 border-t border-sidebar-border/50 bg-sidebar-accent/30">
           <div className="flex items-center gap-3 px-2 py-3 mb-3 bg-white/50 rounded-xl border border-white/20">
-            <div className="w-10 h-10 rounded-full gradient-hero flex items-center justify-center text-sm font-bold text-white shadow-inner">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner ${
+              isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
+            }`}>
               {(profile?.full_name || "U")[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
@@ -96,13 +125,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
                 {profile?.full_name || "Usuario"}
               </p>
               <div className="flex items-center gap-1">
-                {isAdmin ? (
-                  <div className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-orange-500">
-                    <Shield className="w-3 h-3" /> Admin
-                  </div>
-                ) : (
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/40">Alumno</p>
-                )}
+                {getRoleBadge()}
               </div>
             </div>
           </div>
@@ -129,7 +152,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             </Button>
             <span className="font-bold text-lg tracking-tighter">CAPOL</span>
           </div>
-          <div className="w-8 h-8 rounded-full gradient-hero" />
+          <div className={`w-8 h-8 rounded-full ${isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"}`} />
         </header>
 
         {/* Contenido Dinámico */}
