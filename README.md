@@ -1,3 +1,3 @@
-# Welcome to your Lovable project
+# Plataforma CAPOL
 
-TODO: Document your project here
+
