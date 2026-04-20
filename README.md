@@ -4,7 +4,7 @@
 
 Plataforma web desarrollada para **CAPOL**, una academia de cursos online. Permite a los usuarios explorar, inscribirse y acceder a contenido educativo de forma digital.
 
-🌐 **Demo:** [capol-escuela.netlify.app](https://capol-escuela.netlify.app/)
+🌐 **Demo:** [plataforma-capol.vercel.app](https://plataforma-capol.vercel.app/)
 
 ---
 
