@@ -36,8 +36,12 @@ Capol/
 
 ## 🤝 Desarrollado por
 
-<a href="https://www.paralelo.tech">
-  <img src=".github/paralelo-logo.png" alt="Paralelo Software Studio" width="240"/>
-</a>
+Desarrollado por **Paralelo** en alianza con **Apoc Automation**
 
-**Paralelo Software Studio** — [paralelo.tech](https://www.paralelo.tech)
+<a href="https://www.paralelo.tech">
+  <img src=".github/paralelo-logo.png" alt="Paralelo Software Studio" width="200"/>
+</a>
+&nbsp;&nbsp;&nbsp;
+<a href="https://apocautomation.site">
+  <img src=".github/apoc-logo.png" alt="Apoc Automation" width="200"/>
+</a>
