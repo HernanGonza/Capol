@@ -1,4 +1,6 @@
-# 🎓 CAPOL — Plataforma de Cursos Online
+<img src="public/logo-capol.png" alt="CAPOL" width="200"/>
+
+# CAPOL — Plataforma de Cursos Online
 
 Plataforma web desarrollada para **CAPOL**, una academia de cursos online. Permite a los usuarios explorar, inscribirse y acceder a contenido educativo de forma digital.
 
