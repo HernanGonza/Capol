@@ -1,0 +1,13 @@
+<svg width="680" height="160" viewBox="0 0 680 160" role="img" xmlns="http://www.w3.org/2000/svg">
+  <title>Paralelo Software Studio logo</title>
+  <defs>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&display=swap');
+      .logo-text { font-family: 'Space Grotesk', sans-serif; font-weight: 700; font-size: 80px; }
+    </style>
+  </defs>
+  <rect width="680" height="160" fill="#0f1923" rx="12"/>
+  <text class="logo-text" text-anchor="middle" x="340" y="108">
+    <tspan fill="#ffffff">para</tspan><tspan fill="#29b6f6">l</tspan><tspan fill="#ffffff">e</tspan><tspan fill="#29b6f6">l</tspan><tspan fill="#ffffff">o</tspan>
+  </text>
+</svg>
