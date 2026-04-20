@@ -35,7 +35,7 @@ Capol/
 ## 🤝 Desarrollado por
 
 <a href="https://www.paralelo.tech">
-  <img src=".github/paralelo-logo.svg" alt="Paralelo Software Studio" width="240"/>
+  <img src=".github/paralelo-logo.png" alt="Paralelo Software Studio" width="240"/>
 </a>
 
 **Paralelo Software Studio** — [paralelo.tech](https://www.paralelo.tech)
