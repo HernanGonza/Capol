@@ -166,7 +166,7 @@ const Landing = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/5 font-semibold text-lg px-8 h-14 rounded-2xl"
+                  className="border-white/20 text-black hover:bg-white/5 font-semibold text-lg px-8 h-14 rounded-2xl"
                 >
                   Ver Cursos
                   <ArrowRight className="w-5 h-5 ml-2" />
