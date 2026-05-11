@@ -137,11 +137,11 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
               <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0 ${
                 isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
               }`}>
-                {(profile?.full_name || "U")[0].toUpperCase()}
+                {(profile?.nombre_completo || "U")[0].toUpperCase()}
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate text-sidebar-foreground">
-                  {profile?.full_name || "Usuario"}
+                  {profile?.nombre_completo || "Usuario"}
                 </p>
                 <div className="flex items-center gap-1">
                   {getRoleBadge()}
@@ -153,8 +153,8 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
           {collapsed && (
             <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner ${
               isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
-            }`} title={profile?.full_name || "Usuario"}>
-              {(profile?.full_name || "U")[0].toUpperCase()}
+            }`} title={profile?.nombre_completo || "Usuario"}>
+              {(profile?.nombre_completo || "U")[0].toUpperCase()}
             </div>
           )}
           

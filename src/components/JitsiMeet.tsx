@@ -29,7 +29,7 @@ const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose }: Props) => {
   const [useEmbed, setUseEmbed] = useState(false);
 
   const fullRoomName = generateRoomName(roomName, courseTitle, lessonTitle);
-  const userName = profile?.full_name || "Participante";
+  const userName = profile?.nombre_completo || "Participante";
   
   // URL para abrir en nueva pestaña
   const jitsiUrl = `https://meet.jit.si/${fullRoomName}#userInfo.displayName="${encodeURIComponent(userName)}"&config.startWithAudioMuted=true&config.startWithVideoMuted=true&config.prejoinPageEnabled=false`;

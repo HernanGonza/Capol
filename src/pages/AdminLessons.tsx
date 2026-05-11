@@ -67,13 +67,13 @@ const AdminLessons = () => {
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
 
   const { data: lessons, isLoading } = useQuery({
-    queryKey: ["lessons", courseId],
+    queryKey: ["lecciones", courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("lessons")
+        .from("lecciones")
         .select("*")
-        .eq("course_id", courseId!)
-        .order("lesson_order");
+        .eq("curso_id", courseId!)
+        .order("orden");
       if (error) throw error;
       return data;
     },
@@ -84,21 +84,21 @@ const AdminLessons = () => {
       const lessonData = {
         title: lessonTitle,
         content: JSON.stringify(blocks),
-        unlock_date: unlockDate || null,
-        course_id: courseId!,
+        fecha_desbloqueo: unlockDate || null,
+        curso_id: courseId!,
       };
 
       if (editingLessonId) {
-        const { error } = await supabase.from("lessons").update(lessonData).eq("id", editingLessonId);
+        const { error } = await supabase.from("lecciones").update(lessonData).eq("id", editingLessonId);
         if (error) throw error;
       } else {
         const order = lessons?.length || 0;
-        const { error } = await supabase.from("lessons").insert({ ...lessonData, lesson_order: order });
+        const { error } = await supabase.from("lecciones").insert({ ...lessonData, orden: order });
         if (error) throw error;
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["lessons", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] });
       toast.success("Clase guardada correctamente");
       setOpen(false);
       resetEditor();
@@ -282,13 +282,13 @@ const AdminLessons = () => {
         {/* LISTA DE CLASES CON LÓGICA DE FECHA DINÁMICA */}
         <div className="grid gap-4">
           {isLoading ? <p>Cargando lecciones...</p> : lessons?.map((lesson, idx) => {
-            const unlocked = lesson.unlock_date ? isDatePassed(lesson.unlock_date) : true;
+            const unlocked = lesson.fecha_desbloqueo ? isDatePassed(lesson.fecha_desbloqueo) : true;
 
             return (
               <Card key={lesson.id} className="group hover:border-primary/50 transition-all cursor-pointer shadow-card" onClick={() => {
                 setEditingLessonId(lesson.id);
                 setLessonTitle(lesson.title);
-                setUnlockDate(lesson.unlock_date || "");
+                setUnlockDate(lesson.fecha_desbloqueo || "");
                 try { setBlocks(JSON.parse(lesson.content || "[]")); } catch (e) { setBlocks([]); }
                 setOpen(true);
               }}>
@@ -300,14 +300,14 @@ const AdminLessons = () => {
                       <div className="flex items-center gap-3">
                         <p className="text-xs text-muted-foreground">{JSON.parse(lesson.content || "[]").length} bloque(s)</p>
                         
-                        {lesson.unlock_date && (
+                        {lesson.fecha_desbloqueo && (
                           unlocked ? (
                             <span className="flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
                               <LockOpen className="w-2.5 h-2.5" /> Clase desbloqueada
                             </span>
                           ) : (
                             <span className="flex items-center gap-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
-                              <Calendar className="w-2.5 h-2.5" /> Desbloquea: {new Date(lesson.unlock_date).toLocaleDateString()}
+                              <Calendar className="w-2.5 h-2.5" /> Desbloquea: {new Date(lesson.fecha_desbloqueo).toLocaleDateString()}
                             </span>
                           )
                         )}

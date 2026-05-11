@@ -11,7 +11,7 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   role: AppRole | null;
-  profile: Database["public"]["Tables"]["profiles"]["Row"] | null;
+  profile: Database["public"]["Tables"]["perfiles"]["Row"] | null;
   signOut: () => Promise<void>;
 }
 
@@ -31,13 +31,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<AppRole | null>(null);
-  const [profile, setProfile] = useState<Database["public"]["Tables"]["profiles"]["Row"] | null>(null);
+  const [profile, setProfile] = useState<Database["public"]["Tables"]["perfiles"]["Row"] | null>(null);
   const navigate = useNavigate();
 
   const fetchUserData = async (userId: string) => {
     const [{ data: roles }, { data: prof }] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("profiles").select("*").eq("id", userId).single(),
+      supabase.from("roles_usuario").select("role").eq("usuario_id", userId),
+      supabase.from("perfiles").select("*").eq("id", userId).single(),
     ]);
     if (roles && roles.length > 0) setRole(roles[0].role);
     if (prof) setProfile(prof);

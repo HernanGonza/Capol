@@ -15,13 +15,13 @@ const StudentSubscriptions = () => {
     queryKey: ["student-billing", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subscriptions")
+        .from("suscripciones")
         .select(`
           *,
           courses (title)
         `)
-        .eq("user_id", user!.id)
-        .order("created_at", { ascending: false });
+        .eq("usuario_id", user!.id)
+        .order("creado_en", { ascending: false });
 
       if (error) throw error;
       return data;
@@ -62,7 +62,7 @@ const StudentSubscriptions = () => {
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-4 h-4" />
-                          Próximo vencimiento: {sub.ends_at ? format(new Date(sub.ends_at), "PPP", { locale: es }) : 'N/A'}
+                          Próximo vencimiento: {sub.fin_en ? format(new Date(sub.fin_en), "PPP", { locale: es }) : 'N/A'}
                         </span>
                       </div>
                     </div>

@@ -20,10 +20,10 @@ const CourseView = () => {
     queryKey: ["check-subscription", user?.id, courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subscriptions")
-        .select("status, ends_at")
-        .eq("user_id", user!.id)
-        .eq("course_id", courseId!)
+        .from("suscripciones")
+        .select("status, fin_en")
+        .eq("usuario_id", user!.id)
+        .eq("curso_id", courseId!)
         .eq("status", "active")
         .maybeSingle();
 
@@ -38,7 +38,7 @@ const CourseView = () => {
     queryKey: ["course", courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("courses")
+        .from("cursos")
         .select("*")
         .eq("id", courseId!)
         .single();
@@ -53,10 +53,10 @@ const CourseView = () => {
     queryKey: ["course-lessons", courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("lessons")
+        .from("lecciones")
         .select("*")
-        .eq("course_id", courseId!)
-        .order("lesson_order");
+        .eq("curso_id", courseId!)
+        .order("orden");
       if (error) throw error;
       return data;
     },
@@ -69,10 +69,10 @@ const CourseView = () => {
     queryFn: async () => {
       if (!lessons || lessons.length === 0) return [];
       const { data, error } = await supabase
-        .from("lesson_progress")
+        .from("progreso_lecciones")
         .select("*")
-        .eq("user_id", user!.id)
-        .in("lesson_id", lessons.map((l) => l.id));
+        .eq("usuario_id", user!.id)
+        .in("leccion_id", lessons.map((l) => l.id));
       if (error) throw error;
       return data;
     },
@@ -80,12 +80,12 @@ const CourseView = () => {
   });
 
   const isLessonUnlocked = (lesson: any) => {
-    if (!lesson.unlock_date) return true;
-    return new Date(lesson.unlock_date) <= new Date();
+    if (!lesson.fecha_desbloqueo) return true;
+    return new Date(lesson.fecha_desbloqueo) <= new Date();
   };
 
   const isLessonCompleted = (lessonId: string) => {
-    return progress?.some((p) => p.lesson_id === lessonId && p.completed);
+    return progress?.some((p) => p.leccion_id === lessonId && p.completado);
   };
 
   const selectedLesson = lessons?.find((l) => l.id === selectedLessonId);
@@ -102,7 +102,7 @@ const CourseView = () => {
   }
 
   // Barrera de acceso
-  const isExpired = subscription?.ends_at && new Date(subscription.ends_at) < new Date();
+  const isExpired = subscription?.fin_en && new Date(subscription.fin_en) < new Date();
   
   if (!subscription || isExpired) {
     return (
@@ -162,7 +162,7 @@ const CourseView = () => {
         <div className="grid gap-4">
           {lessons?.map((lesson, index) => {
             const unlocked = isLessonUnlocked(lesson);
-            const completed = isLessonCompleted(lesson.id);
+            const completado = isLessonCompleted(lesson.id);
 
             return (
               <Card
@@ -172,20 +172,20 @@ const CourseView = () => {
                     ? "hover:shadow-md cursor-pointer border-l-4" 
                     : "opacity-60 bg-muted/30 cursor-not-allowed"
                 } ${
-                  completed ? "border-l-emerald-500 bg-emerald-50/20" : "border-l-transparent"
+                  completado ? "border-l-emerald-500 bg-emerald-50/20" : "border-l-transparent"
                 }`}
                 onClick={() => unlocked && setSelectedLessonId(lesson.id)}
               >
                 <CardContent className="p-5 flex items-center gap-4">
                   {/* Círculo de estado */}
                   <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 transition-colors ${
-                    completed
+                    completado
                       ? "bg-emerald-500 text-white"
                       : unlocked
                       ? "bg-primary/10 text-primary"
                       : "bg-muted text-muted-foreground"
                   }`}>
-                    {completed ? (
+                    {completado ? (
                       <CheckCircle className="w-6 h-6" />
                     ) : unlocked ? (
                       <span className="font-bold text-lg">{index + 1}</span>
@@ -199,7 +199,7 @@ const CourseView = () => {
                       <h3 className={`font-semibold text-lg truncate ${!unlocked ? "text-muted-foreground" : "text-slate-800"}`}>
                         {lesson.title}
                       </h3>
-                      {completed && (
+                      {completado && (
                         <span className="text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded-full">
                           Completada
                         </span>
@@ -207,19 +207,19 @@ const CourseView = () => {
                     </div>
                     
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mt-1">
-                      {lesson.video_url && (
+                      {lesson.url_video && (
                         <span className="flex items-center gap-1"><Video className="w-3.5 h-3.5" /> Video Clase</span>
                       )}
-                      {!unlocked && lesson.unlock_date && (
+                      {!unlocked && lesson.fecha_desbloqueo && (
                         <span className="flex items-center gap-1 text-orange-600 font-medium">
-                          <Calendar className="w-3.5 h-3.5" /> Disponible: {new Date(lesson.unlock_date).toLocaleDateString()}
+                          <Calendar className="w-3.5 h-3.5" /> Disponible: {new Date(lesson.fecha_desbloqueo).toLocaleDateString()}
                         </span>
                       )}
                     </div>
                   </div>
 
                   {unlocked && (
-                    <ChevronRight className={`w-5 h-5 transition-colors ${completed ? 'text-emerald-500' : 'text-muted-foreground group-hover:text-primary'}`} />
+                    <ChevronRight className={`w-5 h-5 transition-colors ${completado ? 'text-emerald-500' : 'text-muted-foreground group-hover:text-primary'}`} />
                   )}
                 </CardContent>
               </Card>

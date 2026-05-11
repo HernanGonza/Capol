@@ -25,15 +25,15 @@ const AdminTeachers = () => {
     queryKey: ["admin-teachers"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("user_roles")
+        .from("roles_usuario")
         .select(`
           id,
-          user_id,
+          usuario_id,
           role,
-          profiles!user_roles_user_id_fkey (
+          perfiles!user_roles_usuario_id_fkey (
             id,
-            full_name,
-            avatar_url
+            nombre_completo,
+            url_avatar
           )
         `)
         .eq("role", "teacher");
@@ -41,19 +41,19 @@ const AdminTeachers = () => {
       if (error) throw error;
 
       // Obtener cursos asignados a cada profesor
-      const teacherIds = data.map(t => t.user_id);
+      const teacherIds = data.map(t => t.usuario_id);
       const { data: assignments } = await supabase
-        .from("course_teachers")
+        .from("docentes_cursos")
         .select(`
-          teacher_id,
-          course_id,
+          docente_id,
+          curso_id,
           courses (id, title)
         `)
-        .in("teacher_id", teacherIds);
+        .in("docente_id", teacherIds);
 
       return data.map(teacher => ({
         ...teacher,
-        courses: assignments?.filter(a => a.teacher_id === teacher.user_id).map(a => a.courses) || []
+        courses: assignments?.filter(a => a.docente_id === teacher.usuario_id).map(a => a.courses) || []
       }));
     },
   });
@@ -63,7 +63,7 @@ const AdminTeachers = () => {
     queryKey: ["all-courses-for-assignment"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("courses")
+        .from("cursos")
         .select("id, title")
         .order("title");
       if (error) throw error;
@@ -78,9 +78,9 @@ const AdminTeachers = () => {
       // En producción, necesitarías un edge function para esto
       // Por ahora buscaremos en profiles
       const { data, error } = await supabase
-        .from("profiles")
-        .select("id, full_name")
-        .ilike("full_name", `%${email}%`);
+        .from("perfiles")
+        .select("id, nombre_completo")
+        .ilike("nombre_completo", `%${email}%`);
       
       if (error) throw error;
       return data;
@@ -92,23 +92,23 @@ const AdminTeachers = () => {
     mutationFn: async (userId: string) => {
       // Verificar si ya tiene un rol
       const { data: existingRole } = await supabase
-        .from("user_roles")
+        .from("roles_usuario")
         .select("*")
-        .eq("user_id", userId)
+        .eq("usuario_id", userId)
         .single();
 
       if (existingRole) {
         // Actualizar rol existente
         const { error } = await supabase
-          .from("user_roles")
+          .from("roles_usuario")
           .update({ role: "teacher" })
-          .eq("user_id", userId);
+          .eq("usuario_id", userId);
         if (error) throw error;
       } else {
         // Crear nuevo rol
         const { error } = await supabase
-          .from("user_roles")
-          .insert({ user_id: userId, role: "teacher" });
+          .from("roles_usuario")
+          .insert({ usuario_id: userId, role: "teacher" });
         if (error) throw error;
       }
     },
@@ -125,8 +125,8 @@ const AdminTeachers = () => {
   const assignCourseMutation = useMutation({
     mutationFn: async ({ teacherId, courseId }: { teacherId: string; courseId: string }) => {
       const { error } = await supabase
-        .from("course_teachers")
-        .insert({ teacher_id: teacherId, course_id: courseId });
+        .from("docentes_cursos")
+        .insert({ docente_id: teacherId, curso_id: courseId });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -148,10 +148,10 @@ const AdminTeachers = () => {
   const removeAssignmentMutation = useMutation({
     mutationFn: async ({ teacherId, courseId }: { teacherId: string; courseId: string }) => {
       const { error } = await supabase
-        .from("course_teachers")
+        .from("docentes_cursos")
         .delete()
-        .eq("teacher_id", teacherId)
-        .eq("course_id", courseId);
+        .eq("docente_id", teacherId)
+        .eq("curso_id", courseId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -168,19 +168,19 @@ const AdminTeachers = () => {
       if (!searchEmail || searchEmail.length < 2) return [];
       
       const { data, error } = await supabase
-        .from("profiles")
+        .from("perfiles")
         .select(`
           id,
-          full_name,
-          user_roles!user_roles_user_id_fkey (role)
+          nombre_completo,
+          roles_usuario!user_roles_usuario_id_fkey (role)
         `)
-        .ilike("full_name", `%${searchEmail}%`)
+        .ilike("nombre_completo", `%${searchEmail}%`)
         .limit(10);
 
       if (error) throw error;
       
       // Filtrar los que ya son profesores
-      return data.filter(p => !p.user_roles?.some((r: any) => r.role === "teacher"));
+      return data.filter(p => !p.roles_usuario?.some((r: any) => r.role === "teacher"));
     },
     enabled: searchEmail.length >= 2,
   });
@@ -227,9 +227,9 @@ const AdminTeachers = () => {
                         className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                       >
                         <div>
-                          <p className="font-semibold">{user.full_name || "Sin nombre"}</p>
+                          <p className="font-semibold">{user.nombre_completo || "Sin nombre"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {user.user_roles?.[0]?.role || "student"}
+                            {user.roles_usuario?.[0]?.role || "student"}
                           </p>
                         </div>
                         <Button 
@@ -277,11 +277,11 @@ const AdminTeachers = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                      {teacher.profiles?.full_name?.charAt(0).toUpperCase() || "P"}
+                      {teacher.profiles?.nombre_completo?.charAt(0).toUpperCase() || "P"}
                     </div>
                     <div>
                       <CardTitle className="text-lg font-bold">
-                        {teacher.profiles?.full_name || "Profesor"}
+                        {teacher.profiles?.nombre_completo || "Profesor"}
                       </CardTitle>
                       <Badge variant="secondary" className="mt-1">
                         <GraduationCap className="w-3 h-3 mr-1" />
@@ -311,7 +311,7 @@ const AdminTeachers = () => {
                               size="icon"
                               className="h-5 w-5 ml-1 hover:bg-destructive/20 hover:text-destructive"
                               onClick={() => removeAssignmentMutation.mutate({
-                                teacherId: teacher.user_id,
+                                teacherId: teacher.usuario_id,
                                 courseId: course.id
                               })}
                             >
@@ -347,7 +347,7 @@ const AdminTeachers = () => {
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <p className="text-sm text-muted-foreground">
-                Asignando curso a <strong>{selectedTeacher?.profiles?.full_name}</strong>
+                Asignando curso a <strong>{selectedTeacher?.profiles?.nombre_completo}</strong>
               </p>
               
               <div className="space-y-2">
@@ -374,7 +374,7 @@ const AdminTeachers = () => {
                 onClick={() => {
                   if (selectedTeacher && selectedCourse) {
                     assignCourseMutation.mutate({
-                      teacherId: selectedTeacher.user_id,
+                      teacherId: selectedTeacher.usuario_id,
                       courseId: selectedCourse
                     });
                   }

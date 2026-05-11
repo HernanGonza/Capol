@@ -22,9 +22,9 @@ interface Course {
   id: string;
   title: string;
   description: string | null;
-  flyer_url: string | null;
-  flyer_type: string | null;
-  image_url: string | null;
+  url_flyer: string | null;
+  tipo_flyer: string | null;
+  url_imagen: string | null;
   lessons: { count: number }[];
   enrollments: { count: number }[];
 }
@@ -38,21 +38,21 @@ const Landing = () => {
   useEffect(() => {
     const fetchCourses = async () => {
       const { data, error } = await supabase
-        .from("courses")
+        .from("cursos")
         .select(
           `
           id,
           title,
           description,
-          flyer_url,
-          flyer_type,
-          image_url,
+          url_flyer,
+          tipo_flyer,
+          url_imagen,
           lessons (count),
           enrollments (count)
         `,
         )
-        .eq("is_published", true)
-        .order("created_at", { ascending: false });
+        .eq("publicado", true)
+        .order("creado_en", { ascending: false });
 
       if (!error && data) {
         setCourses(data);
@@ -285,21 +285,21 @@ const Landing = () => {
                 >
                   {/* Flyer/Imagen/Video */}
                   <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
-                    {course.flyer_url || course.image_url ? (
-                      course.flyer_type === "video" ||
-                      course.flyer_url?.endsWith(".mp4") ? (
+                    {course.url_flyer || course.url_imagen ? (
+                      course.tipo_flyer === "video" ||
+                      course.url_flyer?.endsWith(".mp4") ? (
                         <video
-                          src={course.flyer_url || ""}
+                          src={course.url_flyer || ""}
                           className="w-full h-full object-contain bg-black cursor-pointer"
                           muted
                           loop
                           autoPlay
                           playsInline
-                          onClick={() => openVideoModal(course.flyer_url || "")}
+                          onClick={() => openVideoModal(course.url_flyer || "")}
                         />
                       ) : (
                         <img
-                          src={course.flyer_url || course.image_url || ""}
+                          src={course.url_flyer || course.url_imagen || ""}
                           alt={course.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                         />

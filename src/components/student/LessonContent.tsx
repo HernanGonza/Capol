@@ -23,7 +23,7 @@ import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import confetti from "canvas-confetti";
 
-type Lesson = Database["public"]["Tables"]["lessons"]["Row"];
+type Lesson = Database["public"]["Tables"]["lecciones"]["Row"];
 
 interface Props {
   lesson: Lesson;
@@ -41,16 +41,16 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
     queryKey: ["lesson-progress", lesson.id, userId],
     queryFn: async () => {
       const { data } = await supabase
-        .from("lesson_progress")
+        .from("progreso_lecciones")
         .select("*")
-        .eq("lesson_id", lesson.id)
-        .eq("user_id", userId)
+        .eq("leccion_id", lesson.id)
+        .eq("usuario_id", userId)
         .maybeSingle();
       return data;
     },
   });
 
-  const isCompleted = !!progress?.completed;
+  const isCompleted = !!progress?.completado;
 
   const blocks = (() => {
     try {
@@ -62,12 +62,12 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
 
   const completeMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("lesson_progress").upsert({
-        user_id: userId,
-        lesson_id: lesson.id,
-        completed: true,
-        completed_at: new Date().toISOString(),
-      }, { onConflict: "user_id,lesson_id" });
+      const { error } = await supabase.from("progreso_lecciones").upsert({
+        usuario_id: userId,
+        leccion_id: lesson.id,
+        completado: true,
+        completado_en: new Date().toISOString(),
+      }, { onConflict: "usuario_id,leccion_id" });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -262,14 +262,14 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
       </div>
 
       {/* JITSI */}
-      {lesson.jitsi_room_name && (
+      {lesson.sala_jitsi && (
         <div className="pt-16">
           <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
             <CardContent className="p-0">
               {showJitsi ? (
                 <div className="h-[700px]">
                   <JitsiMeet 
-                    roomName={lesson.jitsi_room_name}
+                    roomName={lesson.sala_jitsi}
                     courseTitle={courseTitle}
                     lessonTitle={lesson.title}
                     onClose={() => setShowJitsi(false)}

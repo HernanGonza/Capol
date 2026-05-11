@@ -42,8 +42,8 @@ const TeacherLessons = () => {
   const [form, setForm] = useState({
     title: "",
     description: "",
-    unlock_date: "",
-    jitsi_room_name: "",
+    fecha_desbloqueo: "",
+    sala_jitsi: "",
   });
 
   // Verificar que el profesor tiene acceso a este curso
@@ -51,10 +51,10 @@ const TeacherLessons = () => {
     queryKey: ["teacher-course-access", courseId, user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("course_teachers")
+        .from("docentes_cursos")
         .select("id")
-        .eq("course_id", courseId!)
-        .eq("teacher_id", user!.id)
+        .eq("curso_id", courseId!)
+        .eq("docente_id", user!.id)
         .maybeSingle();
       
       if (error) throw error;
@@ -68,7 +68,7 @@ const TeacherLessons = () => {
     queryKey: ["course-details", courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("courses")
+        .from("cursos")
         .select("*")
         .eq("id", courseId!)
         .single();
@@ -83,10 +83,10 @@ const TeacherLessons = () => {
     queryKey: ["teacher-lessons", courseId],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("lessons")
+        .from("lecciones")
         .select("*")
-        .eq("course_id", courseId!)
-        .order("lesson_order");
+        .eq("curso_id", courseId!)
+        .order("orden");
       if (error) throw error;
       return data;
     },
@@ -97,23 +97,23 @@ const TeacherLessons = () => {
     mutationFn: async () => {
       const lessonData = {
         ...form,
-        course_id: courseId,
-        unlock_date: form.unlock_date || null,
-        jitsi_room_name: form.jitsi_room_name || `course-${courseId}-lesson-${lessons?.length || 0}`,
+        curso_id: courseId,
+        fecha_desbloqueo: form.fecha_desbloqueo || null,
+        sala_jitsi: form.sala_jitsi || `course-${courseId}-lesson-${lessons?.length || 0}`,
       };
 
       if (editingLesson) {
         const { error } = await supabase
-          .from("lessons")
+          .from("lecciones")
           .update(lessonData)
           .eq("id", editingLesson.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
-          .from("lessons")
+          .from("lecciones")
           .insert({
             ...lessonData,
-            lesson_order: lessons?.length || 0,
+            orden: lessons?.length || 0,
             content: JSON.stringify([{ id: crypto.randomUUID().slice(0, 8), type: "text", value: "" }]),
           });
         if (error) throw error;
@@ -130,7 +130,7 @@ const TeacherLessons = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (lessonId: string) => {
-      const { error } = await supabase.from("lessons").delete().eq("id", lessonId);
+      const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
       if (error) throw error;
     },
     onSuccess: () => {
@@ -141,7 +141,7 @@ const TeacherLessons = () => {
   });
 
   const resetForm = () => {
-    setForm({ title: "", description: "", unlock_date: "", jitsi_room_name: "" });
+    setForm({ title: "", description: "", fecha_desbloqueo: "", sala_jitsi: "" });
     setEditingLesson(null);
   };
 
@@ -150,19 +150,19 @@ const TeacherLessons = () => {
     setForm({
       title: lesson.title,
       description: lesson.description || "",
-      unlock_date: lesson.unlock_date ? lesson.unlock_date.slice(0, 16) : "",
-      jitsi_room_name: lesson.jitsi_room_name || "",
+      fecha_desbloqueo: lesson.fecha_desbloqueo ? lesson.fecha_desbloqueo.slice(0, 16) : "",
+      sala_jitsi: lesson.sala_jitsi || "",
     });
     setOpen(true);
   };
 
   const isLessonUnlocked = (lesson: any) => {
-    if (!lesson.unlock_date) return true;
-    return new Date(lesson.unlock_date) <= new Date();
+    if (!lesson.fecha_desbloqueo) return true;
+    return new Date(lesson.fecha_desbloqueo) <= new Date();
   };
 
   const startLiveClass = (lesson: any) => {
-    const roomName = lesson.jitsi_room_name || `lesson-${lesson.id}`;
+    const roomName = lesson.sala_jitsi || `lesson-${lesson.id}`;
     setActiveRoom(roomName);
     setActiveLesson(lesson);
     setShowJitsi(true);
@@ -287,8 +287,8 @@ const TeacherLessons = () => {
                   </Label>
                   <Input 
                     type="datetime-local" 
-                    value={form.unlock_date} 
-                    onChange={(e) => setForm({ ...form, unlock_date: e.target.value })} 
+                    value={form.fecha_desbloqueo} 
+                    onChange={(e) => setForm({ ...form, fecha_desbloqueo: e.target.value })} 
                   />
                   <p className="text-xs text-muted-foreground">
                     Si se establece, la clase estará bloqueada hasta esta fecha
@@ -359,17 +359,17 @@ const TeacherLessons = () => {
                             Bloqueada
                           </Badge>
                         )}
-                        {lesson.jitsi_room_name && (
+                        {lesson.sala_jitsi && (
                           <Badge variant="outline" className="shrink-0">
                             <Video className="w-3 h-3 mr-1" />
                             En vivo
                           </Badge>
                         )}
                       </div>
-                      {lesson.unlock_date && (
+                      {lesson.fecha_desbloqueo && (
                         <p className="text-xs text-muted-foreground flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {new Date(lesson.unlock_date).toLocaleString("es-AR", {
+                          {new Date(lesson.fecha_desbloqueo).toLocaleString("es-AR", {
                             dateStyle: "medium",
                             timeStyle: "short"
                           })}

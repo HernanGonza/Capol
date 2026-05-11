@@ -14,31 +14,31 @@ const StudentDashboard = () => {
     queryFn: async () => {
       // 1. Obtenemos las suscripciones activas y los datos del curso
       const { data: subs, error: subError } = await supabase
-        .from("subscriptions")
+        .from("suscripciones")
         .select(`
           id,
           status,
-          course_id,
+          curso_id,
           courses (
             id,
             title,
             description,
-            image_url,
+            url_imagen,
             lessons (id)
           )
         `)
-        .eq("user_id", user!.id)
+        .eq("usuario_id", user!.id)
         .eq("status", "active")
-        .or(`ends_at.gt.${new Date().toISOString()},ends_at.is.null`);
+        .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
 
       if (subError) throw subError;
 
       // 2. Obtenemos el progreso del usuario para estos cursos
       const { data: progress, error: progError } = await supabase
-        .from("lesson_progress")
-        .select("lesson_id, completed")
-        .eq("user_id", user!.id)
-        .eq("completed", true);
+        .from("progreso_lecciones")
+        .select("leccion_id, completado")
+        .eq("usuario_id", user!.id)
+        .eq("completado", true);
 
       if (progError) throw progError;
 
@@ -49,7 +49,7 @@ const StudentDashboard = () => {
         
         // Contamos cuántas lecciones de ESTE curso están en el array de progreso completado
         const completedCount = course.lessons?.filter((lesson: any) => 
-          progress?.some((p: any) => p.lesson_id === lesson.id)
+          progress?.some((p: any) => p.leccion_id === lesson.id)
         ).length || 0;
 
         const percent = totalLessons > 0 ? Math.round((completedCount / totalLessons) * 100) : 0;
@@ -94,9 +94,9 @@ const StudentDashboard = () => {
             <Link key={item.id} to={`/course/${item.course.id}`}>
               <Card className="overflow-hidden border-none shadow-card hover:shadow-elevated transition-all duration-300 group bg-white">
                 <div className="h-44 relative overflow-hidden">
-                  {item.course.image_url ? (
+                  {item.course.url_imagen ? (
                     <img 
-                      src={item.course.image_url} 
+                      src={item.course.url_imagen} 
                       alt={item.course.title} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     />

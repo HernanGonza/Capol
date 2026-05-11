@@ -25,9 +25,9 @@ const AdminStudents = () => {
   const { data: students } = useQuery({
     queryKey: ["all-students"],
     queryFn: async () => {
-      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "student");
+      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("role", "student");
       if (!roles?.length) return [];
-      const { data: profiles } = await supabase.from("profiles").select("*").in("id", roles.map((r) => r.user_id));
+      const { data: profiles } = await supabase.from("perfiles").select("*").in("id", roles.map((r) => r.usuario_id));
       return profiles || [];
     },
   });
@@ -35,7 +35,7 @@ const AdminStudents = () => {
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("courses").select("id, title").order("title");
+      const { data } = await supabase.from("cursos").select("id, title").order("title");
       return data || [];
     },
   });
@@ -43,11 +43,11 @@ const AdminStudents = () => {
   const { data: enrollments } = useQuery({
     queryKey: ["all-enrollments-with-subs"],
     queryFn: async () => {
-      const { data: enr } = await supabase.from("enrollments").select("*, courses(title), profiles:user_id(full_name)");
-      const { data: subs } = await supabase.from("subscriptions").select("*");
+      const { data: enr } = await supabase.from("inscripciones").select("*, courses(title), profiles:usuario_id(nombre_completo)");
+      const { data: subs } = await supabase.from("suscripciones").select("*");
       return enr?.map(e => ({
         ...e,
-        subscription: subs?.find(s => s.user_id === e.user_id && s.course_id === e.course_id)
+        subscription: subs?.find(s => s.usuario_id === e.usuario_id && s.curso_id === e.curso_id)
       })) || [];
     },
   });
@@ -58,7 +58,7 @@ const AdminStudents = () => {
     
     return enrollments
       .filter((e: any) => {
-        const matchesSearch = (e.profiles?.full_name || "").toLowerCase().includes(search.toLowerCase()) ||
+        const matchesSearch = (e.profiles?.nombre_completo || "").toLowerCase().includes(search.toLowerCase()) ||
                             (e.courses?.title || "").toLowerCase().includes(search.toLowerCase());
         
         const subStatus = e.subscription?.status || "none";
@@ -66,12 +66,12 @@ const AdminStudents = () => {
         
         return matchesSearch && matchesStatus;
       })
-      .sort((a: any, b: any) => (a.profiles?.full_name || "").localeCompare(b.profiles?.full_name || ""));
+      .sort((a: any, b: any) => (a.profiles?.nombre_completo || "").localeCompare(b.profiles?.nombre_completo || ""));
   }, [enrollments, search, statusFilter]);
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("enrollments").insert({ user_id: selectedStudent, course_id: selectedCourse });
+      const { error } = await supabase.from("inscripciones").insert({ usuario_id: selectedStudent, curso_id: selectedCourse });
       if (error) throw error;
     },
     onSuccess: () => {
@@ -83,7 +83,7 @@ const AdminStudents = () => {
 
   const unenrollMutation = useMutation({
     mutationFn: async (id: string) => {
-      await supabase.from("enrollments").delete().eq("id", id);
+      await supabase.from("inscripciones").delete().eq("id", id);
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] }),
   });
@@ -105,7 +105,7 @@ const AdminStudents = () => {
               <div className="space-y-4 pt-4">
                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>
-                  <SelectContent>{students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.full_name}</SelectItem>)}</SelectContent>
+                  <SelectContent>{students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo}</SelectItem>)}</SelectContent>
                 </Select>
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
@@ -159,10 +159,10 @@ const AdminStudents = () => {
                 <div key={e.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 hover:bg-muted/10 gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {(e.profiles?.full_name || "?")[0].toUpperCase()}
+                      {(e.profiles?.nombre_completo || "?")[0].toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-bold">{e.profiles?.full_name}</p>
+                      <p className="font-bold">{e.profiles?.nombre_completo}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> {e.courses?.title}</p>
                     </div>
                   </div>

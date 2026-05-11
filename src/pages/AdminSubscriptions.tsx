@@ -23,14 +23,14 @@ const AdminSubscriptions = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   
   const [form, setForm] = useState({ 
-    user_id: "", 
-    course_id: "", 
-    plan_name: "Mensual", 
+    usuario_id: "", 
+    curso_id: "", 
+    nombre_plan: "Mensual", 
     price: "", 
     status: "active",
-    starts_at: format(new Date(), "yyyy-MM-dd"),
-    next_payment_date: "",
-    ends_at: ""
+    inicio_en: format(new Date(), "yyyy-MM-dd"),
+    proxima_fecha_pago: "",
+    fin_en: ""
   });
 
   // --- LÓGICA DE AUTO-EXPIRACIÓN ---
@@ -38,14 +38,14 @@ const AdminSubscriptions = () => {
     const now = new Date();
     const toExpire = subs.filter(sub => 
       sub.status === 'active' && 
-      sub.ends_at && 
-      isBefore(parseISO(sub.ends_at), now)
+      sub.fin_en && 
+      isBefore(parseISO(sub.fin_en), now)
     );
 
     if (toExpire.length > 0) {
       const ids = toExpire.map(s => s.id);
       const { error } = await supabase
-        .from("subscriptions")
+        .from("suscripciones")
         .update({ status: 'expired' })
         .in("id", ids);
       
@@ -59,9 +59,9 @@ const AdminSubscriptions = () => {
   const { data: students } = useQuery({
     queryKey: ["all-students"],
     queryFn: async () => {
-      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "student");
+      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("role", "student");
       if (!roles?.length) return [];
-      const { data: profiles } = await supabase.from("profiles").select("*").in("id", roles.map((r) => r.user_id));
+      const { data: profiles } = await supabase.from("perfiles").select("*").in("id", roles.map((r) => r.usuario_id));
       return profiles || [];
     },
   });
@@ -69,7 +69,7 @@ const AdminSubscriptions = () => {
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("courses").select("id, title").order("title");
+      const { data } = await supabase.from("cursos").select("id, title").order("title");
       return data || [];
     },
   });
@@ -78,9 +78,9 @@ const AdminSubscriptions = () => {
     queryKey: ["all-subscriptions"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("subscriptions")
-        .select("*, profiles:user_id(full_name), courses:course_id(title)")
-        .order("created_at", { ascending: false });
+        .from("suscripciones")
+        .select("*, profiles:usuario_id(nombre_completo), courses:curso_id(title)")
+        .order("creado_en", { ascending: false });
       
       if (error) throw error;
       if (data) checkAndExpireSubscriptions(data);
@@ -93,7 +93,7 @@ const AdminSubscriptions = () => {
     if (!subscriptions) return [];
     
     return subscriptions.filter((sub: any) => {
-      const fullName = (sub.profiles?.full_name || "").toLowerCase();
+      const fullName = (sub.profiles?.nombre_completo || "").toLowerCase();
       const courseTitle = (sub.courses?.title || "").toLowerCase();
       const searchTerm = search.toLowerCase();
       
@@ -107,21 +107,21 @@ const AdminSubscriptions = () => {
   const upsertMutation = useMutation({
     mutationFn: async () => {
       const payload = {
-        user_id: form.user_id,
-        course_id: form.course_id,
-        plan_name: form.plan_name,
+        usuario_id: form.usuario_id,
+        curso_id: form.curso_id,
+        nombre_plan: form.nombre_plan,
         price: parseFloat(form.price) || 0,
         status: form.status,
-        starts_at: new Date(form.starts_at).toISOString(),
-        next_payment_date: form.next_payment_date ? new Date(form.next_payment_date).toISOString() : null,
-        ends_at: form.ends_at ? new Date(form.ends_at).toISOString() : null,
+        inicio_en: new Date(form.inicio_en).toISOString(),
+        proxima_fecha_pago: form.proxima_fecha_pago ? new Date(form.proxima_fecha_pago).toISOString() : null,
+        fin_en: form.fin_en ? new Date(form.fin_en).toISOString() : null,
       };
 
       if (editingId) {
-        const { error } = await supabase.from("subscriptions").update(payload).eq("id", editingId);
+        const { error } = await supabase.from("suscripciones").update(payload).eq("id", editingId);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("subscriptions").insert(payload);
+        const { error } = await supabase.from("suscripciones").insert(payload);
         if (error) throw error;
       }
     },
@@ -139,12 +139,12 @@ const AdminSubscriptions = () => {
     const newEnds = addDays(new Date(), 30).toISOString();
 
     const { error } = await supabase
-      .from("subscriptions")
+      .from("suscripciones")
       .update({
         status: 'active',
-        starts_at: newStarts,
-        next_payment_date: newNextPayment,
-        ends_at: newEnds
+        inicio_en: newStarts,
+        proxima_fecha_pago: newNextPayment,
+        fin_en: newEnds
       })
       .eq("id", sub.id);
 
@@ -159,14 +159,14 @@ const AdminSubscriptions = () => {
   const handleEdit = (sub: any) => {
     setEditingId(sub.id);
     setForm({
-      user_id: sub.user_id,
-      course_id: sub.course_id,
-      plan_name: sub.plan_name,
+      usuario_id: sub.usuario_id,
+      curso_id: sub.curso_id,
+      nombre_plan: sub.nombre_plan,
       price: sub.price.toString(),
       status: sub.status,
-      starts_at: sub.starts_at ? format(parseISO(sub.starts_at), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
-      next_payment_date: sub.next_payment_date ? format(parseISO(sub.next_payment_date), "yyyy-MM-dd") : "",
-      ends_at: sub.ends_at ? format(parseISO(sub.ends_at), "yyyy-MM-dd") : "",
+      inicio_en: sub.inicio_en ? format(parseISO(sub.inicio_en), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
+      proxima_fecha_pago: sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "yyyy-MM-dd") : "",
+      fin_en: sub.fin_en ? format(parseISO(sub.fin_en), "yyyy-MM-dd") : "",
     });
     setOpen(true);
   };
@@ -174,7 +174,7 @@ const AdminSubscriptions = () => {
   const handleClose = () => {
     setOpen(false);
     setEditingId(null);
-    setForm({ user_id: "", course_id: "", plan_name: "Mensual", price: "", status: "active", starts_at: format(new Date(), "yyyy-MM-dd"), next_payment_date: "", ends_at: "" });
+    setForm({ usuario_id: "", curso_id: "", nombre_plan: "Mensual", price: "", status: "active", inicio_en: format(new Date(), "yyyy-MM-dd"), proxima_fecha_pago: "", fin_en: "" });
   };
 
   const statusColor: Record<string, string> = {
@@ -203,16 +203,16 @@ const AdminSubscriptions = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2 col-span-2">
                     <Label>Alumno</Label>
-                    <Select value={form.user_id} onValueChange={(v) => setForm({ ...form, user_id: v })} disabled={!!editingId}>
+                    <Select value={form.usuario_id} onValueChange={(v) => setForm({ ...form, usuario_id: v })} disabled={!!editingId}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>
                       <SelectContent>
-                        {students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.full_name || s.id}</SelectItem>)}
+                        {students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo || s.id}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2 col-span-2">
                     <Label>Curso</Label>
-                    <Select value={form.course_id} onValueChange={(v) => setForm({ ...form, course_id: v })} disabled={!!editingId}>
+                    <Select value={form.curso_id} onValueChange={(v) => setForm({ ...form, curso_id: v })} disabled={!!editingId}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
                       <SelectContent>
                         {courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
@@ -221,15 +221,15 @@ const AdminSubscriptions = () => {
                   </div>
                   <div className="space-y-2">
                     <Label>Fecha Inicio</Label>
-                    <Input type="date" value={form.starts_at} onChange={(e) => setForm({ ...form, starts_at: e.target.value })} />
+                    <Input type="date" value={form.inicio_en} onChange={(e) => setForm({ ...form, inicio_en: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Vence Acceso</Label>
-                    <Input type="date" value={form.ends_at} onChange={(e) => setForm({ ...form, ends_at: e.target.value })} />
+                    <Input type="date" value={form.fin_en} onChange={(e) => setForm({ ...form, fin_en: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Próx. Cobro</Label>
-                    <Input type="date" value={form.next_payment_date} onChange={(e) => setForm({ ...form, next_payment_date: e.target.value })} />
+                    <Input type="date" value={form.proxima_fecha_pago} onChange={(e) => setForm({ ...form, proxima_fecha_pago: e.target.value })} />
                   </div>
                   <div className="space-y-2">
                     <Label>Monto ($)</Label>
@@ -286,15 +286,15 @@ const AdminSubscriptions = () => {
 
         <div className="grid gap-4">
           {filteredSubs.map((sub: any) => {
-            const isNearExp = sub.ends_at && sub.status === 'active' && 
-                             isBefore(parseISO(sub.ends_at), addDays(new Date(), 3));
+            const isNearExp = sub.fin_en && sub.status === 'active' && 
+                             isBefore(parseISO(sub.fin_en), addDays(new Date(), 3));
 
             return (
               <Card key={sub.id} className={`overflow-hidden transition-all shadow-card ${isNearExp ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
                 <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-1">
-                      <h3 className="font-bold text-lg">{(sub.profiles as any)?.full_name}</h3>
+                      <h3 className="font-bold text-lg">{(sub.profiles as any)?.nombre_completo}</h3>
                       <Badge variant="outline" className={statusColor[sub.status]}>
                         {sub.status === 'active' ? 'AL DÍA' : sub.status.toUpperCase()}
                       </Badge>
@@ -313,18 +313,18 @@ const AdminSubscriptions = () => {
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-sm border-l border-r px-6 border-muted">
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Inicio</span>
-                      <span className="font-medium">{sub.starts_at ? format(parseISO(sub.starts_at), "dd/MM/yyyy") : "-"}</span>
+                      <span className="font-medium">{sub.inicio_en ? format(parseISO(sub.inicio_en), "dd/MM/yyyy") : "-"}</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Próx. Cobro</span>
                       <span className="text-blue-600 font-bold">
-                        {sub.next_payment_date ? format(parseISO(sub.next_payment_date), "dd/MM/yyyy") : "-"}
+                        {sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "dd/MM/yyyy") : "-"}
                       </span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vencimiento</span>
                       <span className={sub.status === 'expired' ? 'text-destructive font-bold' : 'font-bold'}>
-                        {sub.ends_at ? format(parseISO(sub.ends_at), "dd/MM/yyyy") : "-"}
+                        {sub.fin_en ? format(parseISO(sub.fin_en), "dd/MM/yyyy") : "-"}
                       </span>
                     </div>
                   </div>

@@ -23,10 +23,10 @@ const AdminCourses = () => {
   const [form, setForm] = useState({ 
     title: "", 
     description: "", 
-    image_url: "", 
-    flyer_url: "", 
-    flyer_type: "image",
-    is_published: false 
+    url_imagen: "", 
+    url_flyer: "", 
+    tipo_flyer: "image",
+    publicado: false 
   });
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -38,25 +38,25 @@ const AdminCourses = () => {
     queryKey: ["admin-courses-full-list"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("courses")
+        .from("cursos")
         .select(`
           *,
           enrollments (count),
           subscriptions (count),
           lessons (count)
         `)
-        .order("created_at", { ascending: false });
+        .order("creado_en", { ascending: false });
 
       if (error) throw error;
       
       const { data: activeSubs } = await supabase
-        .from("subscriptions")
-        .select("course_id")
+        .from("suscripciones")
+        .select("curso_id")
         .eq('status', 'active');
 
       return data.map(course => ({
         ...course,
-        active_count: activeSubs?.filter(s => s.course_id === course.id).length || 0,
+        active_count: activeSubs?.filter(s => s.curso_id === course.id).length || 0,
         total_enrollments: course.enrollments[0]?.count || 0,
         total_lessons: course.lessons[0]?.count || 0
       }));
@@ -114,8 +114,8 @@ const AdminCourses = () => {
 
       setForm({ 
         ...form, 
-        flyer_url: publicUrl,
-        flyer_type: isVideo ? "video" : "image"
+        url_flyer: publicUrl,
+        tipo_flyer: isVideo ? "video" : "image"
       });
       toast.success(`${isVideo ? "Video" : "Imagen"} subido correctamente`);
     } catch (error: any) {
@@ -128,7 +128,7 @@ const AdminCourses = () => {
   };
 
   const removeFlyer = () => {
-    setForm({ ...form, flyer_url: "", flyer_type: "image" });
+    setForm({ ...form, url_flyer: "", tipo_flyer: "image" });
     setPreviewUrl(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -140,17 +140,17 @@ const AdminCourses = () => {
       const courseData = {
         title: form.title,
         description: form.description,
-        image_url: form.image_url,
-        flyer_url: form.flyer_url,
-        flyer_type: form.flyer_type,
-        is_published: form.is_published,
+        url_imagen: form.url_imagen,
+        url_flyer: form.url_flyer,
+        tipo_flyer: form.tipo_flyer,
+        publicado: form.publicado,
       };
 
       if (editingCourse) {
-        const { error } = await supabase.from("courses").update(courseData).eq("id", editingCourse.id);
+        const { error } = await supabase.from("cursos").update(courseData).eq("id", editingCourse.id);
         if (error) throw error;
       } else {
-        const { error } = await supabase.from("courses").insert({ ...courseData, created_by: user!.id });
+        const { error } = await supabase.from("cursos").insert({ ...courseData, creado_por: user!.id });
         if (error) throw error;
       }
     },
@@ -164,7 +164,7 @@ const AdminCourses = () => {
   });
 
   const resetForm = () => {
-    setForm({ title: "", description: "", image_url: "", flyer_url: "", flyer_type: "image", is_published: false });
+    setForm({ title: "", description: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false });
     setEditingCourse(null);
     setPreviewUrl(null);
     setPreviewType("image");
@@ -172,23 +172,23 @@ const AdminCourses = () => {
 
   const openEdit = (course: any) => {
     setEditingCourse(course);
-    const flyerType = course.flyer_type || (course.flyer_url?.includes(".mp4") ? "video" : "image");
+    const flyerType = course.tipo_flyer || (course.url_flyer?.includes(".mp4") ? "video" : "image");
     setForm({ 
       title: course.title, 
       description: course.description || "", 
-      image_url: course.image_url || "", 
-      flyer_url: course.flyer_url || "",
-      flyer_type: flyerType,
-      is_published: course.is_published 
+      url_imagen: course.url_imagen || "", 
+      url_flyer: course.url_flyer || "",
+      tipo_flyer: flyerType,
+      publicado: course.publicado 
     });
-    setPreviewUrl(course.flyer_url || null);
+    setPreviewUrl(course.url_flyer || null);
     setPreviewType(flyerType as "image" | "video");
     setOpen(true);
   };
 
   // Helper para detectar si un flyer es video
   const isVideoFlyer = (course: any) => {
-    return course.flyer_type === "video" || course.flyer_url?.endsWith(".mp4");
+    return course.tipo_flyer === "video" || course.url_flyer?.endsWith(".mp4");
   };
 
   return (
@@ -223,11 +223,11 @@ const AdminCourses = () => {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Flyer del Curso</Label>
                   
-                  {previewUrl || form.flyer_url ? (
+                  {previewUrl || form.url_flyer ? (
                     <div className="relative rounded-xl overflow-hidden border bg-muted/30">
-                      {previewType === "video" || form.flyer_type === "video" ? (
+                      {previewType === "video" || form.tipo_flyer === "video" ? (
                         <video 
-                          src={previewUrl || form.flyer_url}
+                          src={previewUrl || form.url_flyer}
                           className="w-full h-40 object-cover"
                           muted
                           loop
@@ -236,14 +236,14 @@ const AdminCourses = () => {
                         />
                       ) : (
                         <img 
-                          src={previewUrl || form.flyer_url} 
+                          src={previewUrl || form.url_flyer} 
                           alt="Preview" 
                           className="w-full h-40 object-cover"
                         />
                       )}
                       <div className="absolute top-2 left-2">
                         <Badge variant="secondary" className="bg-black/50 text-white border-none">
-                          {previewType === "video" || form.flyer_type === "video" ? (
+                          {previewType === "video" || form.tipo_flyer === "video" ? (
                             <><Film className="w-3 h-3 mr-1" /> Video</>
                           ) : (
                             <><ImageIcon className="w-3 h-3 mr-1" /> Imagen</>
@@ -291,7 +291,7 @@ const AdminCourses = () => {
 
                 <div className="flex items-center justify-between p-4 bg-muted/50 rounded-xl border">
                   <div className="flex items-center gap-3">
-                    <Switch checked={form.is_published} onCheckedChange={(c) => setForm({ ...form, is_published: c })} />
+                    <Switch checked={form.publicado} onCheckedChange={(c) => setForm({ ...form, publicado: c })} />
                     <Label className="font-semibold cursor-pointer">Publicado</Label>
                   </div>
                 </div>
@@ -315,11 +315,11 @@ const AdminCourses = () => {
               return (
                 <Card key={course.id} className="border-none shadow-card bg-white flex flex-col overflow-hidden">
                   {/* Flyer Preview */}
-                  {course.flyer_url && (
+                  {course.url_flyer && (
                     <div className="relative h-32 bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
                       {hasVideoFlyer ? (
                         <video 
-                          src={course.flyer_url}
+                          src={course.url_flyer}
                           className="w-full h-full object-contain bg-black"
                           muted
                           loop
@@ -328,7 +328,7 @@ const AdminCourses = () => {
                         />
                       ) : (
                         <img 
-                          src={course.flyer_url} 
+                          src={course.url_flyer} 
                           alt={course.title}
                           className="w-full h-full object-cover"
                         />
@@ -344,14 +344,14 @@ const AdminCourses = () => {
                     </div>
                   )}
                   
-                  <CardHeader className={`pb-3 flex-row items-start justify-between space-y-0 ${!course.flyer_url ? '' : '-mt-8 relative z-10'}`}>
+                  <CardHeader className={`pb-3 flex-row items-start justify-between space-y-0 ${!course.url_flyer ? '' : '-mt-8 relative z-10'}`}>
                     <div className="space-y-1">
-                      <Badge variant={course.is_published ? "default" : "secondary"} className={course.is_published ? "bg-success/10 text-success border-none" : ""}>
-                        {course.is_published ? "Activo" : "Borrador"}
+                      <Badge variant={course.publicado ? "default" : "secondary"} className={course.publicado ? "bg-success/10 text-success border-none" : ""}>
+                        {course.publicado ? "Activo" : "Borrador"}
                       </Badge>
                       <CardTitle className="text-xl font-bold line-clamp-1">{course.title}</CardTitle>
                     </div>
-                    {!course.flyer_url && (
+                    {!course.url_flyer && (
                       <div className="p-2 bg-primary/5 rounded-lg text-primary">
                         <BookOpen className="w-5 h-5" />
                       </div>

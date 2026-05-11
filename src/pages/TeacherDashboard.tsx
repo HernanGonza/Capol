@@ -16,20 +16,20 @@ const TeacherDashboard = () => {
     queryKey: ["teacher-courses", user?.id],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("course_teachers")
+        .from("docentes_cursos")
         .select(`
-          course_id,
+          curso_id,
           courses (
             id,
             title,
             description,
-            is_published,
-            flyer_url,
+            publicado,
+            url_flyer,
             lessons (count),
             enrollments (count)
           )
         `)
-        .eq("teacher_id", user!.id);
+        .eq("docente_id", user!.id);
 
       if (error) throw error;
       return data.map(ct => ct.courses);
@@ -37,7 +37,7 @@ const TeacherDashboard = () => {
     enabled: !!user,
   });
 
-  // Obtener próximas clases (lecciones con unlock_date próximo)
+  // Obtener próximas clases (lecciones con fecha_desbloqueo próximo)
   const { data: upcomingLessons } = useQuery({
     queryKey: ["teacher-upcoming-lessons", user?.id],
     queryFn: async () => {
@@ -47,18 +47,18 @@ const TeacherDashboard = () => {
       if (courseIds.length === 0) return [];
 
       const { data, error } = await supabase
-        .from("lessons")
+        .from("lecciones")
         .select(`
           id,
           title,
-          unlock_date,
-          jitsi_room_name,
-          course_id,
+          fecha_desbloqueo,
+          sala_jitsi,
+          curso_id,
           courses (title)
         `)
-        .in("course_id", courseIds)
-        .gte("unlock_date", new Date().toISOString())
-        .order("unlock_date", { ascending: true })
+        .in("curso_id", courseIds)
+        .gte("fecha_desbloqueo", new Date().toISOString())
+        .order("fecha_desbloqueo", { ascending: true })
         .limit(5);
 
       if (error) throw error;
@@ -73,7 +73,7 @@ const TeacherDashboard = () => {
         {/* Header */}
         <div className="space-y-2">
           <h1 className="text-3xl font-bold tracking-tight">
-            Hola, {profile?.full_name?.split(" ")[0] || "Profesor"} 👋
+            Hola, {profile?.nombre_completo?.split(" ")[0] || "Profesor"} 👋
           </h1>
           <p className="text-muted-foreground text-lg">
             Panel de gestión de tus cursos y clases
@@ -169,14 +169,14 @@ const TeacherDashboard = () => {
                   </div>
                   <div className="text-right">
                     <p className="font-medium text-primary">
-                      {new Date(lesson.unlock_date!).toLocaleDateString("es-AR", {
+                      {new Date(lesson.fecha_desbloqueo!).toLocaleDateString("es-AR", {
                         weekday: "short",
                         day: "numeric",
                         month: "short"
                       })}
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {new Date(lesson.unlock_date!).toLocaleTimeString("es-AR", {
+                      {new Date(lesson.fecha_desbloqueo!).toLocaleTimeString("es-AR", {
                         hour: "2-digit",
                         minute: "2-digit"
                       })}
@@ -217,10 +217,10 @@ const TeacherDashboard = () => {
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <Badge 
-                        variant={course.is_published ? "default" : "secondary"}
-                        className={course.is_published ? "bg-success/10 text-success border-none" : ""}
+                        variant={course.publicado ? "default" : "secondary"}
+                        className={course.publicado ? "bg-success/10 text-success border-none" : ""}
                       >
-                        {course.is_published ? "Publicado" : "Borrador"}
+                        {course.publicado ? "Publicado" : "Borrador"}
                       </Badge>
                       <div className="p-2 bg-primary/5 rounded-lg text-primary">
                         <BookOpen className="w-5 h-5" />
