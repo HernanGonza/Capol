@@ -14,101 +14,119 @@ export type Database = {
   }
   public: {
     Tables: {
-      courses: {
+      cursos: {
         Row: {
-          creado_en: string
+          actualizado_en: string | null
+          creado_en: string | null
           creado_por: string | null
-          description: string | null
+          descripcion: string | null
           id: string
-          url_imagen: string | null
           publicado: boolean | null
-          title: string
-          actualizado_en: string
+          tipo_flyer: string | null
+          titulo: string
+          url_flyer: string | null
+          url_imagen: string | null
         }
         Insert: {
-          creado_en?: string
+          actualizado_en?: string | null
+          creado_en?: string | null
           creado_por?: string | null
-          description?: string | null
+          descripcion?: string | null
           id?: string
-          url_imagen?: string | null
           publicado?: boolean | null
-          title: string
-          actualizado_en?: string
+          tipo_flyer?: string | null
+          titulo: string
+          url_flyer?: string | null
+          url_imagen?: string | null
         }
         Update: {
-          creado_en?: string
+          actualizado_en?: string | null
+          creado_en?: string | null
           creado_por?: string | null
-          description?: string | null
+          descripcion?: string | null
           id?: string
-          url_imagen?: string | null
           publicado?: boolean | null
-          title?: string
-          actualizado_en?: string
-        }
-        Relationships: []
-      }
-      enrollments: {
-        Row: {
-          completado_en: string | null
-          curso_id: string
-          inscripto_en: string
-          id: string
-          usuario_id: string
-        }
-        Insert: {
-          completado_en?: string | null
-          curso_id: string
-          inscripto_en?: string
-          id?: string
-          usuario_id: string
-        }
-        Update: {
-          completado_en?: string | null
-          curso_id?: string
-          inscripto_en?: string
-          id?: string
-          usuario_id?: string
+          tipo_flyer?: string | null
+          titulo?: string
+          url_flyer?: string | null
+          url_imagen?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "enrollments_course_id_fkey"
+            foreignKeyName: "courses_created_by_fkey"
+            columns: ["creado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      docentes_cursos: {
+        Row: {
+          asignado_en: string | null
+          curso_id: string
+          docente_id: string
+          id: string
+        }
+        Insert: {
+          asignado_en?: string | null
+          curso_id: string
+          docente_id: string
+          id?: string
+        }
+        Update: {
+          asignado_en?: string | null
+          curso_id?: string
+          docente_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "course_teachers_course_id_fkey"
             columns: ["curso_id"]
             isOneToOne: false
             referencedRelation: "cursos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "course_teachers_teacher_id_fkey"
+            columns: ["docente_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
         ]
       }
-      exercises: {
+      ejercicios: {
         Row: {
-          content: Json
-          creado_en: string
-          description: string | null
-          orden: number
-          tipo: string
+          content: Json | null
+          creado_en: string | null
+          descripcion: string | null
           id: string
-          leccion_id: string
-          title: string
+          leccion_id: string | null
+          orden: number | null
+          tipo: string | null
+          titulo: string
         }
         Insert: {
-          content?: Json
-          creado_en?: string
-          description?: string | null
-          orden?: number
-          tipo?: string
+          content?: Json | null
+          creado_en?: string | null
+          descripcion?: string | null
           id?: string
-          leccion_id: string
-          title: string
+          leccion_id?: string | null
+          orden?: number | null
+          tipo?: string | null
+          titulo: string
         }
         Update: {
-          content?: Json
-          creado_en?: string
-          description?: string | null
-          orden?: number
-          tipo?: string
+          content?: Json | null
+          creado_en?: string | null
+          descripcion?: string | null
           id?: string
-          leccion_id?: string
-          title?: string
+          leccion_id?: string | null
+          orden?: number | null
+          tipo?: string | null
+          titulo?: string
         }
         Relationships: [
           {
@@ -120,76 +138,83 @@ export type Database = {
           },
         ]
       }
-      lesson_progress: {
+      inscripciones: {
         Row: {
-          completado: boolean | null
           completado_en: string | null
+          curso_id: string | null
           id: string
-          leccion_id: string
-          usuario_id: string
+          inscripto_en: string | null
+          usuario_id: string | null
         }
         Insert: {
-          completado?: boolean | null
           completado_en?: string | null
+          curso_id?: string | null
           id?: string
-          leccion_id: string
-          usuario_id: string
+          inscripto_en?: string | null
+          usuario_id?: string | null
         }
         Update: {
-          completado?: boolean | null
           completado_en?: string | null
+          curso_id?: string | null
           id?: string
-          leccion_id?: string
-          usuario_id?: string
+          inscripto_en?: string | null
+          usuario_id?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "lesson_progress_lesson_id_fkey"
-            columns: ["leccion_id"]
+            foreignKeyName: "enrollments_course_id_fkey"
+            columns: ["curso_id"]
             isOneToOne: false
-            referencedRelation: "lecciones"
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "enrollments_user_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
       }
-      lessons: {
+      lecciones: {
         Row: {
+          actualizado_en: string | null
           content: string | null
-          curso_id: string
-          creado_en: string
-          description: string | null
-          id: string
-          sala_jitsi: string | null
-          orden: number
-          title: string
+          creado_en: string | null
+          curso_id: string | null
+          descripcion: string | null
           fecha_desbloqueo: string | null
-          actualizado_en: string
+          id: string
+          orden: number | null
+          sala_jitsi: string | null
+          titulo: string
           url_video: string | null
         }
         Insert: {
+          actualizado_en?: string | null
           content?: string | null
-          curso_id: string
-          creado_en?: string
-          description?: string | null
-          id?: string
-          sala_jitsi?: string | null
-          orden?: number
-          title: string
+          creado_en?: string | null
+          curso_id?: string | null
+          descripcion?: string | null
           fecha_desbloqueo?: string | null
-          actualizado_en?: string
+          id?: string
+          orden?: number | null
+          sala_jitsi?: string | null
+          titulo: string
           url_video?: string | null
         }
         Update: {
+          actualizado_en?: string | null
           content?: string | null
-          curso_id?: string
-          creado_en?: string
-          description?: string | null
-          id?: string
-          sala_jitsi?: string | null
-          orden?: number
-          title?: string
+          creado_en?: string | null
+          curso_id?: string | null
+          descripcion?: string | null
           fecha_desbloqueo?: string | null
-          actualizado_en?: string
+          id?: string
+          orden?: number | null
+          sala_jitsi?: string | null
+          titulo?: string
           url_video?: string | null
         }
         Relationships: [
@@ -202,95 +227,163 @@ export type Database = {
           },
         ]
       }
-      profiles: {
+      perfiles: {
         Row: {
-          url_avatar: string | null
+          actualizado_en: string | null
           biografia: string | null
-          creado_en: string
-          nombre_completo: string | null
+          creado_en: string | null
           id: string
+          nombre_completo: string | null
           telefono: string | null
-          actualizado_en: string
+          url_avatar: string | null
         }
         Insert: {
-          url_avatar?: string | null
+          actualizado_en?: string | null
           biografia?: string | null
-          creado_en?: string
-          nombre_completo?: string | null
+          creado_en?: string | null
           id: string
+          nombre_completo?: string | null
           telefono?: string | null
-          actualizado_en?: string
+          url_avatar?: string | null
         }
         Update: {
-          url_avatar?: string | null
+          actualizado_en?: string | null
           biografia?: string | null
-          creado_en?: string
-          nombre_completo?: string | null
+          creado_en?: string | null
           id?: string
+          nombre_completo?: string | null
           telefono?: string | null
-          actualizado_en?: string
+          url_avatar?: string | null
         }
         Relationships: []
       }
-      subscriptions: {
+      progreso_lecciones: {
         Row: {
-          creado_en: string
-          currency: string | null
+          completado: boolean | null
+          completado_en: string | null
+          id: string
+          leccion_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          completado?: boolean | null
+          completado_en?: string | null
+          id?: string
+          leccion_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          completado?: boolean | null
+          completado_en?: string | null
+          id?: string
+          leccion_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_progress_lesson_id_fkey"
+            columns: ["leccion_id"]
+            isOneToOne: false
+            referencedRelation: "lecciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_progress_user_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      roles_usuario: {
+        Row: {
+          id: string
+          rol: Database["public"]["Enums"]["app_role"]
+          usuario_id: string
+        }
+        Insert: {
+          id?: string
+          rol?: Database["public"]["Enums"]["app_role"]
+          usuario_id: string
+        }
+        Update: {
+          id?: string
+          rol?: Database["public"]["Enums"]["app_role"]
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      suscripciones: {
+        Row: {
+          creado_en: string | null
+          curso_id: string | null
+          estado: string | null
           fin_en: string | null
           id: string
           id_pago: string | null
-          proveedor_pago: string | null
-          nombre_plan: string
+          inicio_en: string | null
+          moneda: string | null
+          nombre_plan: string | null
           price: number | null
-          inicio_en: string
-          status: string
-          usuario_id: string
+          proveedor_pago: string | null
+          proxima_fecha_pago: string | null
+          usuario_id: string | null
         }
         Insert: {
-          creado_en?: string
-          currency?: string | null
+          creado_en?: string | null
+          curso_id?: string | null
+          estado?: string | null
           fin_en?: string | null
           id?: string
           id_pago?: string | null
-          proveedor_pago?: string | null
-          nombre_plan: string
+          inicio_en?: string | null
+          moneda?: string | null
+          nombre_plan?: string | null
           price?: number | null
-          inicio_en?: string
-          status?: string
-          usuario_id: string
+          proveedor_pago?: string | null
+          proxima_fecha_pago?: string | null
+          usuario_id?: string | null
         }
         Update: {
-          creado_en?: string
-          currency?: string | null
+          creado_en?: string | null
+          curso_id?: string | null
+          estado?: string | null
           fin_en?: string | null
           id?: string
           id_pago?: string | null
-          proveedor_pago?: string | null
-          nombre_plan?: string
+          inicio_en?: string | null
+          moneda?: string | null
+          nombre_plan?: string | null
           price?: number | null
-          inicio_en?: string
-          status?: string
-          usuario_id?: string
+          proveedor_pago?: string | null
+          proxima_fecha_pago?: string | null
+          usuario_id?: string | null
         }
-        Relationships: []
-      }
-      user_roles: {
-        Row: {
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-          usuario_id: string
-        }
-        Insert: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          usuario_id: string
-        }
-        Update: {
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          usuario_id?: string
-        }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_course_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_user_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {
@@ -299,8 +392,8 @@ export type Database = {
     Functions: {
       has_role: {
         Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
+          role_to_check: Database["public"]["Enums"]["app_role"]
+          user_id: string
         }
         Returns: boolean
       }
