@@ -129,42 +129,40 @@ const Auth = () => {
     }
     setLoading(true);
     try {
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: form.email,
-        password: form.password,
-        options: {
-          data: { nombre_completo: form.nombre_completo },
-          emailRedirectTo: `${window.location.origin}/dashboard`,
-        },
-      });
-      if (authError) throw authError;
-
-      const userId = authData.user?.id;
-      if (!userId) throw new Error("No se pudo crear el usuario");
-
+      // Primero subir avatar si hay, antes del signUp
       let url_avatar = null;
       if (avatarFile) {
+        // Subimos con un nombre temporal basado en timestamp
         const ext = avatarFile.name.split(".").pop();
+        const tempName = `temp_${Date.now()}.${ext}`;
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from("avatars")
-          .upload(`${userId}.${ext}`, avatarFile, { upsert: true });
+          .upload(tempName, avatarFile, { upsert: true });
         if (!uploadError && uploadData) {
           const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(uploadData.path);
           url_avatar = urlData.publicUrl;
         }
       }
 
-      await supabase.from("perfiles").upsert({
-        id: userId,
-        nombre_completo: form.nombre_completo,
-        telefono: form.telefono,
-        dni: form.dni,
-        direccion: form.direccion,
-        localidad: form.localidad,
-        provincia: form.provincia,
-        pais: form.pais,
-        url_avatar,
+      // Pasar todos los datos en metadata — el trigger los usa para crear el perfil
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: {
+          data: {
+            nombre_completo: form.nombre_completo,
+            telefono: form.telefono,
+            dni: form.dni,
+            direccion: form.direccion,
+            localidad: form.localidad,
+            provincia: form.provincia,
+            pais: form.pais,
+            avatar_url: url_avatar,
+          },
+          emailRedirectTo: `${window.location.origin}/dashboard`,
+        },
       });
+      if (authError) throw authError;
 
       toast.success("¡Cuenta creada! Revisá tu email para confirmar.");
       setIsLogin(true);

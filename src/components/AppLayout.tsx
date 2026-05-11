@@ -13,7 +13,10 @@ import {
   Shield,
   GraduationCap,
   UserPlus,
+  ClipboardList,
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const { role, profile, signOut } = useAuth();
@@ -23,6 +26,19 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const isAdmin = role === "admin";
   const isTeacher = role === "teacher";
 
+  const { data: solicitudesPendientes } = useQuery({
+    queryKey: ["solicitudes-pendientes-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("solicitudes_inscripcion")
+        .select("*", { count: "exact", head: true })
+        .eq("estado", "pendiente");
+      return count || 0;
+    },
+    enabled: isAdmin,
+    refetchInterval: 30000,
+  });
+
   // Definición de rutas según el rol
   const navItems = isAdmin
     ? [
@@ -31,6 +47,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/admin/students", label: "Alumnos", icon: Users },
         { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
         { to: "/admin/teachers", label: "Profesores", icon: UserPlus },
+        { to: "/admin/solicitudes", label: "Solicitudes", icon: ClipboardList, badge: solicitudesPendientes },
       ]
     : isTeacher
     ? [
@@ -115,7 +132,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
                 to={item.to}
                 onClick={() => setSidebarOpen(false)}
                 title={collapsed ? item.label : undefined}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group ${
+                className={`relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 group ${
                   collapsed ? "justify-center" : ""
                 } ${
                   active
@@ -124,7 +141,17 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
                 }`}
               >
                 <item.icon className={`w-5 h-5 shrink-0 transition-transform ${active ? "scale-110" : "group-hover:scale-110"}`} />
-                {!collapsed && item.label}
+                {!collapsed && <span className="flex-1">{item.label}</span>}
+                {!collapsed && (item as any).badge > 0 && (
+                  <span className="bg-red-500 text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                    {(item as any).badge}
+                  </span>
+                )}
+                {collapsed && (item as any).badge > 0 && (
+                  <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                    {(item as any).badge}
+                  </span>
+                )}
               </Link>
             );
           })}
