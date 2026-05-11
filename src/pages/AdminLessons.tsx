@@ -287,7 +287,7 @@ const AdminLessons = () => {
             return (
               <Card key={lesson.id} className="group hover:border-primary/50 transition-all cursor-pointer shadow-card" onClick={() => {
                 setEditingLessonId(lesson.id);
-                setLessonTitle(lesson.title);
+                setLessonTitle(lesson.titulo);
                 setUnlockDate(lesson.fecha_desbloqueo || "");
                 try { setBlocks(JSON.parse(lesson.content || "[]")); } catch (e) { setBlocks([]); }
                 setOpen(true);
@@ -296,7 +296,7 @@ const AdminLessons = () => {
                   <div className="flex items-center gap-5">
                     <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 group-hover:bg-primary group-hover:text-white transition-colors">{idx + 1}</div>
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg">{lesson.title}</h3>
+                      <h3 className="font-bold text-slate-800 text-lg">{lesson.titulo}</h3>
                       <div className="flex items-center gap-3">
                         <p className="text-xs text-muted-foreground">{JSON.parse(lesson.content || "[]").length} bloque(s)</p>
                         

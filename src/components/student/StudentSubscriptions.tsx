@@ -18,7 +18,7 @@ const StudentSubscriptions = () => {
         .from("suscripciones")
         .select(`
           *,
-          courses (title)
+          cursos (titulo)
         `)
         .eq("usuario_id", user!.id)
         .order("creado_en", { ascending: false });
@@ -50,7 +50,7 @@ const StudentSubscriptions = () => {
                   <CardContent className="p-6 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="font-bold text-lg">{sub.courses?.title}</h3>
+                        <h3 className="font-bold text-lg">{sub.cursos?.titulo}</h3>
                         <Badge variant={sub.status === 'active' ? 'default' : 'destructive'} className={sub.status === 'active' ? 'bg-success/10 text-success border-none' : ''}>
                           {sub.status === 'active' ? 'Activa' : 'Vencida'}
                         </Badge>

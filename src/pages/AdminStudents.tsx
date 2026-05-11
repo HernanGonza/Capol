@@ -35,7 +35,7 @@ const AdminStudents = () => {
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, title").order("title");
+      const { data } = await supabase.from("cursos").select("id, titulo").order("titulo");
       return data || [];
     },
   });
@@ -43,7 +43,7 @@ const AdminStudents = () => {
   const { data: enrollments } = useQuery({
     queryKey: ["all-enrollments-with-subs"],
     queryFn: async () => {
-      const { data: enr } = await supabase.from("inscripciones").select("*, courses(title), profiles:usuario_id(nombre_completo)");
+      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo), perfiles:usuario_id(nombre_completo)");
       const { data: subs } = await supabase.from("suscripciones").select("*");
       return enr?.map(e => ({
         ...e,
@@ -58,15 +58,15 @@ const AdminStudents = () => {
     
     return enrollments
       .filter((e: any) => {
-        const matchesSearch = (e.profiles?.nombre_completo || "").toLowerCase().includes(search.toLowerCase()) ||
-                            (e.courses?.title || "").toLowerCase().includes(search.toLowerCase());
+        const matchesSearch = (e.perfiles?.nombre_completo || "").toLowerCase().includes(search.toLowerCase()) ||
+                            (e.cursos?.titulo || "").toLowerCase().includes(search.toLowerCase());
         
         const subStatus = e.subscription?.status || "none";
         const matchesStatus = statusFilter === "all" || subStatus === statusFilter;
         
         return matchesSearch && matchesStatus;
       })
-      .sort((a: any, b: any) => (a.profiles?.nombre_completo || "").localeCompare(b.profiles?.nombre_completo || ""));
+      .sort((a: any, b: any) => (a.perfiles?.nombre_completo || "").localeCompare(b.profiles?.nombre_completo || ""));
   }, [enrollments, search, statusFilter]);
 
   const enrollMutation = useMutation({
@@ -109,7 +109,7 @@ const AdminStudents = () => {
                 </Select>
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
-                  <SelectContent>{courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}</SelectContent>
+                  <SelectContent>{courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>)}</SelectContent>
                 </Select>
                 <Button className="w-full gradient-primary" onClick={() => enrollMutation.mutate()}>Confirmar</Button>
               </div>
@@ -159,11 +159,11 @@ const AdminStudents = () => {
                 <div key={e.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 hover:bg-muted/10 gap-4">
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
-                      {(e.profiles?.nombre_completo || "?")[0].toUpperCase()}
+                      {(e.perfiles?.nombre_completo || "?")[0].toUpperCase()}
                     </div>
                     <div>
-                      <p className="font-bold">{e.profiles?.nombre_completo}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> {e.courses?.title}</p>
+                      <p className="font-bold">{e.perfiles?.nombre_completo}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> {e.cursos?.titulo}</p>
                     </div>
                   </div>
 

@@ -148,8 +148,8 @@ const TeacherLessons = () => {
   const openEdit = (lesson: any) => {
     setEditingLesson(lesson);
     setForm({
-      title: lesson.title,
-      description: lesson.description || "",
+      titulo: lesson.titulo,
+      descripcion: lesson.descripcion || "",
       fecha_desbloqueo: lesson.fecha_desbloqueo ? lesson.fecha_desbloqueo.slice(0, 16) : "",
       sala_jitsi: lesson.sala_jitsi || "",
     });
@@ -188,8 +188,8 @@ const TeacherLessons = () => {
         </div>
         <JitsiMeet 
           roomName={activeRoom}
-          courseTitle={course?.title}
-          lessonTitle={activeLesson?.title}
+          courseTitle={course?.titulo}
+          lessonTitle={activeLesson?.titulo}
           onClose={() => {
             setShowJitsi(false);
             setActiveRoom(null);
@@ -243,7 +243,7 @@ const TeacherLessons = () => {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">{course?.title}</h1>
+              <h1 className="text-2xl font-bold tracking-tight">{course?.titulo}</h1>
               <p className="text-muted-foreground font-medium">Gestiona las clases de este curso</p>
             </div>
           </div>
@@ -264,7 +264,7 @@ const TeacherLessons = () => {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Título</Label>
                   <Input 
-                    value={form.title} 
+                    value={form.titulo} 
                     onChange={(e) => setForm({ ...form, title: e.target.value })} 
                     required 
                     placeholder="Ej: Introducción a Variables" 
@@ -274,7 +274,7 @@ const TeacherLessons = () => {
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Descripción</Label>
                   <Textarea 
-                    value={form.description} 
+                    value={form.descripcion} 
                     onChange={(e) => setForm({ ...form, description: e.target.value })} 
                     rows={3}
                     placeholder="Breve descripción de la clase..."
@@ -352,7 +352,7 @@ const TeacherLessons = () => {
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
-                        <h3 className="font-semibold truncate">{lesson.title}</h3>
+                        <h3 className="font-semibold truncate">{lesson.titulo}</h3>
                         {!unlocked && (
                           <Badge variant="secondary" className="shrink-0">
                             <Lock className="w-3 h-3 mr-1" />

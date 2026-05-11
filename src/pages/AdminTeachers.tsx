@@ -47,13 +47,13 @@ const AdminTeachers = () => {
         .select(`
           docente_id,
           curso_id,
-          courses (id, title)
+          cursos (id, titulo)
         `)
         .in("docente_id", teacherIds);
 
       return data.map(teacher => ({
         ...teacher,
-        courses: assignments?.filter(a => a.docente_id === teacher.usuario_id).map(a => a.courses) || []
+        cursos: assignments?.filter(a => a.docente_id === teacher.usuario_id).map(a => a.cursos) || []
       }));
     },
   });
@@ -65,7 +65,7 @@ const AdminTeachers = () => {
       const { data, error } = await supabase
         .from("cursos")
         .select("id, title")
-        .order("title");
+        .order("titulo");
       if (error) throw error;
       return data;
     },
@@ -277,11 +277,11 @@ const AdminTeachers = () => {
                 <CardHeader className="pb-3">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                      {teacher.profiles?.nombre_completo?.charAt(0).toUpperCase() || "P"}
+                      {teacher.perfiles?.nombre_completo?.charAt(0).toUpperCase() || "P"}
                     </div>
                     <div>
                       <CardTitle className="text-lg font-bold">
-                        {teacher.profiles?.nombre_completo || "Profesor"}
+                        {teacher.perfiles?.nombre_completo || "Profesor"}
                       </CardTitle>
                       <Badge variant="secondary" className="mt-1">
                         <GraduationCap className="w-3 h-3 mr-1" />
@@ -294,18 +294,18 @@ const AdminTeachers = () => {
                 <CardContent className="space-y-4">
                   <div>
                     <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Cursos Asignados</p>
-                    {teacher.courses.length === 0 ? (
+                    {teacher.cursos.length === 0 ? (
                       <p className="text-sm text-muted-foreground">Sin cursos asignados</p>
                     ) : (
                       <div className="flex flex-wrap gap-2">
-                        {teacher.courses.map((course: any) => (
+                        {teacher.cursos.map((course: any) => (
                           <Badge 
                             key={course.id} 
                             variant="outline" 
                             className="pr-1 flex items-center gap-1"
                           >
                             <BookOpen className="w-3 h-3" />
-                            {course.title}
+                            {course.titulo}
                             <Button
                               variant="ghost"
                               size="icon"
@@ -347,7 +347,7 @@ const AdminTeachers = () => {
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <p className="text-sm text-muted-foreground">
-                Asignando curso a <strong>{selectedTeacher?.profiles?.nombre_completo}</strong>
+                Asignando curso a <strong>{selectedTeacher?.perfiles?.nombre_completo}</strong>
               </p>
               
               <div className="space-y-2">
@@ -358,10 +358,10 @@ const AdminTeachers = () => {
                   </SelectTrigger>
                   <SelectContent>
                     {courses?.filter(c => 
-                      !selectedTeacher?.courses?.some((tc: any) => tc.id === c.id)
+                      !selectedTeacher?.cursos?.some((tc: any) => tc.id === c.id)
                     ).map((course) => (
                       <SelectItem key={course.id} value={course.id}>
-                        {course.title}
+                        {course.titulo}
                       </SelectItem>
                     ))}
                   </SelectContent>

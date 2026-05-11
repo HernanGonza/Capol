@@ -122,7 +122,7 @@ const CourseView = () => {
           <Card className="bg-muted/50 border-none">
             <CardContent className="p-4 flex items-start gap-3 text-left text-sm">
               <AlertCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-              <p>Para recuperar el acceso, por favor contacta con administración o realiza el pago correspondiente a <strong>{course?.title}</strong>.</p>
+              <p>Para recuperar el acceso, por favor contacta con administración o realiza el pago correspondiente a <strong>{course?.titulo}</strong>.</p>
             </CardContent>
           </Card>
           <Button onClick={() => navigate("/dashboard")} variant="outline" className="w-full">
@@ -144,7 +144,7 @@ const CourseView = () => {
             refetchProgress(); // Actualiza la lista al volver para mostrar el check verde
           }}
           userId={user!.id}
-          courseTitle={course?.title}
+          courseTitle={course?.titulo}
         />
       </AppLayout>
     );
@@ -155,8 +155,8 @@ const CourseView = () => {
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
         <header className="border-b pb-6">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{course?.title}</h1>
-          <p className="text-muted-foreground mt-2 text-lg">{course?.description}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{course?.titulo}</h1>
+          <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
         </header>
 
         <div className="grid gap-4">
@@ -197,7 +197,7 @@ const CourseView = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
                       <h3 className={`font-semibold text-lg truncate ${!unlocked ? "text-muted-foreground" : "text-slate-800"}`}>
-                        {lesson.title}
+                        {lesson.titulo}
                       </h3>
                       {completado && (
                         <span className="text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded-full">

@@ -69,7 +69,7 @@ const AdminSubscriptions = () => {
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, title").order("title");
+      const { data } = await supabase.from("cursos").select("id, titulo").order("titulo");
       return data || [];
     },
   });
@@ -79,7 +79,7 @@ const AdminSubscriptions = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("*, profiles:usuario_id(nombre_completo), courses:curso_id(title)")
+        .select("*, perfiles:usuario_id(nombre_completo), cursos:curso_id(titulo)")
         .order("creado_en", { ascending: false });
       
       if (error) throw error;
@@ -93,8 +93,8 @@ const AdminSubscriptions = () => {
     if (!subscriptions) return [];
     
     return subscriptions.filter((sub: any) => {
-      const fullName = (sub.profiles?.nombre_completo || "").toLowerCase();
-      const courseTitle = (sub.courses?.title || "").toLowerCase();
+      const fullName = (sub.perfiles?.nombre_completo || "").toLowerCase();
+      const courseTitle = (sub.cursos?.titulo || "").toLowerCase();
       const searchTerm = search.toLowerCase();
       
       const matchesSearch = fullName.includes(searchTerm) || courseTitle.includes(searchTerm);
@@ -215,7 +215,7 @@ const AdminSubscriptions = () => {
                     <Select value={form.curso_id} onValueChange={(v) => setForm({ ...form, curso_id: v })} disabled={!!editingId}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
                       <SelectContent>
-                        {courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.title}</SelectItem>)}
+                        {courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -294,7 +294,7 @@ const AdminSubscriptions = () => {
                 <div className="p-5 flex flex-col md:flex-row md:items-center justify-between gap-6">
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-1">
-                      <h3 className="font-bold text-lg">{(sub.profiles as any)?.nombre_completo}</h3>
+                      <h3 className="font-bold text-lg">{(sub.perfiles as any)?.nombre_completo}</h3>
                       <Badge variant="outline" className={statusColor[sub.status]}>
                         {sub.status === 'active' ? 'AL DÍA' : sub.status.toUpperCase()}
                       </Badge>
@@ -305,7 +305,7 @@ const AdminSubscriptions = () => {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <BookOpen className="w-4 h-4" /> {(sub.courses as any)?.title} 
+                      <BookOpen className="w-4 h-4" /> {(sub.cursos as any)?.title} 
                       <span className="text-foreground font-bold ml-2">${sub.price}</span>
                     </p>
                   </div>

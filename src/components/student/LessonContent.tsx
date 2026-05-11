@@ -105,7 +105,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
           <div className="min-w-0">
             <div className="flex items-center gap-3">
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">
-                {lesson.title}
+                {lesson.titulo}
               </h1>
               {isCompleted && (
                 <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-bounce">
@@ -113,7 +113,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
                 </div>
               )}
             </div>
-            <p className="text-muted-foreground font-medium text-lg mt-1">{lesson.description || "Material de estudio"}</p>
+            <p className="text-muted-foreground font-medium text-lg mt-1">{lesson.descripcion || "Material de estudio"}</p>
           </div>
         </div>
       </div>
@@ -271,7 +271,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
                   <JitsiMeet 
                     roomName={lesson.sala_jitsi}
                     courseTitle={courseTitle}
-                    lessonTitle={lesson.title}
+                    lessonTitle={lesson.titulo}
                     onClose={() => setShowJitsi(false)}
                   />
                 </div>

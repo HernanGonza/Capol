@@ -25,8 +25,8 @@ interface Course {
   url_flyer: string | null;
   tipo_flyer: string | null;
   url_imagen: string | null;
-  lessons: { count: number }[];
-  enrollments: { count: number }[];
+  lecciones: { count: number }[];
+  inscripciones: { count: number }[];
 }
 
 const Landing = () => {
@@ -47,8 +47,8 @@ const Landing = () => {
           url_flyer,
           tipo_flyer,
           url_imagen,
-          lessons (count),
-          enrollments (count)
+          lecciones (count),
+          inscripciones (count)
         `,
         )
         .eq("publicado", true)
@@ -300,7 +300,7 @@ const Landing = () => {
                       ) : (
                         <img
                           src={course.url_flyer || course.url_imagen || ""}
-                          alt={course.title}
+                          alt={course.titulo}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                         />
                       )
@@ -315,7 +315,7 @@ const Landing = () => {
                     <div className="absolute top-4 right-4">
                       <Badge className="bg-black/50 backdrop-blur-sm text-white border-none font-bold">
                         <BookOpen className="w-3 h-3 mr-1" />
-                        {course.lessons[0]?.count || 0} clases
+                        {course.lecciones[0]?.count || 0} clases
                       </Badge>
                     </div>
                   </div>
@@ -323,10 +323,10 @@ const Landing = () => {
                   <CardContent className="p-6 space-y-4 bg-[#0f0f15]">
                     <div>
                       <h3 className="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors">
-                        {course.title}
+                        {course.titulo}
                       </h3>
                       <p className="text-white/50 text-sm line-clamp-2 leading-relaxed">
-                        {course.description ||
+                        {course.descripcion ||
                           "Próximamente más información sobre este curso."}
                       </p>
                     </div>
@@ -335,7 +335,7 @@ const Landing = () => {
                       <div className="flex items-center gap-2 text-white/40 text-sm">
                         <Users className="w-4 h-4" />
                         <span>
-                          {course.enrollments[0]?.count || 0} inscritos
+                          {course.inscripciones[0]?.count || 0} inscritos
                         </span>
                       </div>
 

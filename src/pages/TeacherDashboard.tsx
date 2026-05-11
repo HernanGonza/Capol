@@ -19,20 +19,20 @@ const TeacherDashboard = () => {
         .from("docentes_cursos")
         .select(`
           curso_id,
-          courses (
+          cursos (
             id,
-            title,
-            description,
+            titulo,
+            descripcion,
             publicado,
             url_flyer,
-            lessons (count),
-            enrollments (count)
+            lecciones (count),
+            inscripciones (count)
           )
         `)
         .eq("docente_id", user!.id);
 
       if (error) throw error;
-      return data.map(ct => ct.courses);
+      return data.map(ct => ct.cursos);
     },
     enabled: !!user,
   });
@@ -54,7 +54,7 @@ const TeacherDashboard = () => {
           fecha_desbloqueo,
           sala_jitsi,
           curso_id,
-          courses (title)
+          cursos (titulo)
         `)
         .in("curso_id", courseIds)
         .gte("fecha_desbloqueo", new Date().toISOString())
@@ -104,7 +104,7 @@ const TeacherDashboard = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {assignedCourses?.reduce((acc, c) => acc + (c?.enrollments?.[0]?.count || 0), 0) || 0}
+                    {assignedCourses?.reduce((acc, c) => acc + (c?.inscripciones?.[0]?.count || 0), 0) || 0}
                   </p>
                   <p className="text-xs text-muted-foreground">Alumnos totales</p>
                 </div>
@@ -120,7 +120,7 @@ const TeacherDashboard = () => {
                 </div>
                 <div>
                   <p className="text-2xl font-bold">
-                    {assignedCourses?.reduce((acc, c) => acc + (c?.lessons?.[0]?.count || 0), 0) || 0}
+                    {assignedCourses?.reduce((acc, c) => acc + (c?.lecciones?.[0]?.count || 0), 0) || 0}
                   </p>
                   <p className="text-xs text-muted-foreground">Clases creadas</p>
                 </div>
@@ -163,8 +163,8 @@ const TeacherDashboard = () => {
                       <Video className="w-6 h-6 text-primary" />
                     </div>
                     <div>
-                      <p className="font-semibold">{lesson.title}</p>
-                      <p className="text-sm text-muted-foreground">{lesson.courses?.title}</p>
+                      <p className="font-semibold">{lesson.titulo}</p>
+                      <p className="text-sm text-muted-foreground">{lesson.cursos?.titulo}</p>
                     </div>
                   </div>
                   <div className="text-right">
@@ -226,9 +226,9 @@ const TeacherDashboard = () => {
                         <BookOpen className="w-5 h-5" />
                       </div>
                     </div>
-                    <CardTitle className="text-xl font-bold mt-3">{course.title}</CardTitle>
+                    <CardTitle className="text-xl font-bold mt-3">{course.titulo}</CardTitle>
                     <p className="text-sm text-muted-foreground line-clamp-2">
-                      {course.description || "Sin descripción"}
+                      {course.descripcion || "Sin descripción"}
                     </p>
                   </CardHeader>
                   
@@ -236,11 +236,11 @@ const TeacherDashboard = () => {
                     <div className="grid grid-cols-2 gap-2 py-3 border-y">
                       <div className="text-center">
                         <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Alumnos</p>
-                        <p className="font-bold text-lg">{course.enrollments?.[0]?.count || 0}</p>
+                        <p className="font-bold text-lg">{course.inscripciones?.[0]?.count || 0}</p>
                       </div>
                       <div className="text-center">
                         <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Clases</p>
-                        <p className="font-bold text-lg text-blue-700">{course.lessons?.[0]?.count || 0}</p>
+                        <p className="font-bold text-lg text-blue-700">{course.lecciones?.[0]?.count || 0}</p>
                       </div>
                     </div>
 

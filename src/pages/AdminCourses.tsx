@@ -41,9 +41,9 @@ const AdminCourses = () => {
         .from("cursos")
         .select(`
           *,
-          enrollments (count),
+          inscripciones (count),
           subscriptions (count),
-          lessons (count)
+          lecciones (count)
         `)
         .order("creado_en", { ascending: false });
 
@@ -57,8 +57,8 @@ const AdminCourses = () => {
       return data.map(course => ({
         ...course,
         active_count: activeSubs?.filter(s => s.curso_id === course.id).length || 0,
-        total_enrollments: course.enrollments[0]?.count || 0,
-        total_lessons: course.lessons[0]?.count || 0
+        total_enrollments: course.inscripciones[0]?.count || 0,
+        total_lessons: course.lecciones[0]?.count || 0
       }));
     },
   });
@@ -138,8 +138,8 @@ const AdminCourses = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const courseData = {
-        title: form.title,
-        description: form.description,
+        titulo: form.titulo,
+        descripcion: form.descripcion,
         url_imagen: form.url_imagen,
         url_flyer: form.url_flyer,
         tipo_flyer: form.tipo_flyer,
@@ -174,8 +174,8 @@ const AdminCourses = () => {
     setEditingCourse(course);
     const flyerType = course.tipo_flyer || (course.url_flyer?.includes(".mp4") ? "video" : "image");
     setForm({ 
-      title: course.title, 
-      description: course.description || "", 
+      title: course.titulo, 
+      descripcion: course.descripcion || "", 
       url_imagen: course.url_imagen || "", 
       url_flyer: course.url_flyer || "",
       tipo_flyer: flyerType,
@@ -212,11 +212,11 @@ const AdminCourses = () => {
               <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Título</Label>
-                  <Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder="Ej: React para Emprendedores" />
+                  <Input value={form.titulo} onChange={(e) => setForm({ ...form, title: e.target.value })} required placeholder="Ej: React para Emprendedores" />
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Descripción</Label>
-                  <Textarea value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
+                  <Textarea value={form.descripcion} onChange={(e) => setForm({ ...form, description: e.target.value })} rows={3} />
                 </div>
 
                 {/* Upload de Flyer (Imagen o Video) */}
@@ -329,7 +329,7 @@ const AdminCourses = () => {
                       ) : (
                         <img 
                           src={course.url_flyer} 
-                          alt={course.title}
+                          alt={course.titulo}
                           className="w-full h-full object-cover"
                         />
                       )}
@@ -349,7 +349,7 @@ const AdminCourses = () => {
                       <Badge variant={course.publicado ? "default" : "secondary"} className={course.publicado ? "bg-success/10 text-success border-none" : ""}>
                         {course.publicado ? "Activo" : "Borrador"}
                       </Badge>
-                      <CardTitle className="text-xl font-bold line-clamp-1">{course.title}</CardTitle>
+                      <CardTitle className="text-xl font-bold line-clamp-1">{course.titulo}</CardTitle>
                     </div>
                     {!course.url_flyer && (
                       <div className="p-2 bg-primary/5 rounded-lg text-primary">

@@ -19,12 +19,12 @@ const StudentDashboard = () => {
           id,
           status,
           curso_id,
-          courses (
+          cursos (
             id,
             title,
             description,
             url_imagen,
-            lessons (id)
+            lecciones (id)
           )
         `)
         .eq("usuario_id", user!.id)
@@ -44,11 +44,11 @@ const StudentDashboard = () => {
 
       // 3. Mapeamos para calcular el porcentaje por curso
       return subs.map((sub: any) => {
-        const course = sub.courses;
-        const totalLessons = course.lessons?.length || 0;
+        const course = sub.cursos;
+        const totalLessons = course.lecciones?.length || 0;
         
         // Contamos cuántas lecciones de ESTE curso están en el array de progreso completado
-        const completedCount = course.lessons?.filter((lesson: any) => 
+        const completedCount = course.lecciones?.filter((lesson: any) => 
           progress?.some((p: any) => p.leccion_id === lesson.id)
         ).length || 0;
 
@@ -97,7 +97,7 @@ const StudentDashboard = () => {
                   {item.course.url_imagen ? (
                     <img 
                       src={item.course.url_imagen} 
-                      alt={item.course.title} 
+                      alt={item.course.titulo} 
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
                     />
                   ) : (
@@ -116,11 +116,11 @@ const StudentDashboard = () => {
 
                 <CardContent className="p-5">
                   <h3 className="font-bold text-xl mb-2 line-clamp-1 group-hover:text-primary transition-colors">
-                    {item.course.title}
+                    {item.course.titulo}
                   </h3>
                   
                   <p className="text-sm text-muted-foreground line-clamp-2 mb-6 h-10">
-                    {item.course.description || "Comienza a explorar las lecciones de este curso."}
+                    {item.course.descripcion || "Comienza a explorar las lecciones de este curso."}
                   </p>
                   
                   <div className="space-y-3">
