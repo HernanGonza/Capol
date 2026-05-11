@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,8 @@ const PAISES_MUNDO = [
 ];
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [searchParams] = useSearchParams();
+  const [isLogin, setIsLogin] = useState(searchParams.get("registro") !== "1");
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);

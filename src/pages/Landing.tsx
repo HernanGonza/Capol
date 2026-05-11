@@ -111,7 +111,7 @@ const Landing = () => {
                 Iniciar Sesión
               </Button>
             </Link>
-            <Link to="/auth">
+            <Link to="/auth?registro=1">
               <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold px-6 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
                 Inscribirme
                 <ArrowRight className="w-4 h-4 ml-2" />
@@ -153,7 +153,7 @@ const Landing = () => {
 
             {/* CTAs */}
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4 animate-fade-in">
-              <Link to="/auth">
+              <Link to="/auth?registro=1">
                 <Button
                   size="lg"
                   className="bg-white text-black hover:bg-white/90 font-black text-lg px-8 h-14 rounded-2xl shadow-2xl shadow-white/10 hover:shadow-white/20 transition-all group"
@@ -339,7 +339,7 @@ const Landing = () => {
                         </span>
                       </div>
 
-                      <Link to="/auth">
+                      <Link to="/auth?registro=1">
                         <Button
                           size="sm"
                           className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl group-hover:shadow-lg group-hover:shadow-indigo-500/25 transition-all"
@@ -384,7 +384,7 @@ const Landing = () => {
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                <Link to="/auth">
+                <Link to="/auth?registro=1">
                   <Button
                     size="lg"
                     className="bg-white text-black hover:bg-white/90 font-black text-lg px-10 h-14 rounded-2xl shadow-2xl"
