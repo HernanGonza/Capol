@@ -17,12 +17,12 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select(`
           id,
-          status,
+          estado,
           curso_id,
           cursos (
             id,
-            title,
-            description,
+            titulo,
+            descripcion,
             url_imagen,
             lecciones (id)
           )

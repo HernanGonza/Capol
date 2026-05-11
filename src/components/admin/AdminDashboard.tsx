@@ -26,16 +26,16 @@ const AdminDashboard = () => {
         { data: courses },
         { data: progress }
       ] = await Promise.all([
-        supabase.from("roles_usuario").select("usuario_id").eq("role", "student"),
-        supabase.from("suscripciones").select("status, price"),
+        supabase.from("roles_usuario").select("usuario_id").eq("rol", "student"),
+        supabase.from("suscripciones").select("estado, price"),
         supabase.from("cursos").select("id, publicado"),
         supabase.from("progreso_lecciones").select("completado")
       ]);
 
       const totalStudents = roles?.length || 0;
       const activeCourses = courses?.filter(c => c.publicado).length || 0;
-      const activeSubs = subs?.filter(s => s.status === 'active') || [];
-      const expiredSubs = subs?.filter(s => s.status === 'expired') || [];
+      const activeSubs = subs?.filter(s => s.estado === 'active') || [];
+      const expiredSubs = subs?.filter(s => s.estado === 'expired') || [];
       const monthlyRevenue = activeSubs.reduce((acc, curr) => acc + (curr.price || 0), 0);
       const completionRate = progress?.length ? (progress.filter(p => p.completado).length / progress.length) * 100 : 0;
 

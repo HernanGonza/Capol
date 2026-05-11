@@ -21,7 +21,7 @@ const CourseView = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("status, fin_en")
+        .select("estado, fin_en")
         .eq("usuario_id", user!.id)
         .eq("curso_id", courseId!)
         .eq("estado", "active")
