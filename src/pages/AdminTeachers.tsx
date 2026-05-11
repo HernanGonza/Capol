@@ -36,7 +36,7 @@ const AdminTeachers = () => {
             url_avatar
           )
         `)
-        .eq("role", "teacher");
+        .eq("rol", "teacher");
 
       if (error) throw error;
 
@@ -64,7 +64,7 @@ const AdminTeachers = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cursos")
-        .select("id, title")
+        .select("id, titulo")
         .order("titulo");
       if (error) throw error;
       return data;
@@ -180,7 +180,7 @@ const AdminTeachers = () => {
       if (error) throw error;
       
       // Filtrar los que ya son profesores
-      return data.filter(p => !p.roles_usuario?.some((r: any) => r.role === "teacher"));
+      return data.filter(p => !p.roles_usuario?.some((r: any) => r.rol === "teacher"));
     },
     enabled: searchEmail.length >= 2,
   });
@@ -229,7 +229,7 @@ const AdminTeachers = () => {
                         <div>
                           <p className="font-semibold">{user.nombre_completo || "Sin nombre"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {user.roles_usuario?.[0]?.role || "student"}
+                            {user.roles_usuario?.[0]?.rol || "student"}
                           </p>
                         </div>
                         <Button 

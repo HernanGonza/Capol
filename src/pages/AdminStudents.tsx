@@ -25,7 +25,7 @@ const AdminStudents = () => {
   const { data: students } = useQuery({
     queryKey: ["all-students"],
     queryFn: async () => {
-      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("role", "student");
+      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("rol", "student");
       if (!roles?.length) return [];
       const { data: profiles } = await supabase.from("perfiles").select("*").in("id", roles.map((r) => r.usuario_id));
       return profiles || [];

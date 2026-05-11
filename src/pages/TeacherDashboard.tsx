@@ -50,7 +50,7 @@ const TeacherDashboard = () => {
         .from("lecciones")
         .select(`
           id,
-          title,
+          titulo,
           fecha_desbloqueo,
           sala_jitsi,
           curso_id,

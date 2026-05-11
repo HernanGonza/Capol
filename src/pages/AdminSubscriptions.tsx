@@ -27,7 +27,7 @@ const AdminSubscriptions = () => {
     curso_id: "", 
     nombre_plan: "Mensual", 
     price: "", 
-    status: "active",
+    estado: "active",
     inicio_en: format(new Date(), "yyyy-MM-dd"),
     proxima_fecha_pago: "",
     fin_en: ""
@@ -37,7 +37,7 @@ const AdminSubscriptions = () => {
   const checkAndExpireSubscriptions = async (subs: any[]) => {
     const now = new Date();
     const toExpire = subs.filter(sub => 
-      sub.status === 'active' && 
+      sub.estado === 'active' && 
       sub.fin_en && 
       isBefore(parseISO(sub.fin_en), now)
     );
@@ -46,7 +46,7 @@ const AdminSubscriptions = () => {
       const ids = toExpire.map(s => s.id);
       const { error } = await supabase
         .from("suscripciones")
-        .update({ status: 'expired' })
+        .update({ estado: 'expired' })
         .in("id", ids);
       
       if (!error) {
@@ -59,7 +59,7 @@ const AdminSubscriptions = () => {
   const { data: students } = useQuery({
     queryKey: ["all-students"],
     queryFn: async () => {
-      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("role", "student");
+      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("rol", "student");
       if (!roles?.length) return [];
       const { data: profiles } = await supabase.from("perfiles").select("*").in("id", roles.map((r) => r.usuario_id));
       return profiles || [];
@@ -98,7 +98,7 @@ const AdminSubscriptions = () => {
       const searchTerm = search.toLowerCase();
       
       const matchesSearch = fullName.includes(searchTerm) || courseTitle.includes(searchTerm);
-      const matchesStatus = statusFilter === "all" || sub.status === statusFilter;
+      const matchesStatus = statusFilter === "all" || sub.estado === statusFilter;
       
       return matchesSearch && matchesStatus;
     });
@@ -111,7 +111,7 @@ const AdminSubscriptions = () => {
         curso_id: form.curso_id,
         nombre_plan: form.nombre_plan,
         price: parseFloat(form.price) || 0,
-        status: form.status,
+        estado: form.estado,
         inicio_en: new Date(form.inicio_en).toISOString(),
         proxima_fecha_pago: form.proxima_fecha_pago ? new Date(form.proxima_fecha_pago).toISOString() : null,
         fin_en: form.fin_en ? new Date(form.fin_en).toISOString() : null,
@@ -141,7 +141,7 @@ const AdminSubscriptions = () => {
     const { error } = await supabase
       .from("suscripciones")
       .update({
-        status: 'active',
+        estado: 'active',
         inicio_en: newStarts,
         proxima_fecha_pago: newNextPayment,
         fin_en: newEnds
@@ -163,7 +163,7 @@ const AdminSubscriptions = () => {
       curso_id: sub.curso_id,
       nombre_plan: sub.nombre_plan,
       price: sub.price.toString(),
-      status: sub.status,
+      estado: sub.estado,
       inicio_en: sub.inicio_en ? format(parseISO(sub.inicio_en), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       proxima_fecha_pago: sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "yyyy-MM-dd") : "",
       fin_en: sub.fin_en ? format(parseISO(sub.fin_en), "yyyy-MM-dd") : "",
@@ -174,7 +174,7 @@ const AdminSubscriptions = () => {
   const handleClose = () => {
     setOpen(false);
     setEditingId(null);
-    setForm({ usuario_id: "", curso_id: "", nombre_plan: "Mensual", price: "", status: "active", inicio_en: format(new Date(), "yyyy-MM-dd"), proxima_fecha_pago: "", fin_en: "" });
+    setForm({ usuario_id: "", curso_id: "", nombre_plan: "Mensual", price: "", estado: "active", inicio_en: format(new Date(), "yyyy-MM-dd"), proxima_fecha_pago: "", fin_en: "" });
   };
 
   const statusColor: Record<string, string> = {
@@ -237,7 +237,7 @@ const AdminSubscriptions = () => {
                   </div>
                   <div className="space-y-2 col-span-2">
                     <Label>Estado Manual</Label>
-                    <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
+                    <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">Activo (Pagado)</SelectItem>
@@ -286,7 +286,7 @@ const AdminSubscriptions = () => {
 
         <div className="grid gap-4">
           {filteredSubs.map((sub: any) => {
-            const isNearExp = sub.fin_en && sub.status === 'active' && 
+            const isNearExp = sub.fin_en && sub.estado === 'active' && 
                              isBefore(parseISO(sub.fin_en), addDays(new Date(), 3));
 
             return (
@@ -295,8 +295,8 @@ const AdminSubscriptions = () => {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-1">
                       <h3 className="font-bold text-lg">{(sub.perfiles as any)?.nombre_completo}</h3>
-                      <Badge variant="outline" className={statusColor[sub.status]}>
-                        {sub.status === 'active' ? 'AL DÍA' : sub.status.toUpperCase()}
+                      <Badge variant="outline" className={statusColor[sub.estado]}>
+                        {sub.estado === 'active' ? 'AL DÍA' : sub.estado.toUpperCase()}
                       </Badge>
                       {isNearExp && (
                         <Badge className="bg-amber-500 text-white border-none animate-pulse">
@@ -323,7 +323,7 @@ const AdminSubscriptions = () => {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vencimiento</span>
-                      <span className={sub.status === 'expired' ? 'text-destructive font-bold' : 'font-bold'}>
+                      <span className={sub.estado === 'expired' ? 'text-destructive font-bold' : 'font-bold'}>
                         {sub.fin_en ? format(parseISO(sub.fin_en), "dd/MM/yyyy") : "-"}
                       </span>
                     </div>

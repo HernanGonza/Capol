@@ -40,8 +40,8 @@ const TeacherLessons = () => {
   const [activeRoom, setActiveRoom] = useState<string | null>(null);
   const [activeLesson, setActiveLesson] = useState<any>(null);
   const [form, setForm] = useState({
-    title: "",
-    description: "",
+    titulo: "",
+    descripcion: "",
     fecha_desbloqueo: "",
     sala_jitsi: "",
   });
@@ -141,7 +141,7 @@ const TeacherLessons = () => {
   });
 
   const resetForm = () => {
-    setForm({ title: "", description: "", fecha_desbloqueo: "", sala_jitsi: "" });
+    setForm({ titulo: "", descripcion: "", fecha_desbloqueo: "", sala_jitsi: "" });
     setEditingLesson(null);
   };
 
@@ -265,7 +265,7 @@ const TeacherLessons = () => {
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Título</Label>
                   <Input 
                     value={form.titulo} 
-                    onChange={(e) => setForm({ ...form, title: e.target.value })} 
+                    onChange={(e) => setForm({ ...form, titulo: e.target.value })} 
                     required 
                     placeholder="Ej: Introducción a Variables" 
                   />
@@ -275,7 +275,7 @@ const TeacherLessons = () => {
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Descripción</Label>
                   <Textarea 
                     value={form.descripcion} 
-                    onChange={(e) => setForm({ ...form, description: e.target.value })} 
+                    onChange={(e) => setForm({ ...form, descripcion: e.target.value })} 
                     rows={3}
                     placeholder="Breve descripción de la clase..."
                   />

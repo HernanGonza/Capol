@@ -24,7 +24,7 @@ const CourseView = () => {
         .select("status, fin_en")
         .eq("usuario_id", user!.id)
         .eq("curso_id", courseId!)
-        .eq("status", "active")
+        .eq("estado", "active")
         .maybeSingle();
 
       if (error) throw error;

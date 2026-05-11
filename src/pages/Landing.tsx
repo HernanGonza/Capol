@@ -20,8 +20,8 @@ import {
 
 interface Course {
   id: string;
-  title: string;
-  description: string | null;
+  titulo: string;
+  descripcion: string | null;
   url_flyer: string | null;
   tipo_flyer: string | null;
   url_imagen: string | null;
@@ -42,8 +42,8 @@ const Landing = () => {
         .select(
           `
           id,
-          title,
-          description,
+          titulo,
+          descripcion,
           url_flyer,
           tipo_flyer,
           url_imagen,

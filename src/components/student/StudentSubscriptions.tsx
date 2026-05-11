@@ -46,13 +46,13 @@ const StudentSubscriptions = () => {
             {subscriptions.map((sub) => (
               <Card key={sub.id} className="border-none shadow-card overflow-hidden">
                 <div className="flex flex-col md:flex-row">
-                  <div className={`w-2 md:w-3 ${sub.status === 'active' ? 'bg-success' : 'bg-destructive'}`} />
+                  <div className={`w-2 md:w-3 ${sub.estado === 'active' ? 'bg-success' : 'bg-destructive'}`} />
                   <CardContent className="p-6 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg">{sub.cursos?.titulo}</h3>
-                        <Badge variant={sub.status === 'active' ? 'default' : 'destructive'} className={sub.status === 'active' ? 'bg-success/10 text-success border-none' : ''}>
-                          {sub.status === 'active' ? 'Activa' : 'Vencida'}
+                        <Badge variant={sub.estado === 'active' ? 'default' : 'destructive'} className={sub.estado === 'active' ? 'bg-success/10 text-success border-none' : ''}>
+                          {sub.estado === 'active' ? 'Activa' : 'Vencida'}
                         </Badge>
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -68,7 +68,7 @@ const StudentSubscriptions = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {sub.status === 'active' ? (
+                      {sub.estado === 'active' ? (
                         <div className="flex items-center gap-2 text-success font-semibold text-sm bg-success/5 px-4 py-2 rounded-full">
                           <CheckCircle2 className="w-4 h-4" /> Al día
                         </div>

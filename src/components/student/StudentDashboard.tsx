@@ -28,7 +28,7 @@ const StudentDashboard = () => {
           )
         `)
         .eq("usuario_id", user!.id)
-        .eq("status", "active")
+        .eq("estado", "active")
         .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
 
       if (subError) throw subError;
