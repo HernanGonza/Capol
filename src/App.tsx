@@ -13,6 +13,7 @@ import AdminLessons from "./pages/AdminLessons";
 import AdminStudents from "./pages/AdminStudents";
 import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminTeachers from "./pages/AdminTeachers";
+import AdminSolicitudes from "./pages/AdminSolicitudes";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherLessons from "./pages/TeacherLessons";
 import CourseView from "./pages/CourseView";
@@ -74,6 +75,7 @@ const App = () => (
             <Route path="/admin/courses/:courseId/lessons" element={<ProtectedRoute adminOnly teacherAllowed><AdminLessons /></ProtectedRoute>} />
             <Route path="/admin/students" element={<ProtectedRoute adminOnly><AdminStudents /></ProtectedRoute>} />
             <Route path="/admin/subscriptions" element={<ProtectedRoute adminOnly><AdminSubscriptions /></ProtectedRoute>} />
+            <Route path="/admin/solicitudes" element={<ProtectedRoute><AdminSolicitudes /></ProtectedRoute>} />
             <Route path="/admin/teachers" element={<ProtectedRoute adminOnly><AdminTeachers /></ProtectedRoute>} />
             
             {/* Rutas de Profesor */}

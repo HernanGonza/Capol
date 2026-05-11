@@ -179,6 +179,17 @@ const Auth = () => {
   const labelClass = "text-white/60 text-xs font-medium";
 
   return (
+    <>
+      <style>{`
+        @keyframes fadeSlideIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeSlideOut {
+          from { opacity: 1; }
+          to   { opacity: 0; }
+        }
+      `}</style>
     <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4 relative overflow-hidden">
       <div className="fixed inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none" />
@@ -214,7 +225,7 @@ const Auth = () => {
             ))}
           </div>
 
-          <div className="p-8 max-h-[75vh] overflow-y-auto">
+          <div className="p-8 overflow-y-auto max-h-[72vh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" key={isLogin ? "login" : "register"} style={{animation: "fadeSlideIn 0.3s ease"}}>
             {isLogin ? (
               <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-1.5">
@@ -423,6 +434,7 @@ const Auth = () => {
         </div>
       </div>
     </div>
+    </>
   );
 };
 
