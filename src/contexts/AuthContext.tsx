@@ -35,11 +35,32 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
 
   const fetchUserData = async (userId: string) => {
-    const [{ data: roles }, { data: prof }] = await Promise.all([
+    const [{ data: roles }, { data: prof }, { data: { user: authUser } }] = await Promise.all([
       supabase.from("roles_usuario").select("rol").eq("usuario_id", userId),
       supabase.from("perfiles").select("*").eq("id", userId).single(),
+      supabase.auth.getUser(),
     ]);
     if (roles && roles.length > 0) setRole(roles[0].rol);
+
+    // Si el perfil tiene campos vacíos pero el metadata los tiene, sincronizar
+    if (prof && authUser) {
+      const meta = authUser.user_metadata || {};
+      const needsSync = !prof.telefono && (meta.telefono || meta.dni || meta.direccion);
+      if (needsSync) {
+        const { data: updated } = await supabase.from("perfiles").update({
+          telefono: meta.telefono || prof.telefono,
+          dni: meta.dni || prof.dni,
+          direccion: meta.direccion || prof.direccion,
+          localidad: meta.localidad || prof.localidad,
+          provincia: meta.provincia || prof.provincia,
+          pais: meta.pais || prof.pais || "Argentina",
+          nombre_completo: meta.nombre_completo || prof.nombre_completo,
+          url_avatar: meta.avatar_url || prof.url_avatar,
+        }).eq("id", userId).select().single();
+        if (updated) { setProfile(updated); return; }
+      }
+    }
+
     if (prof) setProfile(prof);
   };
 
