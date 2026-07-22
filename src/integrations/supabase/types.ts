@@ -14,39 +14,69 @@ export type Database = {
   }
   public: {
     Tables: {
+      configuracion_global: {
+        Row: {
+          actualizado_en: string | null
+          clave: string
+          valor: Json
+        }
+        Insert: {
+          actualizado_en?: string | null
+          clave: string
+          valor: Json
+        }
+        Update: {
+          actualizado_en?: string | null
+          clave?: string
+          valor?: Json
+        }
+        Relationships: []
+      }
       cursos: {
         Row: {
           actualizado_en: string | null
+          cantidad_cuotas: number | null
           creado_en: string | null
           creado_por: string | null
           descripcion: string | null
           id: string
+          moneda: string | null
+          precio: number | null
           publicado: boolean | null
           tipo_flyer: string | null
+          tipo_precio: string | null
           titulo: string
           url_flyer: string | null
           url_imagen: string | null
         }
         Insert: {
           actualizado_en?: string | null
+          cantidad_cuotas?: number | null
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
           id?: string
+          moneda?: string | null
+          precio?: number | null
           publicado?: boolean | null
           tipo_flyer?: string | null
+          tipo_precio?: string | null
           titulo: string
           url_flyer?: string | null
           url_imagen?: string | null
         }
         Update: {
           actualizado_en?: string | null
+          cantidad_cuotas?: number | null
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
           id?: string
+          moneda?: string | null
+          precio?: number | null
           publicado?: boolean | null
           tipo_flyer?: string | null
+          tipo_precio?: string | null
           titulo?: string
           url_flyer?: string | null
           url_imagen?: string | null
@@ -229,29 +259,47 @@ export type Database = {
       }
       perfiles: {
         Row: {
+          activo: boolean
           actualizado_en: string | null
           biografia: string | null
           creado_en: string | null
+          direccion: string | null
+          dni: string | null
           id: string
+          localidad: string | null
           nombre_completo: string | null
+          pais: string | null
+          provincia: string | null
           telefono: string | null
           url_avatar: string | null
         }
         Insert: {
+          activo?: boolean
           actualizado_en?: string | null
           biografia?: string | null
           creado_en?: string | null
+          direccion?: string | null
+          dni?: string | null
           id: string
+          localidad?: string | null
           nombre_completo?: string | null
+          pais?: string | null
+          provincia?: string | null
           telefono?: string | null
           url_avatar?: string | null
         }
         Update: {
+          activo?: boolean
           actualizado_en?: string | null
           biografia?: string | null
           creado_en?: string | null
+          direccion?: string | null
+          dni?: string | null
           id?: string
+          localidad?: string | null
           nombre_completo?: string | null
+          pais?: string | null
+          provincia?: string | null
           telefono?: string | null
           url_avatar?: string | null
         }
@@ -315,6 +363,61 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solicitudes_inscripcion: {
+        Row: {
+          creado_en: string | null
+          curso_id: string
+          estado: string | null
+          id: string
+          mensaje: string | null
+          resuelto_en: string | null
+          resuelto_por: string | null
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string | null
+          curso_id: string
+          estado?: string | null
+          id?: string
+          mensaje?: string | null
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string | null
+          curso_id?: string
+          estado?: string | null
+          id?: string
+          mensaje?: string | null
+          resuelto_en?: string | null
+          resuelto_por?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solicitudes_inscripcion_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_inscripcion_resuelto_por_fkey"
+            columns: ["resuelto_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solicitudes_inscripcion_usuario_id_fkey"
             columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "perfiles"
@@ -390,6 +493,17 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      contar_alumnos_totales: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      contar_inscritos_por_curso: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cantidad: number
+          curso_id: string
+        }[]
+      }
       has_role: {
         Args: {
           role_to_check: Database["public"]["Enums"]["app_role"]

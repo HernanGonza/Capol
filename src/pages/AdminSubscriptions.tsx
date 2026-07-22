@@ -61,7 +61,12 @@ const AdminSubscriptions = () => {
     queryFn: async () => {
       const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("rol", "student");
       if (!roles?.length) return [];
-      const { data: profiles } = await supabase.from("perfiles").select("*").in("id", roles.map((r) => r.usuario_id));
+      const { data: profiles } = await supabase
+        .from("perfiles")
+        .select("*")
+        .in("id", roles.map((r) => r.usuario_id))
+        .eq("activo", true)
+        .order("nombre_completo");
       return profiles || [];
     },
   });
@@ -117,6 +122,22 @@ const AdminSubscriptions = () => {
         fin_en: form.fin_en ? new Date(form.fin_en).toISOString() : null,
       };
 
+      // Si estamos creando una suscripción activa nueva, chequeamos antes que no
+      // haya ya otra activa para el mismo alumno + curso (la base también lo
+      // impide con una restricción, pero acá damos un mensaje más claro).
+      if (!editingId && form.estado === "active") {
+        const { data: existente } = await supabase
+          .from("suscripciones")
+          .select("id")
+          .eq("usuario_id", form.usuario_id)
+          .eq("curso_id", form.curso_id)
+          .eq("estado", "active")
+          .maybeSingle();
+        if (existente) {
+          throw new Error("Este alumno ya tiene una suscripción activa a este curso.");
+        }
+      }
+
       if (editingId) {
         const { error } = await supabase.from("suscripciones").update(payload).eq("id", editingId);
         if (error) throw error;
@@ -124,9 +145,13 @@ const AdminSubscriptions = () => {
         const { error } = await supabase.from("suscripciones").insert(payload);
         if (error) throw error;
       }
+      // Nota: no hace falta crear la inscripción a mano acá. El trigger
+      // "on_suscripcion_activa" en la base la asegura automáticamente
+      // cuando la suscripción queda "active".
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
       toast.success(editingId ? "Suscripción actualizada" : "Pago registrado");
       handleClose();
     },
@@ -150,10 +175,12 @@ const AdminSubscriptions = () => {
 
     if (error) {
       toast.error("Error al renovar");
-    } else {
-      queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
-      toast.success("Mensualidad renovada (30 días añadidos)");
+      return;
     }
+
+    queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
+    queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
+    toast.success("Mensualidad renovada (30 días añadidos)");
   };
 
   const handleEdit = (sub: any) => {

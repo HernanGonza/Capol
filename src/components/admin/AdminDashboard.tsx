@@ -27,7 +27,7 @@ const AdminDashboard = () => {
         { data: progress }
       ] = await Promise.all([
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "student"),
-        supabase.from("suscripciones").select("estado, price"),
+        supabase.from("suscripciones").select("estado, price, moneda"),
         supabase.from("cursos").select("id, publicado"),
         supabase.from("progreso_lecciones").select("completado")
       ]);
@@ -36,28 +36,45 @@ const AdminDashboard = () => {
       const activeCourses = courses?.filter(c => c.publicado).length || 0;
       const activeSubs = subs?.filter(s => s.estado === 'active') || [];
       const expiredSubs = subs?.filter(s => s.estado === 'expired') || [];
-      const monthlyRevenue = activeSubs.reduce((acc, curr) => acc + (curr.price || 0), 0);
+      // Contamos ALUMNOS distintos, no filas de suscripción: un alumno con 2 cursos activos
+      // tiene 2 filas en "suscripciones" pero sigue siendo 1 solo alumno.
+      const alumnosAlDia = new Set(activeSubs.map((s: any) => s.usuario_id)).size;
+      const alumnosVencidos = new Set(expiredSubs.map((s: any) => s.usuario_id)).size;
+      // Agrupamos por moneda: sumar ARS + USD + EUR como si fueran el mismo número sería incorrecto.
+      const revenueByCurrency = activeSubs.reduce((acc: Record<string, number>, curr: any) => {
+        const currency = curr.moneda || "ARS";
+        acc[currency] = (acc[currency] || 0) + (curr.price || 0);
+        return acc;
+      }, {});
       const completionRate = progress?.length ? (progress.filter(p => p.completado).length / progress.length) * 100 : 0;
 
       return {
         totalStudents,
         activeCourses,
         totalCourses: courses?.length || 0,
-        activeCount: activeSubs.length,
-        expiredCount: expiredSubs.length,
-        revenue: monthlyRevenue,
+        activeCount: alumnosAlDia,
+        expiredCount: alumnosVencidos,
+        revenueByCurrency,
         completionRate,
-        healthRatio: totalStudents > 0 ? (activeSubs.length / totalStudents) * 100 : 0
+        healthRatio: totalStudents > 0 ? (alumnosAlDia / totalStudents) * 100 : 0
       };
     },
   });
 
   if (isLoading) return <div className="p-8 text-center animate-pulse text-muted-foreground">Cargando métricas maestras...</div>;
 
+  const formatRevenue = (byCurrency?: Record<string, number>) => {
+    if (!byCurrency || Object.keys(byCurrency).length === 0) return "$0";
+    const symbols: Record<string, string> = { ARS: "$", USD: "U$S", EUR: "€" };
+    return Object.entries(byCurrency)
+      .map(([currency, amount]) => `${symbols[currency] || currency} ${amount.toLocaleString("es-AR")}`)
+      .join(" + ");
+  };
+
   const cards = [
     {
       title: "Ingresos Mensuales",
-      value: `$${stats?.revenue.toLocaleString()}`,
+      value: formatRevenue(stats?.revenueByCurrency),
       description: "Suscripciones activas",
       icon: TrendingUp,
       color: "bg-primary text-primary-foreground",

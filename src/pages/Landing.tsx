@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import {
   GraduationCap,
   Users,
@@ -34,6 +35,8 @@ const Landing = () => {
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [totalAlumnos, setTotalAlumnos] = useState<number | null>(null);
+  const [inscritosPorCurso, setInscritosPorCurso] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -58,6 +61,18 @@ const Landing = () => {
         setCourses(data);
       }
       setLoading(false);
+
+      // Estadísticas reales para el hero y las tarjetas de curso (vía funciones públicas,
+      // ya que un visitante anónimo no tiene permiso para leer las tablas directamente)
+      const { data: alumnos } = await supabase.rpc("contar_alumnos_totales");
+      if (typeof alumnos === "number") setTotalAlumnos(alumnos);
+
+      const { data: inscritos } = await supabase.rpc("contar_inscritos_por_curso");
+      if (inscritos) {
+        const map: Record<string, number> = {};
+        inscritos.forEach((row) => { map[row.curso_id] = row.cantidad; });
+        setInscritosPorCurso(map);
+      }
     };
 
     fetchCourses();
@@ -166,7 +181,7 @@ const Landing = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/20 text-black hover:bg-white/5 font-semibold text-lg px-8 h-14 rounded-2xl"
+                  className="border-white/20 text-white hover:bg-white/5 font-semibold text-lg px-8 h-14 rounded-2xl"
                 >
                   Ver Cursos
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -177,7 +192,9 @@ const Landing = () => {
             {/* Stats */}
             <div className="flex items-center justify-center gap-8 pt-12 animate-fade-in">
               <div className="text-center">
-                <p className="text-3xl font-black text-white">100+</p>
+                <p className="text-3xl font-black text-white">
+                  {totalAlumnos !== null ? `${totalAlumnos}+` : "—"}
+                </p>
                 <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
                   Alumnos
                 </p>
@@ -185,7 +202,7 @@ const Landing = () => {
               <div className="w-px h-10 bg-white/10" />
               <div className="text-center">
                 <p className="text-3xl font-black text-white">
-                  {courses.length}+
+                  {courses.length}
                 </p>
                 <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
                   Cursos
@@ -193,9 +210,11 @@ const Landing = () => {
               </div>
               <div className="w-px h-10 bg-white/10" />
               <div className="text-center">
-                <p className="text-3xl font-black text-indigo-400">4.9</p>
+                <p className="text-3xl font-black text-indigo-400">
+                  {Object.values(inscritosPorCurso).reduce((a, b) => a + b, 0)}
+                </p>
                 <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
-                  Rating
+                  Inscripciones
                 </p>
               </div>
             </div>
@@ -235,8 +254,8 @@ const Landing = () => {
               </div>
               <h3 className="text-xl font-bold mb-3">A tu Ritmo</h3>
               <p className="text-white/50 leading-relaxed">
-                Accedé al contenido cuando quieras. Las clases quedan grabadas
-                para que las repases.
+                Accedé al contenido cuando quieras. Cuando el profesor graba la
+                clase, vas a poder repasarla las veces que necesites.
               </p>
             </div>
           </div>
@@ -335,7 +354,7 @@ const Landing = () => {
                       <div className="flex items-center gap-2 text-white/40 text-sm">
                         <Users className="w-4 h-4" />
                         <span>
-                          {course.inscripciones[0]?.count || 0} inscritos
+                          {inscritosPorCurso[course.id] || 0} inscriptos
                         </span>
                       </div>
 
@@ -448,6 +467,21 @@ const Landing = () => {
           </div>
         </div>
       </footer>
+
+      {/* Modal de video del flyer del curso */}
+      <Dialog open={isModalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
+        <DialogContent className="sm:max-w-2xl bg-black border-white/10 p-2">
+          {selectedVideo && (
+            <video
+              src={selectedVideo}
+              className="w-full max-h-[80vh] rounded-xl"
+              controls
+              autoPlay
+              playsInline
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

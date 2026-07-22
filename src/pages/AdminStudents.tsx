@@ -9,28 +9,34 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Users, BookOpen, Trash2, Calendar, Search, Filter } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck } from "lucide-react";
 
 const AdminStudents = () => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
-  
+
   // Estados para filtros
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
+  // Lista de alumnos (a nivel cuenta, con su estado activo/inactivo)
   const { data: students } = useQuery({
     queryKey: ["all-students"],
     queryFn: async () => {
       const { data: roles } = await supabase.from("roles_usuario").select("usuario_id").eq("rol", "student");
       if (!roles?.length) return [];
-      const { data: profiles } = await supabase.from("perfiles").select("*").in("id", roles.map((r) => r.usuario_id));
+      const { data: profiles } = await supabase
+        .from("perfiles")
+        .select("*")
+        .in("id", roles.map((r) => r.usuario_id))
+        .order("nombre_completo");
       return profiles || [];
     },
   });
+
+  const activeStudents = useMemo(() => students?.filter((s) => s.activo) || [], [students]);
 
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
@@ -55,37 +61,91 @@ const AdminStudents = () => {
   // Lógica de Filtrado y Ordenamiento
   const filteredEnrollments = useMemo(() => {
     if (!enrollments) return [];
-    
+
     return enrollments
       .filter((e: any) => {
         const matchesSearch = (e.perfiles?.nombre_completo || "").toLowerCase().includes(search.toLowerCase()) ||
                             (e.cursos?.titulo || "").toLowerCase().includes(search.toLowerCase());
-        
-        const subStatus = e.subscription?.status || "none";
+
+        const subStatus = e.subscription?.estado || "none";
         const matchesStatus = statusFilter === "all" || subStatus === statusFilter;
-        
+
         return matchesSearch && matchesStatus;
       })
-      .sort((a: any, b: any) => (a.perfiles?.nombre_completo || "").localeCompare(b.profiles?.nombre_completo || ""));
+      .sort((a: any, b: any) => (a.perfiles?.nombre_completo || "").localeCompare(b.perfiles?.nombre_completo || ""));
   }, [enrollments, search, statusFilter]);
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from("inscripciones").insert({ usuario_id: selectedStudent, curso_id: selectedCourse });
-      if (error) throw error;
+      // Solo creamos la suscripción: un trigger en la base ("on_suscripcion_activa")
+      // se encarga de asegurar la inscripción correspondiente automáticamente,
+      // así este flujo no puede volver a desincronizarse.
+      const { data: existente } = await supabase
+        .from("suscripciones")
+        .select("id")
+        .eq("usuario_id", selectedStudent)
+        .eq("curso_id", selectedCourse)
+        .eq("estado", "active")
+        .maybeSingle();
+
+      if (existente) {
+        throw new Error("Este alumno ya tiene una suscripción activa a este curso.");
+      }
+
+      const { error: subError } = await supabase.from("suscripciones").insert({
+        usuario_id: selectedStudent,
+        curso_id: selectedCourse,
+        estado: "active",
+        nombre_plan: "Manual",
+        inicio_en: new Date().toISOString(),
+      });
+      if (subError) throw subError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
-      toast.success("Alumno inscripto");
+      toast.success("Alumno inscripto y con acceso habilitado");
       setOpen(false);
+      setSelectedStudent("");
+      setSelectedCourse("");
     },
+    onError: (e: any) => toast.error(e.message),
   });
 
+  // Quitar a un alumno de UN curso puntual: hay que cerrar tanto la inscripción
+  // como la suscripción de ese curso, o quedan desincronizadas (el bug original).
   const unenrollMutation = useMutation({
-    mutationFn: async (id: string) => {
-      await supabase.from("inscripciones").delete().eq("id", id);
+    mutationFn: async (enrollment: any) => {
+      const { error: subError } = await supabase
+        .from("suscripciones")
+        .update({ estado: "expired" })
+        .eq("usuario_id", enrollment.usuario_id)
+        .eq("curso_id", enrollment.curso_id)
+        .eq("estado", "active");
+      if (subError) throw subError;
+
+      const { error: enrError } = await supabase.from("inscripciones").delete().eq("id", enrollment.id);
+      if (enrError) throw enrError;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
+      toast.success("Alumno removido de este curso");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Baja lógica de la cuenta del alumno (no un borrado físico): marca "activo = false".
+  // Un trigger en la base vence automáticamente todas sus suscripciones activas.
+  const toggleActivoMutation = useMutation({
+    mutationFn: async ({ id, activo }: { id: string; activo: boolean }) => {
+      const { error } = await supabase.from("perfiles").update({ activo }).eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["all-students"] });
+      queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
+      toast.success(vars.activo ? "Alumno reactivado" : "Alumno dado de baja (se vencieron sus suscripciones activas)");
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   return (
@@ -94,7 +154,7 @@ const AdminStudents = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold">Gestión de Alumnos</h1>
-            <p className="text-muted-foreground">Inscripciones y estados de pago</p>
+            <p className="text-muted-foreground">Cuentas, inscripciones y estados de pago</p>
           </div>
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -105,26 +165,92 @@ const AdminStudents = () => {
               <div className="space-y-4 pt-4">
                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>
-                  <SelectContent>{students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo}</SelectItem>)}</SelectContent>
+                  <SelectContent>{activeStudents.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo}</SelectItem>)}</SelectContent>
                 </Select>
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
                   <SelectContent>{courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>)}</SelectContent>
                 </Select>
-                <Button className="w-full gradient-primary" onClick={() => enrollMutation.mutate()}>Confirmar</Button>
+                <Button
+                  className="w-full gradient-primary"
+                  disabled={!selectedStudent || !selectedCourse || enrollMutation.isPending}
+                  onClick={() => enrollMutation.mutate()}
+                >
+                  {enrollMutation.isPending ? "Confirmando..." : "Confirmar"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* CUENTAS DE ALUMNOS: activar / dar de baja */}
+        <Card className="shadow-card overflow-hidden">
+          <CardHeader className="bg-muted/30 border-b">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Users className="w-5 h-5 text-primary" />
+              Alumnos ({students?.length || 0})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {students?.map((s) => (
+                <div key={s.id} className="flex items-center justify-between p-4 hover:bg-muted/10 gap-4">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${s.activo ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
+                      {(s.nombre_completo || "?")[0].toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold truncate">{s.nombre_completo || "Sin nombre"}</p>
+                      <p className="text-xs text-muted-foreground">{s.dni ? `DNI ${s.dni}` : "Sin DNI cargado"}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    {s.activo ? (
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activo</Badge>
+                    ) : (
+                      <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200">Dado de baja</Badge>
+                    )}
+                    {s.activo ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          if (confirm(`¿Dar de baja a ${s.nombre_completo}? Se vencerán todas sus suscripciones activas. Podés reactivarlo cuando quieras.`)) {
+                            toggleActivoMutation.mutate({ id: s.id, activo: false });
+                          }
+                        }}
+                      >
+                        <UserX className="w-4 h-4 mr-1" /> Dar de baja
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-emerald-700 hover:bg-emerald-50"
+                        onClick={() => toggleActivoMutation.mutate({ id: s.id, activo: true })}
+                      >
+                        <UserCheck className="w-4 h-4 mr-1" /> Reactivar
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {students?.length === 0 && (
+                <p className="text-center text-muted-foreground py-10">Todavía no hay alumnos registrados.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* BARRA DE FILTROS */}
         <Card className="bg-muted/30 border-none shadow-none">
           <CardContent className="p-4 flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
-                placeholder="Buscar por nombre o curso..." 
-                className="pl-9 bg-background" 
+              <Input
+                placeholder="Buscar por nombre o curso..."
+                className="pl-9 bg-background"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -149,8 +275,8 @@ const AdminStudents = () => {
         <Card className="shadow-card overflow-hidden">
           <CardHeader className="bg-muted/30 border-b">
             <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5 text-primary" /> 
-              Alumnos Inscriptos ({filteredEnrollments.length})
+              <BookOpen className="w-5 h-5 text-primary" />
+              Inscripciones por Curso ({filteredEnrollments.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -170,18 +296,33 @@ const AdminStudents = () => {
                   <div className="flex items-center gap-6">
                     <div className="text-right">
                       <p className="text-[10px] uppercase font-bold text-muted-foreground">Suscripción</p>
-                      {e.subscription?.status === 'active' ? (
+                      {e.subscription?.estado === 'active' ? (
                         <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">ACTIVA</Badge>
-                      ) : e.subscription?.status === 'expired' ? (
+                      ) : e.subscription?.estado === 'expired' ? (
                         <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">VENCIDA</Badge>
                       ) : (
                         <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200">PENDIENTE</Badge>
                       )}
                     </div>
-                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => unenrollMutation.mutate(e.id)}><Trash2 className="w-4 h-4" /></Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive"
+                      title="Quitar de este curso"
+                      onClick={() => {
+                        if (confirm(`¿Quitar a ${e.perfiles?.nombre_completo} de "${e.cursos?.titulo}"? Se vence su suscripción a este curso.`)) {
+                          unenrollMutation.mutate(e);
+                        }
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
               ))}
+              {filteredEnrollments.length === 0 && (
+                <p className="text-center text-muted-foreground py-10">No hay inscripciones que coincidan con el filtro.</p>
+              )}
             </div>
           </CardContent>
         </Card>

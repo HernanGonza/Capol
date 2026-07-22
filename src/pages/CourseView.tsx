@@ -11,7 +11,7 @@ import LessonContent from "@/components/student/LessonContent";
 
 const CourseView = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const navigate = useNavigate();
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
 
@@ -32,6 +32,25 @@ const CourseView = () => {
     },
     enabled: !!user && !!courseId,
   });
+
+  // 1b. Si es profesor, ver si este curso está entre los suyos (para poder
+  // previsualizarlo como lo ve un alumno, sin necesitar estar suscripto).
+  const { data: isAssignedTeacher, isLoading: isLoadingTeacherAccess } = useQuery({
+    queryKey: ["is-assigned-teacher", user?.id, courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("docentes_cursos")
+        .select("id")
+        .eq("curso_id", courseId!)
+        .eq("docente_id", user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!user && !!courseId && role === "teacher",
+  });
+
+  const isStaffPreview = role === "admin" || !!isAssignedTeacher;
 
   // 2. Obtener datos del curso
   const { data: course, isLoading: isLoadingCourse } = useQuery({
@@ -80,6 +99,7 @@ const CourseView = () => {
   });
 
   const isLessonUnlocked = (lesson: any) => {
+    if (isStaffPreview) return true;
     if (!lesson.fecha_desbloqueo) return true;
     return new Date(lesson.fecha_desbloqueo) <= new Date();
   };
@@ -91,7 +111,7 @@ const CourseView = () => {
   const selectedLesson = lessons?.find((l) => l.id === selectedLessonId);
 
   // Pantalla de carga
-  if (isLoadingSub || isLoadingCourse) {
+  if (isLoadingSub || isLoadingCourse || isLoadingTeacherAccess) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -101,10 +121,11 @@ const CourseView = () => {
     );
   }
 
-  // Barrera de acceso
+  // Barrera de acceso (no aplica si es un profesor asignado o un admin: ellos
+  // pueden previsualizar el curso sin estar suscriptos)
   const isExpired = subscription?.fin_en && new Date(subscription.fin_en) < new Date();
   
-  if (!subscription || isExpired) {
+  if (!isStaffPreview && (!subscription || isExpired)) {
     return (
       <AppLayout>
         <div className="max-w-md mx-auto mt-20 text-center space-y-6 animate-fade-in">
@@ -145,6 +166,7 @@ const CourseView = () => {
           }}
           userId={user!.id}
           courseTitle={course?.titulo}
+          isPreview={isStaffPreview}
         />
       </AppLayout>
     );
@@ -154,6 +176,12 @@ const CourseView = () => {
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+        {isStaffPreview && (
+          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-semibold rounded-xl px-4 py-3">
+            <Video className="w-4 h-4 shrink-0" />
+            Estás viendo este curso en modo vista previa, como lo ve un alumno.
+          </div>
+        )}
         <header className="border-b pb-6">
           <h1 className="text-3xl font-bold tracking-tight text-slate-900">{course?.titulo}</h1>
           <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>

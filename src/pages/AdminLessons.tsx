@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
@@ -39,11 +39,14 @@ import {
   CheckSquare,
   GitCompare,
   Calendar,
-  LockOpen
+  LockOpen,
+  Eye,
+  EyeOff,
 } from "lucide-react";
+import { renderMarkdown } from "@/components/LessonBlocks";
 
 const BLOCK_TYPES = [
-  { id: "text", label: "Texto / MD", icon: Type },
+  { id: "text", label: "Texto (Markdown)", icon: Type },
   { id: "video", label: "Video URL", icon: Video },
   { id: "image", label: "Imagen URL", icon: ImageIcon },
   { id: "terminal", label: "Consola JS", icon: Code },
@@ -57,6 +60,7 @@ const BLOCK_TYPES = [
 
 const AdminLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
 
@@ -64,7 +68,9 @@ const AdminLessons = () => {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [lessonTitle, setLessonTitle] = useState("");
   const [unlockDate, setUnlockDate] = useState(""); 
+  const [salaJitsi, setSalaJitsi] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [previewBlocks, setPreviewBlocks] = useState<Set<string>>(new Set());
 
   const { data: lessons, isLoading } = useQuery({
     queryKey: ["lecciones", courseId],
@@ -82,9 +88,10 @@ const AdminLessons = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const lessonData = {
-        title: lessonTitle,
+        titulo: lessonTitle,
         content: JSON.stringify(blocks),
         fecha_desbloqueo: unlockDate || null,
+        sala_jitsi: salaJitsi.trim() || null,
         curso_id: courseId!,
       };
 
@@ -110,8 +117,34 @@ const AdminLessons = () => {
     setBlocks([]);
     setLessonTitle("");
     setUnlockDate(""); 
+    setSalaJitsi("");
     setEditingLessonId(null);
   };
+
+  const openLessonForEdit = (lesson: any) => {
+    setEditingLessonId(lesson.id);
+    setLessonTitle(lesson.titulo);
+    setUnlockDate(lesson.fecha_desbloqueo || "");
+    setSalaJitsi(lesson.sala_jitsi || "");
+    try { setBlocks(JSON.parse(lesson.content || "[]")); } catch (e) { setBlocks([]); }
+    setOpen(true);
+  };
+
+  // Si llegamos con ?edit=<id> (por ejemplo desde el listado de clases del profesor),
+  // abrimos directamente esa clase apenas cargan las lecciones.
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId && lessons) {
+      const lesson = lessons.find((l: any) => l.id === editId);
+      if (lesson) {
+        openLessonForEdit(lesson);
+      }
+      // Limpiamos el parámetro para no reabrir el diálogo si se cierra y se vuelve a renderizar
+      searchParams.delete("edit");
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lessons]);
 
   const addBlock = (type: string) => {
     const newBlock = {
@@ -186,6 +219,20 @@ const AdminLessons = () => {
                     className="font-medium"
                   />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <Label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                    <Video className="w-3 h-3" /> Nombre de la Video Llamada (Opcional)
+                  </Label>
+                  <Input 
+                    value={salaJitsi} 
+                    onChange={(e) => setSalaJitsi(e.target.value)} 
+                    placeholder="Ej: Clase de los Martes" 
+                    className="font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Con este nombre se genera el link de la video llamada en Jitsi. Si lo dejás vacío, se arma uno automático con el curso y la clase.
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-4">
@@ -207,7 +254,38 @@ const AdminLessons = () => {
                             <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{block.type}</span>
                           </div>
 
-                          {block.type === "text" && <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Escribe aquí tu contenido (acepta HTML)..." className="min-h-[120px]" />}
+                          {block.type === "text" && (
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <p className="text-[10px] text-muted-foreground">
+                                  Se escribe en Markdown: **negrita**, # Título, - lista, [link](url), etc.
+                                </p>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 text-xs font-bold"
+                                  onClick={() => setPreviewBlocks((prev) => {
+                                    const next = new Set(prev);
+                                    if (next.has(block.id)) { next.delete(block.id); } else { next.add(block.id); }
+                                    return next;
+                                  })}
+                                >
+                                  {previewBlocks.has(block.id)
+                                    ? <><EyeOff className="w-3.5 h-3.5 mr-1" /> Editar</>
+                                    : <><Eye className="w-3.5 h-3.5 mr-1" /> Vista previa</>}
+                                </Button>
+                              </div>
+                              {previewBlocks.has(block.id) ? (
+                                <div
+                                  className="prose prose-slate max-w-none prose-sm min-h-[120px] border rounded-lg p-4 bg-white"
+                                  dangerouslySetInnerHTML={{ __html: renderMarkdown(block.value) }}
+                                />
+                              ) : (
+                                <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder={"Ej:\n# Título de la sección\n\nUn párrafo con **negrita** y _cursiva_.\n\n- Punto uno\n- Punto dos"} className="min-h-[120px] font-mono text-sm" />
+                              )}
+                            </div>
+                          )}
                           
                           {(block.type === "video" || block.type === "image" || block.type === "download") && (
                             <Input value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Pega la URL del recurso aquí..." />
@@ -285,13 +363,7 @@ const AdminLessons = () => {
             const unlocked = lesson.fecha_desbloqueo ? isDatePassed(lesson.fecha_desbloqueo) : true;
 
             return (
-              <Card key={lesson.id} className="group hover:border-primary/50 transition-all cursor-pointer shadow-card" onClick={() => {
-                setEditingLessonId(lesson.id);
-                setLessonTitle(lesson.titulo);
-                setUnlockDate(lesson.fecha_desbloqueo || "");
-                try { setBlocks(JSON.parse(lesson.content || "[]")); } catch (e) { setBlocks([]); }
-                setOpen(true);
-              }}>
+              <Card key={lesson.id} className="group hover:border-primary/50 transition-all cursor-pointer shadow-card" onClick={() => openLessonForEdit(lesson)}>
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-5">
                     <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 group-hover:bg-primary group-hover:text-white transition-colors">{idx + 1}</div>

@@ -7,18 +7,10 @@ import {
   ArrowLeft, 
   CheckCircle, 
   Video, 
-  Code, 
-  Info, 
-  Download, 
-  ArrowRight, 
-  HelpCircle, 
-  FileCode, 
-  CheckSquare, 
-  GitCompare, 
   Trophy 
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
-import Terminal from "@/components/Terminal"; 
+import LessonBlocks from "@/components/LessonBlocks";
 import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import confetti from "canvas-confetti";
@@ -30,9 +22,10 @@ interface Props {
   onBack: () => void;
   userId: string;
   courseTitle?: string;
+  isPreview?: boolean;
 }
 
-const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
+const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props) => {
   const queryClient = useQueryClient();
   const [showJitsi, setShowJitsi] = useState(false);
 
@@ -51,14 +44,6 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
   });
 
   const isCompleted = !!progress?.completado;
-
-  const blocks = (() => {
-    try {
-      return JSON.parse(lesson.content || "[]");
-    } catch (e) {
-      return [{ id: "old-html", type: "text", value: lesson.content }];
-    }
-  })();
 
   const completeMutation = useMutation({
     mutationFn: async () => {
@@ -84,14 +69,6 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
       toast.success("¡Lección completada con éxito!", { icon: '🎓' });
     },
   });
-
-  const getEmbedUrl = (url: string) => {
-    const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+)/);
-    if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
-    const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
-    if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-    return url;
-  };
 
   return (
     <div className={`max-w-5xl mx-auto space-y-12 animate-fade-in pb-24 px-4 transition-all duration-1000 ${isCompleted ? 'ring-2 ring-emerald-500/20 rounded-[3rem] bg-emerald-50/5 p-8' : ''}`}>
@@ -119,147 +96,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
       </div>
 
       {/* TODOS LOS BLOQUES DINÁMICOS */}
-      <div className="space-y-16">
-        {blocks.map((block: any) => (
-          <div key={block.id} className="animate-in fade-in slide-in-from-bottom-6 duration-700">
-            
-            {/* 1. TEXTO / MD */}
-            {block.type === 'text' && (
-              <div className="prose prose-slate max-w-none prose-lg prose-headings:font-black prose-p:text-slate-600">
-                <div dangerouslySetInnerHTML={{ __html: block.value }} className="leading-relaxed" />
-              </div>
-            )}
-
-            {/* 2. VIDEO */}
-            {block.type === 'video' && (
-              <Card className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-slate-100">
-                <div className="aspect-video">
-                  <iframe src={getEmbedUrl(block.value)} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media" />
-                </div>
-              </Card>
-            )}
-
-            {/* 3. IMAGEN */}
-            {block.type === 'image' && (
-              <div className="flex flex-col items-center group">
-                <img src={block.value} alt="Visual" className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-white" />
-              </div>
-            )}
-
-            {/* 4. TERMINAL */}
-            {block.type === 'terminal' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-[0.2em] px-2">
-                  <div className="p-1.5 bg-primary/10 rounded-lg"><Code className="w-4 h-4" /></div>
-                  <span>Práctica en Consola</span>
-                </div>
-                <Terminal codigoInicial={block.value} />
-              </div>
-            )}
-
-            {/* 5. CALLOUT */}
-            {block.type === 'callout' && (
-              <div className={`p-6 rounded-2xl border-l-[6px] flex gap-5 shadow-sm ${
-                block.style === 'warning' ? 'bg-amber-50 border-amber-500 text-amber-900' :
-                block.style === 'tip' ? 'bg-emerald-50 border-emerald-500 text-emerald-900' :
-                'bg-blue-50 border-blue-500 text-blue-900'
-              }`}>
-                <Info className="w-7 h-7 shrink-0 opacity-80" />
-                <div className="font-bold text-lg leading-snug">{block.value}</div>
-              </div>
-            )}
-
-            {/* 6. RECURSO */}
-            {block.type === 'download' && (
-              <a href={block.value} target="_blank" className="flex items-center justify-between p-6 bg-white border-2 border-slate-100 rounded-3xl hover:border-primary hover:shadow-xl transition-all group">
-                <div className="flex items-center gap-5">
-                  <div className="p-4 bg-slate-50 rounded-2xl group-hover:bg-primary/10 transition-colors"><Download className="w-7 h-7 text-slate-400 group-hover:text-primary" /></div>
-                  <div>
-                    <div className="font-black text-xl text-slate-900">Material de Apoyo</div>
-                    <div className="text-sm text-slate-400 font-bold uppercase tracking-tighter">Descargar archivos</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-6 h-6 text-slate-300 group-hover:text-primary group-hover:translate-x-2 transition-all" />
-              </a>
-            )}
-
-            {/* 7. MINI QUIZ */}
-            {block.type === 'quiz' && (
-              <Card className="border-2 border-slate-100 shadow-xl rounded-[2rem] overflow-hidden">
-                <div className="bg-slate-50 p-6 border-b flex items-center gap-4">
-                  <HelpCircle className="w-6 h-6 text-primary" />
-                  <h4 className="font-black text-xl text-slate-800">{block.value}</h4>
-                </div>
-                <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {['A', 'B'].map((opt) => (
-                    <Button key={opt} variant="outline" className="h-auto py-6 px-8 text-lg font-bold rounded-2xl hover:border-primary hover:bg-primary/5 transition-all text-left justify-start" onClick={() => {
-                      opt === block.correct ? toast.success("¡Respuesta Correcta!") : toast.error("Incorrecto, prueba otra vez.");
-                    }}>
-                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-4 shrink-0 text-sm">{opt}</div>
-                      {opt === 'A' ? block.a : block.b}
-                    </Button>
-                  ))}
-                </CardContent>
-              </Card>
-            )}
-
-            {/* 8. SNIPPET */}
-            {block.type === 'snippet' && (
-              <div className="relative group">
-                <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="secondary" size="sm" className="font-bold" onClick={() => {
-                    navigator.clipboard.writeText(block.value);
-                    toast.success("Copiado");
-                  }}>COPIAR</Button>
-                </div>
-                <pre className="p-8 bg-slate-900 text-slate-100 rounded-[2rem] overflow-x-auto font-mono text-sm leading-relaxed shadow-2xl border-4 border-slate-800">
-                  <code>{block.value}</code>
-                </pre>
-              </div>
-            )}
-
-            {/* 9. CHECKLIST */}
-            {block.type === 'checklist' && (
-              <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200 space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
-                  <CheckSquare className="w-6 h-6 text-primary" />
-                  <h4 className="font-black text-sm uppercase tracking-[0.2em] text-slate-500">Hoja de Ruta</h4>
-                </div>
-                <div className="grid gap-3">
-                  {block.value.split('\n').filter((t: any) => t.trim() !== "").map((task: string, i: number) => (
-                    <label key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 cursor-pointer hover:shadow-md transition-all group">
-                      <input type="checkbox" className="w-6 h-6 rounded-lg border-slate-300 text-primary cursor-pointer" />
-                      <span className="text-slate-700 font-bold group-has-[:checked]:line-through group-has-[:checked]:text-slate-300 transition-all text-lg">
-                        {task}
-                      </span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* 10. DIFF (COMPARACIÓN) */}
-            {block.type === 'diff' && (
-              <div className="space-y-4">
-                <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] px-4">
-                  <GitCompare className="w-4 h-4" /> <span>Comparativa de cambios</span>
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 border-4 border-slate-200 rounded-[2rem] overflow-hidden shadow-2xl">
-                  <div className="bg-white p-6 border-r">
-                    <div className="text-[10px] font-black text-red-400 mb-3 uppercase">Anterior</div>
-                    <pre className="font-mono text-xs text-slate-500 bg-red-50/30 p-5 rounded-2xl"><code>{block.oldValue}</code></pre>
-                  </div>
-                  <div className="bg-white p-6">
-                    <div className="text-[10px] font-black text-emerald-500 mb-3 uppercase">Nuevo</div>
-                    <pre className="font-mono text-xs text-slate-800 bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100"><code>{block.newValue}</code></pre>
-                  </div>
-                </div>
-              </div>
-            )}
-
-          </div>
-        ))}
-      </div>
+      <LessonBlocks content={lesson.content} />
 
       {/* JITSI */}
       {lesson.sala_jitsi && (
@@ -289,7 +126,11 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle }: Props) => {
 
       {/* BOTÓN FINAL DE COMPLETADO */}
       <div className="pt-16 mt-20 border-t border-slate-100 space-y-10">
-        {!isCompleted ? (
+        {isPreview ? (
+          <div className="bg-indigo-50 border-2 border-indigo-100 rounded-[2.5rem] p-10 text-center space-y-2">
+            <p className="text-indigo-700 font-bold">Estás en modo vista previa: así es como un alumno ve esta clase.</p>
+          </div>
+        ) : !isCompleted ? (
           <div className="bg-slate-900 rounded-[2.5rem] p-10 text-center space-y-6 shadow-2xl shadow-primary/20">
             <Trophy className="w-12 h-12 text-amber-400 mx-auto animate-bounce" />
             <div className="space-y-2">

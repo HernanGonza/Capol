@@ -27,6 +27,7 @@ import {
   X
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
+import LessonBlocks from "@/components/LessonBlocks";
 
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -37,7 +38,7 @@ const TeacherLessons = () => {
   const [open, setOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [showJitsi, setShowJitsi] = useState(false);
-  const [activeRoom, setActiveRoom] = useState<string | null>(null);
+  const [activeRoom, setActiveRoom] = useState<string>("");
   const [activeLesson, setActiveLesson] = useState<any>(null);
   const [form, setForm] = useState({
     titulo: "",
@@ -99,7 +100,7 @@ const TeacherLessons = () => {
         ...form,
         curso_id: courseId,
         fecha_desbloqueo: form.fecha_desbloqueo || null,
-        sala_jitsi: form.sala_jitsi || `course-${courseId}-lesson-${lessons?.length || 0}`,
+        sala_jitsi: form.sala_jitsi.trim() || null,
       };
 
       if (editingLesson) {
@@ -162,40 +163,56 @@ const TeacherLessons = () => {
   };
 
   const startLiveClass = (lesson: any) => {
-    const roomName = lesson.sala_jitsi || `lesson-${lesson.id}`;
+    const roomName = lesson.sala_jitsi || "";
     setActiveRoom(roomName);
     setActiveLesson(lesson);
     setShowJitsi(true);
   };
 
-  // Si está mostrando Jitsi, renderizar fullscreen
-  if (showJitsi && activeRoom) {
+  // Vista de "Clase en vivo": contenido de la clase + video llamada juntos
+  if (showJitsi) {
     return (
-      <div className="fixed inset-0 z-50 bg-black">
-        <div className="absolute top-4 right-4 z-50">
+      <div className="fixed inset-0 z-50 bg-slate-100 overflow-hidden flex flex-col">
+        <div className="h-16 shrink-0 bg-white border-b flex items-center justify-between px-4 md:px-6 shadow-sm">
+          <div className="min-w-0">
+            <p className="font-bold truncate">{activeLesson?.titulo}</p>
+            <p className="text-xs text-muted-foreground truncate">{course?.titulo}</p>
+          </div>
           <Button
             variant="destructive"
             size="sm"
             onClick={() => {
               setShowJitsi(false);
-              setActiveRoom(null);
+              setActiveRoom("");
               setActiveLesson(null);
             }}
-            className="shadow-lg"
+            className="shadow-lg shrink-0"
           >
             <X className="w-4 h-4 mr-2" /> Cerrar Clase
           </Button>
         </div>
-        <JitsiMeet 
-          roomName={activeRoom}
-          courseTitle={course?.titulo}
-          lessonTitle={activeLesson?.titulo}
-          onClose={() => {
-            setShowJitsi(false);
-            setActiveRoom(null);
-            setActiveLesson(null);
-          }}
-        />
+        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+          {/* Contenido de la clase, igual a lo que ve el alumno */}
+          <div className="overflow-y-auto p-6 md:p-10 bg-white">
+            <LessonBlocks content={activeLesson?.content} />
+          </div>
+          {/* Video llamada */}
+          <div className="bg-black overflow-y-auto p-4 lg:h-full">
+            <div className="lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)]">
+              <JitsiMeet 
+                roomName={activeRoom}
+                courseTitle={course?.titulo}
+                lessonTitle={activeLesson?.titulo}
+                isTeacher
+                onClose={() => {
+                  setShowJitsi(false);
+                  setActiveRoom("");
+                  setActiveLesson(null);
+                }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -292,6 +309,20 @@ const TeacherLessons = () => {
                   />
                   <p className="text-xs text-muted-foreground">
                     Si se establece, la clase estará bloqueada hasta esta fecha
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                    <Video className="w-3.5 h-3.5" /> Nombre de la Video Llamada (opcional)
+                  </Label>
+                  <Input 
+                    value={form.sala_jitsi} 
+                    onChange={(e) => setForm({ ...form, sala_jitsi: e.target.value })} 
+                    placeholder="Ej: Clase de los Martes" 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Elegí el nombre con el que se va a generar el link de la video llamada. Si lo dejás vacío, se genera uno automático.
                   </p>
                 </div>
 

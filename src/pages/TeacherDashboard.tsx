@@ -6,7 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, Users, Layers, Edit, Video, Calendar } from "lucide-react";
+import { BookOpen, Users, Layers, Edit, Video, Calendar, Eye } from "lucide-react";
 
 const TeacherDashboard = () => {
   const { user, profile } = useAuth();
@@ -244,11 +244,18 @@ const TeacherDashboard = () => {
                       </div>
                     </div>
 
-                    <Link to={`/teacher/course/${course.id}/lessons`}>
-                      <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white">
-                        <Edit className="w-4 h-4 mr-2" /> Gestionar Clases
-                      </Button>
-                    </Link>
+                    <div className="flex gap-2">
+                      <Link to={`/teacher/course/${course.id}/lessons`} className="flex-1">
+                        <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white">
+                          <Edit className="w-4 h-4 mr-2" /> Gestionar Clases
+                        </Button>
+                      </Link>
+                      <Link to={`/course/${course.id}`}>
+                        <Button variant="outline" title="Ver como alumno">
+                          <Eye className="w-4 h-4" />
+                        </Button>
+                      </Link>
+                    </div>
                   </CardContent>
                 </Card>
               ))}

@@ -29,8 +29,8 @@ const AdminTeachers = () => {
         .select(`
           id,
           usuario_id,
-          role,
-          perfiles!user_roles_usuario_id_fkey (
+          rol,
+          perfiles!user_roles_user_id_fkey (
             id,
             nombre_completo,
             url_avatar
@@ -101,14 +101,14 @@ const AdminTeachers = () => {
         // Actualizar rol existente
         const { error } = await supabase
           .from("roles_usuario")
-          .update({ role: "teacher" })
+          .update({ rol: "teacher" })
           .eq("usuario_id", userId);
         if (error) throw error;
       } else {
         // Crear nuevo rol
         const { error } = await supabase
           .from("roles_usuario")
-          .insert({ usuario_id: userId, role: "teacher" });
+          .insert({ usuario_id: userId, rol: "teacher" });
         if (error) throw error;
       }
     },
@@ -172,7 +172,7 @@ const AdminTeachers = () => {
         .select(`
           id,
           nombre_completo,
-          roles_usuario!user_roles_usuario_id_fkey (role)
+          roles_usuario!user_roles_user_id_fkey (rol)
         `)
         .ilike("nombre_completo", `%${searchEmail}%`)
         .limit(10);

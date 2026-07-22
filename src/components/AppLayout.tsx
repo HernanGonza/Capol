@@ -52,7 +52,6 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     : isTeacher
     ? [
         { to: "/teacher", label: "Mi Panel", icon: LayoutDashboard },
-        { to: "/dashboard", label: "Vista Alumno", icon: BookOpen },
       ]
     : [
         { to: "/dashboard", label: "Mis Cursos", icon: BookOpen },

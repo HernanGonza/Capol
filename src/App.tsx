@@ -68,14 +68,14 @@ const App = () => (
             {/* Rutas protegidas generales */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/course/:courseId" element={<ProtectedRoute><CourseView /></ProtectedRoute>} />
-            <Route path="/student/subscriptions" element={<StudentSubscriptions />} />
+            <Route path="/student/subscriptions" element={<ProtectedRoute><StudentSubscriptions /></ProtectedRoute>} />
             
             {/* Rutas de Admin */}
             <Route path="/admin/courses" element={<ProtectedRoute adminOnly><AdminCourses /></ProtectedRoute>} />
             <Route path="/admin/courses/:courseId/lessons" element={<ProtectedRoute adminOnly teacherAllowed><AdminLessons /></ProtectedRoute>} />
             <Route path="/admin/students" element={<ProtectedRoute adminOnly><AdminStudents /></ProtectedRoute>} />
             <Route path="/admin/subscriptions" element={<ProtectedRoute adminOnly><AdminSubscriptions /></ProtectedRoute>} />
-            <Route path="/admin/solicitudes" element={<ProtectedRoute><AdminSolicitudes /></ProtectedRoute>} />
+            <Route path="/admin/solicitudes" element={<ProtectedRoute adminOnly><AdminSolicitudes /></ProtectedRoute>} />
             <Route path="/admin/teachers" element={<ProtectedRoute adminOnly><AdminTeachers /></ProtectedRoute>} />
             
             {/* Rutas de Profesor */}

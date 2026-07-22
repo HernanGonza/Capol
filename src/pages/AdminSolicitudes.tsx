@@ -50,22 +50,35 @@ const AdminSolicitudes = () => {
 
   const resolverMutation = useMutation({
     mutationFn: async ({ id, estado, usuarioId, cursoId }: { id: string; estado: string; usuarioId: string; cursoId: string }) => {
+      if (estado === "aprobada") {
+        // Creamos primero la suscripción (es lo que realmente da acceso al curso).
+        // Si esto falla, la solicitud queda como estaba (pendiente) en vez de quedar
+        // marcada "Aprobada" sin que el alumno tenga acceso.
+        const { data: existente } = await supabase
+          .from("suscripciones")
+          .select("id")
+          .eq("usuario_id", usuarioId)
+          .eq("curso_id", cursoId)
+          .eq("estado", "active")
+          .maybeSingle();
+
+        if (!existente) {
+          const { error: subError } = await supabase.from("suscripciones").insert({
+            usuario_id: usuarioId,
+            curso_id: cursoId,
+            estado: "active",
+            nombre_plan: "Manual",
+            inicio_en: new Date().toISOString(),
+          });
+          if (subError) throw subError;
+        }
+      }
+
       const { error } = await supabase
         .from("solicitudes_inscripcion")
         .update({ estado, resuelto_en: new Date().toISOString() })
         .eq("id", id);
       if (error) throw error;
-
-      if (estado === "aprobada") {
-        const { error: subError } = await supabase.from("suscripciones").insert({
-          usuario_id: usuarioId,
-          curso_id: cursoId,
-          estado: "active",
-          nombre_plan: "Manual",
-          inicio_en: new Date().toISOString(),
-        });
-        if (subError) throw subError;
-      }
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["admin-solicitudes"] });
