@@ -215,6 +215,8 @@ export type Database = {
           curso_id: string | null
           descripcion: string | null
           fecha_desbloqueo: string | null
+          fecha_fin_clase: string | null
+          grabacion_url: string | null
           id: string
           orden: number | null
           sala_jitsi: string | null
@@ -228,6 +230,8 @@ export type Database = {
           curso_id?: string | null
           descripcion?: string | null
           fecha_desbloqueo?: string | null
+          fecha_fin_clase?: string | null
+          grabacion_url?: string | null
           id?: string
           orden?: number | null
           sala_jitsi?: string | null
@@ -241,6 +245,8 @@ export type Database = {
           curso_id?: string | null
           descripcion?: string | null
           fecha_desbloqueo?: string | null
+          fecha_fin_clase?: string | null
+          grabacion_url?: string | null
           id?: string
           orden?: number | null
           sala_jitsi?: string | null
@@ -256,6 +262,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      mensajes_contacto: {
+        Row: {
+          creado_en: string
+          email: string
+          id: string
+          leido: boolean
+          mensaje: string
+          nombre: string
+        }
+        Insert: {
+          creado_en?: string
+          email: string
+          id?: string
+          leido?: boolean
+          mensaje: string
+          nombre: string
+        }
+        Update: {
+          creado_en?: string
+          email?: string
+          id?: string
+          leido?: boolean
+          mensaje?: string
+          nombre?: string
+        }
+        Relationships: []
       }
       perfiles: {
         Row: {
@@ -498,6 +531,13 @@ export type Database = {
         Returns: number
       }
       contar_inscritos_por_curso: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          cantidad: number
+          curso_id: string
+        }[]
+      }
+      contar_lecciones_por_curso: {
         Args: Record<PropertyKey, never>
         Returns: {
           cantidad: number

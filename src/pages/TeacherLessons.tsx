@@ -24,7 +24,11 @@ import {
   Lock,
   Unlock,
   Play,
-  X
+  X,
+  Upload,
+  FileVideo,
+  CalendarClock,
+  Square,
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
@@ -40,10 +44,14 @@ const TeacherLessons = () => {
   const [showJitsi, setShowJitsi] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string>("");
   const [activeLesson, setActiveLesson] = useState<any>(null);
+  const [recordingLinkLesson, setRecordingLinkLesson] = useState<any>(null);
+  const [recordingLinkValue, setRecordingLinkValue] = useState("");
+  const [savingRecordingLink, setSavingRecordingLink] = useState(false);
   const [form, setForm] = useState({
     titulo: "",
     descripcion: "",
     fecha_desbloqueo: "",
+    fecha_fin_clase: "",
     sala_jitsi: "",
   });
 
@@ -97,10 +105,12 @@ const TeacherLessons = () => {
   const saveMutation = useMutation({
     mutationFn: async () => {
       const lessonData = {
-        ...form,
+        titulo: form.titulo,
+        descripcion: form.descripcion,
+        sala_jitsi: form.sala_jitsi.trim() || null,
         curso_id: courseId,
         fecha_desbloqueo: form.fecha_desbloqueo || null,
-        sala_jitsi: form.sala_jitsi.trim() || null,
+        fecha_fin_clase: form.fecha_fin_clase || null,
       };
 
       if (editingLesson) {
@@ -129,6 +139,37 @@ const TeacherLessons = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Guardar el link de Drive con la grabación de una clase ya finalizada
+  const openRecordingLinkDialog = (lesson: any) => {
+    setRecordingLinkLesson(lesson);
+    setRecordingLinkValue(lesson.grabacion_url || "");
+  };
+
+  const saveRecordingLink = async () => {
+    if (!recordingLinkLesson) return;
+    if (!recordingLinkValue.trim().includes("drive.google.com")) {
+      toast.error("Pegá un link de Google Drive válido (compartido como \"Cualquiera con el link\")");
+      return;
+    }
+    setSavingRecordingLink(true);
+    try {
+      const { error } = await supabase
+        .from("lecciones")
+        .update({ grabacion_url: recordingLinkValue.trim() })
+        .eq("id", recordingLinkLesson.id);
+      if (error) throw error;
+
+      queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      toast.success("Grabación disponible para los alumnos.");
+      setRecordingLinkLesson(null);
+      setRecordingLinkValue("");
+    } catch (e: any) {
+      toast.error("Error al guardar el link: " + e.message);
+    } finally {
+      setSavingRecordingLink(false);
+    }
+  };
+
   const deleteMutation = useMutation({
     mutationFn: async (lessonId: string) => {
       const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
@@ -141,8 +182,29 @@ const TeacherLessons = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Terminar la clase manualmente (sin esperar a que llegue la fecha de fin
+  // configurada, o aunque no haya ninguna fecha configurada). A partir de esto,
+  // la video llamada deja de aparecer y se habilita subir la grabación.
+  const endClassMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      const { error } = await supabase
+        .from("lecciones")
+        .update({ fecha_fin_clase: new Date().toISOString() })
+        .eq("id", lessonId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      toast.success("Clase finalizada. Ya podés subir la grabación.");
+      setShowJitsi(false);
+      setActiveRoom("");
+      setActiveLesson(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", fecha_desbloqueo: "", sala_jitsi: "" });
+    setForm({ titulo: "", descripcion: "", fecha_desbloqueo: "", fecha_fin_clase: "", sala_jitsi: "" });
     setEditingLesson(null);
   };
 
@@ -152,6 +214,7 @@ const TeacherLessons = () => {
       titulo: lesson.titulo,
       descripcion: lesson.descripcion || "",
       fecha_desbloqueo: lesson.fecha_desbloqueo ? lesson.fecha_desbloqueo.slice(0, 16) : "",
+      fecha_fin_clase: lesson.fecha_fin_clase ? lesson.fecha_fin_clase.slice(0, 16) : "",
       sala_jitsi: lesson.sala_jitsi || "",
     });
     setOpen(true);
@@ -160,6 +223,12 @@ const TeacherLessons = () => {
   const isLessonUnlocked = (lesson: any) => {
     if (!lesson.fecha_desbloqueo) return true;
     return new Date(lesson.fecha_desbloqueo) <= new Date();
+  };
+
+  // Una vez pasada la fecha de fin, la video llamada deja de mostrarse:
+  // en su lugar el profesor puede subir la grabación.
+  const isClassOver = (lesson: any) => {
+    return !!lesson.fecha_fin_clase && new Date(lesson.fecha_fin_clase) <= new Date();
   };
 
   const startLiveClass = (lesson: any) => {
@@ -178,18 +247,33 @@ const TeacherLessons = () => {
             <p className="font-bold truncate">{activeLesson?.titulo}</p>
             <p className="text-xs text-muted-foreground truncate">{course?.titulo}</p>
           </div>
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => {
-              setShowJitsi(false);
-              setActiveRoom("");
-              setActiveLesson(null);
-            }}
-            className="shadow-lg shrink-0"
-          >
-            <X className="w-4 h-4 mr-2" /> Cerrar Clase
-          </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="default"
+              size="sm"
+              className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg"
+              disabled={endClassMutation.isPending}
+              onClick={() => {
+                if (confirm("¿Terminar la clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {
+                  endClassMutation.mutate(activeLesson.id);
+                }
+              }}
+            >
+              <Square className="w-4 h-4 mr-2" /> Terminar Clase
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => {
+                setShowJitsi(false);
+                setActiveRoom("");
+                setActiveLesson(null);
+              }}
+              className="shadow-lg"
+            >
+              <X className="w-4 h-4 mr-2" /> Cerrar Clase
+            </Button>
+          </div>
         </div>
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2">
           {/* Contenido de la clase, igual a lo que ve el alumno */}
@@ -314,6 +398,20 @@ const TeacherLessons = () => {
 
                 <div className="space-y-2">
                   <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
+                    <CalendarClock className="w-3.5 h-3.5" /> Fecha de Fin de la Clase (opcional)
+                  </Label>
+                  <Input 
+                    type="datetime-local" 
+                    value={form.fecha_fin_clase} 
+                    onChange={(e) => setForm({ ...form, fecha_fin_clase: e.target.value })} 
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Después de esta fecha, la video llamada deja de aparecer y podés subir la grabación para que la vean los alumnos.
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground flex items-center gap-2">
                     <Video className="w-3.5 h-3.5" /> Nombre de la Video Llamada (opcional)
                   </Label>
                   <Input 
@@ -390,7 +488,18 @@ const TeacherLessons = () => {
                             Bloqueada
                           </Badge>
                         )}
-                        {lesson.sala_jitsi && (
+                        {isClassOver(lesson) ? (
+                          lesson.grabacion_url ? (
+                            <Badge variant="outline" className="shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200">
+                              <FileVideo className="w-3 h-3 mr-1" />
+                              Grabada
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-700 border-amber-200">
+                              Falta el link de la grabación
+                            </Badge>
+                          )
+                        ) : lesson.sala_jitsi && (
                           <Badge variant="outline" className="shrink-0">
                             <Video className="w-3 h-3 mr-1" />
                             En vivo
@@ -406,17 +515,55 @@ const TeacherLessons = () => {
                           })}
                         </p>
                       )}
+                      {lesson.fecha_fin_clase && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <CalendarClock className="w-3 h-3" />
+                          {isClassOver(lesson) ? "Finalizó" : "Finaliza"} el {new Date(lesson.fecha_fin_clase).toLocaleString("es-AR", {
+                            dateStyle: "medium",
+                            timeStyle: "short"
+                          })}
+                        </p>
+                      )}
                     </div>
 
                     {/* Acciones */}
                     <div className="flex items-center gap-2">
-                      <Button 
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                        onClick={() => startLiveClass(lesson)}
-                      >
-                        <Play className="w-4 h-4 mr-1" /> Iniciar Clase
-                      </Button>
+                      {isClassOver(lesson) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openRecordingLinkDialog(lesson)}
+                        >
+                          <Upload className="w-4 h-4 mr-1" />
+                          {lesson.grabacion_url ? "Cambiar Link de Grabación" : "Agregar Link de Grabación"}
+                        </Button>
+                      ) : (
+                        <>
+                          <Button 
+                            size="sm"
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => startLiveClass(lesson)}
+                          >
+                            <Play className="w-4 h-4 mr-1" /> Iniciar Clase
+                          </Button>
+                          {lesson.sala_jitsi && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-amber-700 border-amber-200 hover:bg-amber-50"
+                              disabled={endClassMutation.isPending}
+                              onClick={() => {
+                                if (confirm("¿Terminar esta clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {
+                                  endClassMutation.mutate(lesson.id);
+                                }
+                              }}
+                              title="Terminar clase"
+                            >
+                              <Square className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
                       <Link to={`/admin/courses/${courseId}/lessons?edit=${lesson.id}`}>
                         <Button variant="outline" size="sm">
                           <Eye className="w-4 h-4 mr-1" /> Constructor
@@ -445,6 +592,33 @@ const TeacherLessons = () => {
           </div>
         )}
       </div>
+
+      {/* Diálogo para pegar el link de Drive con la grabación */}
+      <Dialog open={!!recordingLinkLesson} onOpenChange={(o) => { if (!o) { setRecordingLinkLesson(null); setRecordingLinkValue(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Grabación de "{recordingLinkLesson?.titulo}"</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 pt-2">
+            <Label className="text-xs font-bold uppercase text-muted-foreground">Link de Google Drive</Label>
+            <Input
+              value={recordingLinkValue}
+              onChange={(e) => setRecordingLinkValue(e.target.value)}
+              placeholder="https://drive.google.com/file/d/..."
+            />
+            <p className="text-xs text-muted-foreground">
+              Subí la grabación a Drive, compartila como "Cualquiera con el link" (que pueda ver) y pegá acá el link. Los alumnos la van a poder ver desde la plataforma.
+            </p>
+            <Button
+              className="w-full gradient-primary text-primary-foreground"
+              disabled={savingRecordingLink || !recordingLinkValue.trim()}
+              onClick={saveRecordingLink}
+            >
+              {savingRecordingLink ? "Guardando..." : "Guardar"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

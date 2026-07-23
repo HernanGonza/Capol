@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import Tilt from "react-parallax-tilt";
 import {
   GraduationCap,
   Users,
@@ -17,7 +18,13 @@ import {
   Zap,
   Monitor,
   Calendar,
+  Mail,
+  Send,
+  ArrowUp,
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 
 interface Course {
   id: string;
@@ -37,6 +44,16 @@ const Landing = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [totalAlumnos, setTotalAlumnos] = useState<number | null>(null);
   const [inscritosPorCurso, setInscritosPorCurso] = useState<Record<string, number>>({});
+  const [leccionesPorCurso, setLeccionesPorCurso] = useState<Record<string, number>>({});
+  const [contactForm, setContactForm] = useState({ nombre: "", email: "", mensaje: "" });
+  const [sendingContact, setSendingContact] = useState(false);
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setShowBackToTop(window.scrollY > 500);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -73,6 +90,13 @@ const Landing = () => {
         inscritos.forEach((row) => { map[row.curso_id] = row.cantidad; });
         setInscritosPorCurso(map);
       }
+
+      const { data: lecciones } = await supabase.rpc("contar_lecciones_por_curso");
+      if (lecciones) {
+        const map: Record<string, number> = {};
+        lecciones.forEach((row) => { map[row.curso_id] = row.cantidad; });
+        setLeccionesPorCurso(map);
+      }
     };
 
     fetchCourses();
@@ -88,6 +112,44 @@ const Landing = () => {
     setSelectedVideo(null);
   };
 
+  const handleScrollTo = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleContactSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactForm.nombre.trim() || !contactForm.email.trim() || !contactForm.mensaje.trim()) return;
+    setSendingContact(true);
+    try {
+      // Guardamos el mensaje siempre (así no se pierde ninguno), y además
+      // intentamos mandar el mail al admin a través de la función de Supabase.
+      const { error: insertError } = await supabase.from("mensajes_contacto").insert(contactForm);
+      if (insertError) throw insertError;
+
+      const { error: fnError } = await supabase.functions.invoke("send-contact-email", {
+        body: contactForm,
+      });
+      if (fnError) {
+        // El mensaje ya quedó guardado en la base aunque falle el envío del mail,
+        // así que igual lo tratamos como éxito parcial para el usuario.
+        console.error("No se pudo enviar el mail de contacto:", fnError);
+      }
+
+      setContactForm({ nombre: "", email: "", mensaje: "" });
+      toast.success("¡Mensaje enviado! Te vamos a responder a la brevedad.");
+    } catch (err: any) {
+      toast.error("No se pudo enviar el mensaje. Probá de nuevo en un rato.");
+    } finally {
+      setSendingContact(false);
+    }
+  };
+
+  // Nota: antes usábamos la librería ScrollReveal acá para animar estas secciones
+  // al entrar en pantalla, pero podía dejar el contenido con opacidad 0 de forma
+  // permanente si el "reveal" no llegaba a dispararse (ver clases .reveal-up /
+  // .reveal-fade, ahora reemplazadas por animate-fade-in vía CSS, sin ese riesgo).
+
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white overflow-hidden">
       {/* Efecto de grid de fondo */}
@@ -98,7 +160,7 @@ const Landing = () => {
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[150px] pointer-events-none" />
 
       {/* NAVBAR */}
-      <nav className="relative z-50 border-b border-white/5 backdrop-blur-xl bg-black/20">
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 backdrop-blur-xl bg-black/40">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-3 group">
             <div className="relative">
@@ -117,7 +179,15 @@ const Landing = () => {
             </div>
           </Link>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 md:gap-3">
+            <a href="#contacto" onClick={(e) => handleScrollTo(e, "contacto")}>
+              <Button
+                variant="ghost"
+                className="text-white/70 hover:text-white hover:bg-white/5 font-semibold hidden sm:inline-flex"
+              >
+                Contacto
+              </Button>
+            </a>
             <Link to="/auth">
               <Button
                 variant="ghost"
@@ -137,7 +207,7 @@ const Landing = () => {
       </nav>
 
       {/* HERO SECTION */}
-      <section className="relative pt-20 pb-32 px-6">
+      <section className="relative pt-36 pb-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             {/* Badge */}
@@ -177,11 +247,11 @@ const Landing = () => {
                   Comenzar Ahora
                 </Button>
               </Link>
-              <a href="#cursos">
+              <a href="#cursos" onClick={(e) => handleScrollTo(e, "cursos")}>
                 <Button
                   size="lg"
                   variant="outline"
-                  className="border-white/20 text-white hover:bg-white/5 font-semibold text-lg px-8 h-14 rounded-2xl"
+                  className="bg-transparent border-white/30 text-white hover:bg-white hover:text-black font-semibold text-lg px-8 h-14 rounded-2xl transition-colors"
                 >
                   Ver Cursos
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -223,10 +293,10 @@ const Landing = () => {
       </section>
 
       {/* FEATURES */}
-      <section className="relative py-20 px-6 border-t border-white/5">
+      <section className="relative py-14 px-6 border-t border-white/5">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-indigo-500/30 transition-all">
+            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-indigo-500/30 transition-all">
               <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <Monitor className="w-7 h-7 text-indigo-400" />
               </div>
@@ -237,7 +307,7 @@ const Landing = () => {
               </p>
             </div>
 
-            <div className="group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-purple-500/30 transition-all">
+            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-purple-500/30 transition-all">
               <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <BookOpen className="w-7 h-7 text-purple-400" />
               </div>
@@ -248,7 +318,7 @@ const Landing = () => {
               </p>
             </div>
 
-            <div className="group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-pink-500/30 transition-all">
+            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-pink-500/30 transition-all">
               <div className="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <Zap className="w-7 h-7 text-pink-400" />
               </div>
@@ -263,7 +333,7 @@ const Landing = () => {
       </section>
 
       {/* CURSOS */}
-      <section id="cursos" className="relative py-24 px-6">
+      <section id="cursos" className="relative py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <Badge className="mb-4 bg-indigo-500/10 text-indigo-400 border-indigo-500/20 font-bold">
@@ -297,8 +367,20 @@ const Landing = () => {
           ) : (
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
               {courses.map((course, index) => (
-                <Card
+                <Tilt
                   key={course.id}
+                  tiltMaxAngleX={8}
+                  tiltMaxAngleY={8}
+                  glareEnable
+                  glareMaxOpacity={0.12}
+                  glareColor="#818cf8"
+                  glarePosition="all"
+                  glareBorderRadius="24px"
+                  scale={1.02}
+                  transitionSpeed={1500}
+                  className="animate-fade-in"
+                >
+                <Card
                   className="group bg-transparent border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
@@ -307,15 +389,26 @@ const Landing = () => {
                     {course.url_flyer || course.url_imagen ? (
                       course.tipo_flyer === "video" ||
                       course.url_flyer?.endsWith(".mp4") ? (
-                        <video
-                          src={course.url_flyer || ""}
-                          className="w-full h-full object-contain bg-black cursor-pointer"
-                          muted
-                          loop
-                          autoPlay
-                          playsInline
+                        <button
+                          type="button"
                           onClick={() => openVideoModal(course.url_flyer || "")}
-                        />
+                          className="relative w-full h-full block cursor-pointer"
+                          aria-label="Ver video del curso en grande"
+                        >
+                          <video
+                            src={course.url_flyer || ""}
+                            className="w-full h-full object-contain bg-black"
+                            muted
+                            loop
+                            autoPlay
+                            playsInline
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
+                              <Play className="w-7 h-7 text-black ml-1" fill="black" />
+                            </div>
+                          </div>
+                        </button>
                       ) : (
                         <img
                           src={course.url_flyer || course.url_imagen || ""}
@@ -328,13 +421,13 @@ const Landing = () => {
                         <GraduationCap className="w-20 h-20 text-white/20" />
                       </div>
                     )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
 
                     {/* Badge de clases */}
                     <div className="absolute top-4 right-4">
                       <Badge className="bg-black/50 backdrop-blur-sm text-white border-none font-bold">
                         <BookOpen className="w-3 h-3 mr-1" />
-                        {course.lecciones[0]?.count || 0} clases
+                        {leccionesPorCurso[course.id] || 0} clases
                       </Badge>
                     </div>
                   </div>
@@ -370,6 +463,7 @@ const Landing = () => {
                     </div>
                   </CardContent>
                 </Card>
+                </Tilt>
               ))}
             </div>
           )}
@@ -429,16 +523,86 @@ const Landing = () => {
         </div>
       </section>
 
+      {/* CONTACTO */}
+      <section id="contacto" className="relative py-16 px-6 border-t border-white/5">
+        <div className="max-w-3xl mx-auto">
+          <div className="text-center mb-10 animate-fade-in">
+            <Badge className="mb-4 bg-indigo-500/10 text-indigo-400 border-indigo-500/20 font-bold">
+              CONTACTO
+            </Badge>
+            <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4">
+              ¿Tenés dudas? Escribinos
+            </h2>
+            <p className="text-white/50 text-lg">
+              Contanos qué necesitás y te respondemos a la brevedad.
+            </p>
+          </div>
+
+          <form onSubmit={handleContactSubmit} className="animate-fade-in bg-white/5 border border-white/10 rounded-3xl p-6 md:p-10 space-y-5">
+            <div className="grid md:grid-cols-2 gap-5">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-white/40 tracking-wider">Nombre</label>
+                <Input
+                  required
+                  value={contactForm.nombre}
+                  onChange={(e) => setContactForm({ ...contactForm, nombre: e.target.value })}
+                  placeholder="Tu nombre"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-12 rounded-xl"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase text-white/40 tracking-wider">Email</label>
+                <Input
+                  required
+                  type="email"
+                  value={contactForm.email}
+                  onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
+                  placeholder="tu@email.com"
+                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-12 rounded-xl"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold uppercase text-white/40 tracking-wider">Mensaje</label>
+              <Textarea
+                required
+                value={contactForm.mensaje}
+                onChange={(e) => setContactForm({ ...contactForm, mensaje: e.target.value })}
+                placeholder="Contanos en qué te podemos ayudar..."
+                rows={5}
+                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl resize-none"
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={sendingContact}
+              className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold h-12 rounded-xl"
+            >
+              {sendingContact ? "Enviando..." : (
+                <>
+                  <Send className="w-4 h-4 mr-2" /> Enviar Mensaje
+                </>
+              )}
+            </Button>
+          </form>
+
+          <div className="flex items-center justify-center gap-2 mt-8 text-white/40 text-sm">
+            <Mail className="w-4 h-4" />
+            <span>También podés escribirnos directamente a nuestro correo</span>
+          </div>
+        </div>
+      </section>
+
       {/* FOOTER */}
       <footer className="border-t border-white/5 py-12 px-6">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 items-center gap-6 text-center md:text-left">
+          <div className="flex items-center gap-3 justify-center md:justify-start">
             <img
               src="/logo-capol.webp"
               alt="CAPOL"
               className="h-10 w-10 rounded-xl"
             />
-            <div>
+            <div className="text-left">
               <span className="font-bold text-white">CAPOL</span>
               <p className="text-xs text-white/40">
                 Escuela Virtual de Informática
@@ -446,11 +610,11 @@ const Landing = () => {
             </div>
           </div>
 
-          <p className="text-white/30 text-sm">
+          <p className="text-white/30 text-sm text-center">
             © {new Date().getFullYear()} CAPOL. Todos los derechos reservados.
           </p>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-4 justify-center md:justify-end">
             <Link
               to="/auth"
               className="text-white/50 hover:text-white text-sm font-medium transition-colors"
@@ -465,6 +629,19 @@ const Landing = () => {
               Contacto
             </a>
           </div>
+        </div>
+
+        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/5 flex justify-center">
+          <a
+            href="https://www.paralelo.tech"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 text-white/30 hover:text-white/70 text-xs font-medium transition-colors"
+          >
+            <span>Desarrollado por</span>
+            <img src="/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />
+            <span className="font-bold tracking-wide">PARALELO SOFTWARE STUDIO</span>
+          </a>
         </div>
       </footer>
 
@@ -482,6 +659,17 @@ const Landing = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Botón flotante de "volver arriba" */}
+      {showBackToTop && (
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+          aria-label="Volver arriba"
+          className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-white text-slate-900 shadow-2xl shadow-black/40 flex items-center justify-center hover:scale-110 transition-transform animate-fade-in"
+        >
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
     </div>
   );
 };

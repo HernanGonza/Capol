@@ -68,6 +68,7 @@ const AdminLessons = () => {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [lessonTitle, setLessonTitle] = useState("");
   const [unlockDate, setUnlockDate] = useState(""); 
+  const [classEndDate, setClassEndDate] = useState("");
   const [salaJitsi, setSalaJitsi] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [previewBlocks, setPreviewBlocks] = useState<Set<string>>(new Set());
@@ -91,6 +92,7 @@ const AdminLessons = () => {
         titulo: lessonTitle,
         content: JSON.stringify(blocks),
         fecha_desbloqueo: unlockDate || null,
+        fecha_fin_clase: classEndDate || null,
         sala_jitsi: salaJitsi.trim() || null,
         curso_id: courseId!,
       };
@@ -117,6 +119,7 @@ const AdminLessons = () => {
     setBlocks([]);
     setLessonTitle("");
     setUnlockDate(""); 
+    setClassEndDate("");
     setSalaJitsi("");
     setEditingLessonId(null);
   };
@@ -125,6 +128,7 @@ const AdminLessons = () => {
     setEditingLessonId(lesson.id);
     setLessonTitle(lesson.titulo);
     setUnlockDate(lesson.fecha_desbloqueo || "");
+    setClassEndDate(lesson.fecha_fin_clase ? lesson.fecha_fin_clase.slice(0, 16) : "");
     setSalaJitsi(lesson.sala_jitsi || "");
     try { setBlocks(JSON.parse(lesson.content || "[]")); } catch (e) { setBlocks([]); }
     setOpen(true);
@@ -218,6 +222,20 @@ const AdminLessons = () => {
                     onChange={(e) => setUnlockDate(e.target.value)} 
                     className="font-medium"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                    <Calendar className="w-3 h-3" /> Fecha de Fin de Clase (Opcional)
+                  </Label>
+                  <Input 
+                    type="datetime-local" 
+                    value={classEndDate} 
+                    onChange={(e) => setClassEndDate(e.target.value)} 
+                    className="font-medium"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Después de esta fecha se oculta la video llamada y se puede subir la grabación.
+                  </p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
                   <Label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">

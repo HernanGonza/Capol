@@ -2,16 +2,21 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { 
   ArrowLeft, 
   CheckCircle, 
   Video, 
-  Trophy 
+  Trophy,
+  ExternalLink,
+  Clock,
+  FileDown,
+  PlayCircle,
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import confetti from "canvas-confetti";
 
@@ -25,9 +30,67 @@ interface Props {
   isPreview?: boolean;
 }
 
+// Convierte un link de Google Drive (de cualquier formato habitual) en la URL
+// embebible que se puede mostrar dentro de un iframe.
+const getDriveEmbedUrl = (url: string): string | null => {
+  const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (!match) return null;
+  return `https://drive.google.com/file/d/${match[1]}/preview`;
+};
+
 const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props) => {
   const queryClient = useQueryClient();
   const [showJitsi, setShowJitsi] = useState(false);
+  const [showRecording, setShowRecording] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
+
+  const exportToPdf = async () => {
+    if (!exportRef.current) return;
+    setExporting(true);
+    try {
+      // Carga diferida: son librerías pesadas que solo hacen falta si se exporta un PDF.
+      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
+        import("jspdf"),
+        import("html2canvas"),
+      ]);
+      const canvas = await html2canvas(exportRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+      let heightLeft = imgHeight;
+      let position = 0;
+
+      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      const safeTitle = lesson.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 -]/g, "");
+      pdf.save(`${safeTitle}.pdf`);
+      toast.success("PDF descargado");
+    } catch (e) {
+      toast.error("No se pudo exportar el PDF");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const isClassOver = !!lesson.fecha_fin_clase && new Date(lesson.fecha_fin_clase) <= new Date();
+  const driveEmbedUrl = lesson.grabacion_url ? getDriveEmbedUrl(lesson.grabacion_url) : null;
 
   // 1. Consultar progreso para saber si ya está completada
   const { data: progress } = useQuery({
@@ -79,7 +142,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
           <Button variant="outline" size="icon" onClick={onBack} className="rounded-2xl shadow-sm shrink-0 h-12 w-12 border-slate-200">
             <ArrowLeft className="w-6 h-6" />
           </Button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
               <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">
                 {lesson.titulo}
@@ -92,37 +155,116 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
             </div>
             <p className="text-muted-foreground font-medium text-lg mt-1">{lesson.descripcion || "Material de estudio"}</p>
           </div>
+          <Button
+            variant="outline"
+            onClick={exportToPdf}
+            disabled={exporting}
+            className="rounded-2xl shrink-0 border-slate-200 font-bold"
+            title="Descarga el material de esta clase en PDF (no incluye video ni consola interactiva)"
+          >
+            <FileDown className="w-4 h-4 mr-2" />
+            {exporting ? "Generando..." : "Exportar PDF"}
+          </Button>
         </div>
       </div>
 
-      {/* TODOS LOS BLOQUES DINÁMICOS */}
-      <LessonBlocks content={lesson.content} />
-
-      {/* JITSI */}
-      {lesson.sala_jitsi && (
-        <div className="pt-16">
-          <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
-            <CardContent className="p-0">
-              {showJitsi ? (
-                <div className="h-[700px]">
-                  <JitsiMeet 
-                    roomName={lesson.sala_jitsi}
-                    courseTitle={courseTitle}
-                    lessonTitle={lesson.titulo}
-                    onClose={() => setShowJitsi(false)}
-                  />
-                </div>
-              ) : (
-                <div className="text-center py-20 px-10">
-                  <Video className="w-16 h-16 text-primary mx-auto mb-6 animate-pulse" />
-                  <h3 className="text-3xl font-black mb-4 tracking-tighter">Clase en Vivo</h3>
-                  <Button onClick={() => setShowJitsi(true)} className="bg-white text-slate-900 font-black px-12 h-14 rounded-2xl text-lg shadow-2xl">INGRESAR AHORA</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+      {/* TODOS LOS BLOQUES DINÁMICOS (contenido que se exporta a PDF) */}
+      <div ref={exportRef} className="bg-white space-y-8">
+        <div>
+          <h2 className="text-2xl font-black text-slate-900">{lesson.titulo}</h2>
+          {lesson.descripcion && <p className="text-slate-500 mt-1">{lesson.descripcion}</p>}
         </div>
+        <LessonBlocks content={lesson.content} />
+      </div>
+
+      {/* CLASE EN VIVO O GRABACIÓN */}
+      {isClassOver ? (
+        lesson.grabacion_url ? (
+          <div className="pt-16">
+            <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
+              <CardContent className="p-8 space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-primary/20 rounded-xl"><Video className="w-6 h-6 text-primary" /></div>
+                  <div>
+                    <h3 className="text-2xl font-black tracking-tight">Grabación de la Clase</h3>
+                    <p className="text-white/50 text-sm">Esta clase ya finalizó, pero podés repasarla cuando quieras.</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Button onClick={() => setShowRecording(true)} className="bg-white text-slate-900 font-black hover:bg-white/90">
+                    <PlayCircle className="w-5 h-5 mr-2" /> Ver Grabación
+                  </Button>
+                  <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white hover:text-black">
+                      <ExternalLink className="w-4 h-4 mr-2" /> Abrir en Drive
+                    </Button>
+                  </a>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        ) : lesson.sala_jitsi ? (
+          <div className="pt-16">
+            <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
+              <CardContent className="text-center py-20 px-10 space-y-4">
+                <Clock className="w-16 h-16 text-primary mx-auto" />
+                <h3 className="text-3xl font-black tracking-tighter">Clase Finalizada</h3>
+                <p className="text-white/50 max-w-md mx-auto">
+                  Esta clase ya terminó. El profesor todavía no subió la grabación — volvé a revisar más tarde.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        ) : null
+      ) : (
+        lesson.sala_jitsi && (
+          <div className="pt-16">
+            <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
+              <CardContent className="p-0">
+                {showJitsi ? (
+                  <div className="h-[700px]">
+                    <JitsiMeet 
+                      roomName={lesson.sala_jitsi}
+                      courseTitle={courseTitle}
+                      lessonTitle={lesson.titulo}
+                      onClose={() => setShowJitsi(false)}
+                    />
+                  </div>
+                ) : (
+                  <div className="text-center py-20 px-10">
+                    <Video className="w-16 h-16 text-primary mx-auto mb-6 animate-pulse" />
+                    <h3 className="text-3xl font-black mb-4 tracking-tighter">Clase en Vivo</h3>
+                    <Button onClick={() => setShowJitsi(true)} className="bg-white text-slate-900 font-black px-12 h-14 rounded-2xl text-lg shadow-2xl">INGRESAR AHORA</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        )
       )}
+
+      {/* Modal con la grabación embebida de Drive */}
+      <Dialog open={showRecording} onOpenChange={setShowRecording}>
+        <DialogContent className="sm:max-w-4xl bg-black border-white/10 p-2">
+          {driveEmbedUrl ? (
+            <iframe
+              src={driveEmbedUrl}
+              className="w-full aspect-video rounded-xl"
+              allow="autoplay"
+              allowFullScreen
+            />
+          ) : (
+            <div className="p-10 text-center text-white space-y-3">
+              <p>No pudimos mostrar la grabación acá adentro.</p>
+              {lesson.grabacion_url && (
+                <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer" className="underline text-primary">
+                  Abrir en Google Drive
+                </a>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* BOTÓN FINAL DE COMPLETADO */}
       <div className="pt-16 mt-20 border-t border-slate-100 space-y-10">

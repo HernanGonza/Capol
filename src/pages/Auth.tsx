@@ -108,10 +108,23 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword(loginData);
+      const { data, error } = await supabase.auth.signInWithPassword(loginData);
       if (error) throw error;
       toast.success("¡Bienvenido de vuelta!");
-      navigate("/dashboard");
+
+      // Redirigimos directo al panel según el rol (antes siempre mandaba a
+      // /dashboard, que es la vista de alumno; un profesor tenía que hacer
+      // un click más para llegar a su panel).
+      const { data: roles } = await supabase
+        .from("roles_usuario")
+        .select("rol")
+        .eq("usuario_id", data.user!.id);
+
+      if (roles?.some((r) => r.rol === "teacher")) {
+        navigate("/teacher");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (error: any) {
       toast.error(error.message);
     } finally {
