@@ -37,6 +37,31 @@ interface Props {
   content: string | null;
 }
 
+// El quiz ahora soporta varias preguntas (antes era una sola, hardcodeada con
+// 2 opciones A/B). Estas funciones también entienden el formato viejo, así
+// las clases que ya tenían un quiz armado siguen funcionando sin tocar nada.
+const getQuizQuestions = (block: any): { id: string; pregunta: string; opciones: string[]; correcta: number }[] => {
+  if (Array.isArray(block.preguntas)) return block.preguntas;
+  if (block.value) {
+    return [{
+      id: `${block.id}-legacy`,
+      pregunta: block.value,
+      opciones: [block.a || "", block.b || ""],
+      correcta: block.correct === "B" ? 1 : 0,
+    }];
+  }
+  return [];
+};
+
+// Mismo criterio para el checklist: antes era un textarea con un ítem por
+// línea. Ahora es una lista de ítems propiamente dicha, pero se sigue
+// leyendo el formato viejo si existe.
+const getChecklistItems = (block: any): string[] => {
+  if (Array.isArray(block.items)) return block.items.filter((t: string) => t.trim() !== "");
+  if (typeof block.value === "string") return block.value.split("\n").filter((t: string) => t.trim() !== "");
+  return [];
+};
+
 const LessonBlocks = ({ content }: Props) => {
   const blocks = (() => {
     try {
@@ -116,22 +141,36 @@ const LessonBlocks = ({ content }: Props) => {
 
           {/* 7. MINI QUIZ */}
           {block.type === 'quiz' && (
-            <Card className="border-2 border-slate-100 shadow-xl rounded-[2rem] overflow-hidden">
-              <div className="bg-slate-50 p-6 border-b flex items-center gap-4">
-                <HelpCircle className="w-6 h-6 text-primary" />
-                <h4 className="font-black text-xl text-slate-800">{block.value}</h4>
-              </div>
-              <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                {['A', 'B'].map((opt) => (
-                  <Button key={opt} variant="outline" className="h-auto py-6 px-8 text-lg font-bold rounded-2xl hover:border-primary hover:bg-primary/5 transition-all text-left justify-start" onClick={() => {
-                    if (opt === block.correct) { toast.success("¡Respuesta Correcta!"); } else { toast.error("Incorrecto, prueba otra vez."); }
-                  }}>
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-4 shrink-0 text-sm">{opt}</div>
-                    {opt === 'A' ? block.a : block.b}
-                  </Button>
-                ))}
-              </CardContent>
-            </Card>
+            <div className="space-y-5">
+              {getQuizQuestions(block).map((pregunta, qIndex) => (
+                <Card key={pregunta.id} className="border-2 border-slate-100 shadow-xl rounded-[2rem] overflow-hidden">
+                  <div className="bg-slate-50 p-6 border-b flex items-center gap-4">
+                    <HelpCircle className="w-6 h-6 text-primary shrink-0" />
+                    <h4 className="font-black text-xl text-slate-800">
+                      {getQuizQuestions(block).length > 1 && <span className="text-primary mr-2">{qIndex + 1}.</span>}
+                      {pregunta.pregunta}
+                    </h4>
+                  </div>
+                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {pregunta.opciones.map((opcion, oIndex) => (
+                      <Button
+                        key={oIndex}
+                        variant="outline"
+                        className="h-auto py-6 px-8 text-lg font-bold rounded-2xl hover:border-primary hover:bg-primary/5 transition-all text-left justify-start"
+                        onClick={() => {
+                          if (oIndex === pregunta.correcta) { toast.success("¡Respuesta Correcta!"); } else { toast.error("Incorrecto, prueba otra vez."); }
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-4 shrink-0 text-sm">
+                          {String.fromCharCode(65 + oIndex)}
+                        </div>
+                        {opcion}
+                      </Button>
+                    ))}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
           )}
 
           {/* 8. SNIPPET */}
@@ -157,7 +196,7 @@ const LessonBlocks = ({ content }: Props) => {
                 <h4 className="font-black text-sm uppercase tracking-[0.2em] text-slate-500">Hoja de Ruta</h4>
               </div>
               <div className="grid gap-3">
-                {block.value.split('\n').filter((t: any) => t.trim() !== "").map((task: string, i: number) => (
+                {getChecklistItems(block).map((task: string, i: number) => (
                   <label key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 cursor-pointer hover:shadow-md transition-all group">
                     <input type="checkbox" className="w-6 h-6 rounded-lg border-slate-300 text-primary cursor-pointer" />
                     <span className="text-slate-700 font-bold group-has-[:checked]:line-through group-has-[:checked]:text-slate-300 transition-all text-lg">

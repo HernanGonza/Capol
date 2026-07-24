@@ -41,9 +41,8 @@ import {
   Calendar,
   LockOpen,
   Eye,
-  EyeOff,
 } from "lucide-react";
-import { renderMarkdown } from "@/components/LessonBlocks";
+import LessonBlocks from "@/components/LessonBlocks";
 
 const BLOCK_TYPES = [
   { id: "text", label: "Texto (Markdown)", icon: Type },
@@ -71,7 +70,6 @@ const AdminLessons = () => {
   const [classEndDate, setClassEndDate] = useState("");
   const [salaJitsi, setSalaJitsi] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
-  const [previewBlocks, setPreviewBlocks] = useState<Set<string>>(new Set());
 
   const { data: lessons, isLoading } = useQuery({
     queryKey: ["lecciones", courseId],
@@ -124,13 +122,34 @@ const AdminLessons = () => {
     setEditingLessonId(null);
   };
 
+  // Las clases creadas antes de este cambio pueden tener un quiz de una sola
+  // pregunta (value/a/b/correct) o un checklist como texto con saltos de línea
+  // (value). Los convertimos al formato nuevo (arrays) al abrir el editor,
+  // así "+ Agregar pregunta" / "+ Agregar ítem" funcionan de entrada.
+  const normalizeBlocks = (rawBlocks: any[]) =>
+    rawBlocks.map((b) => {
+      if (b.type === "quiz" && !Array.isArray(b.preguntas)) {
+        return {
+          ...b,
+          preguntas: b.value
+            ? [{ id: Math.random().toString(36).substr(2, 9), pregunta: b.value, opciones: [b.a || "", b.b || ""], correcta: b.correct === "B" ? 1 : 0 }]
+            : [{ id: Math.random().toString(36).substr(2, 9), pregunta: "", opciones: ["", ""], correcta: 0 }],
+        };
+      }
+      if (b.type === "checklist" && !Array.isArray(b.items)) {
+        const items = typeof b.value === "string" ? b.value.split("\n").filter((t: string) => t.trim() !== "") : [];
+        return { ...b, items: items.length > 0 ? items : [""] };
+      }
+      return b;
+    });
+
   const openLessonForEdit = (lesson: any) => {
     setEditingLessonId(lesson.id);
     setLessonTitle(lesson.titulo);
     setUnlockDate(lesson.fecha_desbloqueo || "");
     setClassEndDate(lesson.fecha_fin_clase ? lesson.fecha_fin_clase.slice(0, 16) : "");
     setSalaJitsi(lesson.sala_jitsi || "");
-    try { setBlocks(JSON.parse(lesson.content || "[]")); } catch (e) { setBlocks([]); }
+    try { setBlocks(normalizeBlocks(JSON.parse(lesson.content || "[]"))); } catch (e) { setBlocks([]); }
     setOpen(true);
   };
 
@@ -156,7 +175,8 @@ const AdminLessons = () => {
       type,
       value: "",
       ...(type === 'callout' && { style: 'info' }),
-      ...(type === 'quiz' && { a: '', b: '', correct: 'A' }),
+      ...(type === 'quiz' && { preguntas: [{ id: Math.random().toString(36).substr(2, 9), pregunta: '', opciones: ['', ''], correcta: 0 }] }),
+      ...(type === 'checklist' && { items: [''] }),
       ...(type === 'diff' && { oldValue: '', newValue: '' }),
     };
     setBlocks([...blocks, newBlock]);
@@ -164,6 +184,72 @@ const AdminLessons = () => {
 
   const updateBlock = (id: string, value: string, extraData = {}) => {
     setBlocks(blocks.map((b) => (b.id === id ? { ...b, value, ...extraData } : b)));
+  };
+
+  // Helper genérico para los bloques con estructura interna más compleja (quiz, checklist)
+  const patchBlock = (id: string, updater: (b: any) => any) => {
+    setBlocks(blocks.map((b) => (b.id === id ? updater(b) : b)));
+  };
+
+  // --- QUIZ: varias preguntas, cada una con varias opciones ---
+  const addPregunta = (blockId: string) => {
+    patchBlock(blockId, (b) => ({
+      ...b,
+      preguntas: [...b.preguntas, { id: Math.random().toString(36).substr(2, 9), pregunta: '', opciones: ['', ''], correcta: 0 }],
+    }));
+  };
+
+  const removePregunta = (blockId: string, preguntaId: string) => {
+    patchBlock(blockId, (b) => ({ ...b, preguntas: b.preguntas.filter((p: any) => p.id !== preguntaId) }));
+  };
+
+  const updatePregunta = (blockId: string, preguntaId: string, patch: any) => {
+    patchBlock(blockId, (b) => ({
+      ...b,
+      preguntas: b.preguntas.map((p: any) => (p.id === preguntaId ? { ...p, ...patch } : p)),
+    }));
+  };
+
+  const addOpcion = (blockId: string, preguntaId: string) => {
+    patchBlock(blockId, (b) => ({
+      ...b,
+      preguntas: b.preguntas.map((p: any) => (p.id === preguntaId ? { ...p, opciones: [...p.opciones, ''] } : p)),
+    }));
+  };
+
+  const removeOpcion = (blockId: string, preguntaId: string, index: number) => {
+    patchBlock(blockId, (b) => ({
+      ...b,
+      preguntas: b.preguntas.map((p: any) => {
+        if (p.id !== preguntaId || p.opciones.length <= 2) return p;
+        const opciones = p.opciones.filter((_: string, i: number) => i !== index);
+        // Si borramos la opción marcada como correcta, la correcta pasa a ser la primera.
+        const correcta = p.correcta === index ? 0 : p.correcta > index ? p.correcta - 1 : p.correcta;
+        return { ...p, opciones, correcta };
+      }),
+    }));
+  };
+
+  const updateOpcion = (blockId: string, preguntaId: string, index: number, value: string) => {
+    patchBlock(blockId, (b) => ({
+      ...b,
+      preguntas: b.preguntas.map((p: any) =>
+        p.id === preguntaId ? { ...p, opciones: p.opciones.map((o: string, i: number) => (i === index ? value : o)) } : p
+      ),
+    }));
+  };
+
+  // --- CHECKLIST: lista de ítems ---
+  const addChecklistItem = (blockId: string) => {
+    patchBlock(blockId, (b) => ({ ...b, items: [...b.items, ''] }));
+  };
+
+  const removeChecklistItem = (blockId: string, index: number) => {
+    patchBlock(blockId, (b) => (b.items.length <= 1 ? b : { ...b, items: b.items.filter((_: string, i: number) => i !== index) }));
+  };
+
+  const updateChecklistItem = (blockId: string, index: number, value: string) => {
+    patchBlock(blockId, (b) => ({ ...b, items: b.items.map((t: string, i: number) => (i === index ? value : t)) }));
   };
 
   const removeBlock = (id: string) => setBlocks(blocks.filter((b) => b.id !== id));
@@ -200,7 +286,7 @@ const AdminLessons = () => {
         </div>
 
         <Dialog open={open} onOpenChange={setOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto border-none shadow-2xl rounded-3xl">
+          <DialogContent className="max-w-4xl xl:max-w-7xl max-h-[90vh] overflow-y-auto border-none shadow-2xl rounded-3xl">
             <DialogHeader>
               <DialogTitle className="text-2xl font-black">{editingLessonId ? "Editar Clase" : "Crear Nueva Clase"}</DialogTitle>
               <DialogDescription>Configura el acceso y el contenido de la lección.</DialogDescription>
@@ -253,7 +339,8 @@ const AdminLessons = () => {
                 </div>
               </div>
 
-              <div className="space-y-4">
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+              <div className="space-y-4 min-w-0">
                 <div className="min-h-[350px] border-2 border-dashed rounded-3xl p-6 bg-slate-50/50 space-y-4">
                   {blocks.map((block, index) => {
                     const blockType = BLOCK_TYPES.find((t) => t.id === block.type);
@@ -274,34 +361,10 @@ const AdminLessons = () => {
 
                           {block.type === "text" && (
                             <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <p className="text-[10px] text-muted-foreground">
-                                  Se escribe en Markdown: **negrita**, # Título, - lista, [link](url), etc.
-                                </p>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-7 text-xs font-bold"
-                                  onClick={() => setPreviewBlocks((prev) => {
-                                    const next = new Set(prev);
-                                    if (next.has(block.id)) { next.delete(block.id); } else { next.add(block.id); }
-                                    return next;
-                                  })}
-                                >
-                                  {previewBlocks.has(block.id)
-                                    ? <><EyeOff className="w-3.5 h-3.5 mr-1" /> Editar</>
-                                    : <><Eye className="w-3.5 h-3.5 mr-1" /> Vista previa</>}
-                                </Button>
-                              </div>
-                              {previewBlocks.has(block.id) ? (
-                                <div
-                                  className="prose prose-slate max-w-none prose-sm min-h-[120px] border rounded-lg p-4 bg-white"
-                                  dangerouslySetInnerHTML={{ __html: renderMarkdown(block.value) }}
-                                />
-                              ) : (
-                                <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder={"Ej:\n# Título de la sección\n\nUn párrafo con **negrita** y _cursiva_.\n\n- Punto uno\n- Punto dos"} className="min-h-[120px] font-mono text-sm" />
-                              )}
+                              <p className="text-[10px] text-muted-foreground">
+                                Se escribe en Markdown: **negrita**, # Título, - lista, [link](url), etc. Mirá el resultado en la vista previa de la derecha →
+                              </p>
+                              <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder={"Ej:\n# Título de la sección\n\nUn párrafo con **negrita** y _cursiva_.\n\n- Punto uno\n- Punto dos"} className="min-h-[120px] font-mono text-sm" />
                             </div>
                           )}
                           
@@ -326,23 +389,82 @@ const AdminLessons = () => {
                           )}
 
                           {block.type === "quiz" && (
-                            <div className="space-y-2 bg-slate-50 p-3 rounded-xl border">
-                              <Input placeholder="Tu pregunta" value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} />
-                              <div className="grid grid-cols-2 gap-2">
-                                <Input placeholder="Opción A" value={block.a} onChange={(e) => updateBlock(block.id, block.value, { a: e.target.value })} />
-                                <Input placeholder="Opción B" value={block.b} onChange={(e) => updateBlock(block.id, block.value, { b: e.target.value })} />
-                              </div>
-                              <Select value={block.correct} onValueChange={(v) => updateBlock(block.id, block.value, { correct: v })}>
-                                <SelectTrigger className="bg-white"><SelectValue placeholder="Correcta" /></SelectTrigger>
-                                <SelectContent><SelectItem value="A">A es correcta</SelectItem><SelectItem value="B">B es correcta</SelectItem></SelectContent>
-                              </Select>
+                            <div className="space-y-3">
+                              {block.preguntas.map((pregunta: any, pIndex: number) => (
+                                <div key={pregunta.id} className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[10px] font-black text-slate-400 shrink-0">P{pIndex + 1}</span>
+                                    <Input
+                                      placeholder="Tu pregunta"
+                                      value={pregunta.pregunta}
+                                      onChange={(e) => updatePregunta(block.id, pregunta.id, { pregunta: e.target.value })}
+                                      className="bg-white"
+                                    />
+                                    {block.preguntas.length > 1 && (
+                                      <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={() => removePregunta(block.id, pregunta.id)}>
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </Button>
+                                    )}
+                                  </div>
+
+                                  <div className="space-y-1.5 pl-6">
+                                    {pregunta.opciones.map((opcion: string, oIndex: number) => (
+                                      <div key={oIndex} className="flex items-center gap-2">
+                                        <input
+                                          type="radio"
+                                          name={`correcta-${pregunta.id}`}
+                                          checked={pregunta.correcta === oIndex}
+                                          onChange={() => updatePregunta(block.id, pregunta.id, { correcta: oIndex })}
+                                          title="Marcar como correcta"
+                                        />
+                                        <Input
+                                          placeholder={`Opción ${String.fromCharCode(65 + oIndex)}`}
+                                          value={opcion}
+                                          onChange={(e) => updateOpcion(block.id, pregunta.id, oIndex, e.target.value)}
+                                          className="bg-white"
+                                        />
+                                        {pregunta.opciones.length > 2 && (
+                                          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => removeOpcion(block.id, pregunta.id, oIndex)}>
+                                            <Trash2 className="w-3 h-3" />
+                                          </Button>
+                                        )}
+                                      </div>
+                                    ))}
+                                    <Button variant="ghost" size="sm" className="text-xs font-bold text-primary h-7" onClick={() => addOpcion(block.id, pregunta.id)}>
+                                      <Plus className="w-3 h-3 mr-1" /> Agregar opción
+                                    </Button>
+                                  </div>
+                                </div>
+                              ))}
+                              <Button variant="outline" size="sm" className="w-full font-bold" onClick={() => addPregunta(block.id)}>
+                                <Plus className="w-3.5 h-3.5 mr-1" /> Agregar pregunta
+                              </Button>
                             </div>
                           )}
 
                           {block.type === "snippet" && <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} className="font-mono bg-slate-50 text-sm" placeholder="Código de solo lectura..." />}
                           
                           {block.type === "checklist" && (
-                            <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Tarea 1&#10;Tarea 2..." />
+                            <div className="space-y-1.5">
+                              {block.items.map((item: string, iIndex: number) => (
+                                <div key={iIndex} className="flex items-center gap-2">
+                                  <span className="text-[10px] font-black text-slate-400 w-4 shrink-0">{iIndex + 1}</span>
+                                  <Input
+                                    placeholder="Ej: Instalar Node.js"
+                                    value={item}
+                                    onChange={(e) => updateChecklistItem(block.id, iIndex, e.target.value)}
+                                  />
+                                  {block.items.length > 1 && (
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={() => removeChecklistItem(block.id, iIndex)}>
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </Button>
+                                  )}
+                                </div>
+                              ))}
+                              <Button variant="outline" size="sm" className="w-full font-bold" onClick={() => addChecklistItem(block.id)}>
+                                <Plus className="w-3.5 h-3.5 mr-1" /> Agregar ítem
+                              </Button>
+                            </div>
                           )}
 
                           {block.type === "diff" && (
@@ -366,6 +488,28 @@ const AdminLessons = () => {
                     </Button>
                   ))}
                 </div>
+              </div>
+
+              {/* VISTA PREVIA EN VIVO: así lo va a ver el alumno, se actualiza a medida
+                  que se arma la clase, sin necesidad de guardar para verla. */}
+              <div className="min-w-0 xl:sticky xl:top-4">
+                <div className="flex items-center gap-2 mb-3 px-1">
+                  <Eye className="w-4 h-4 text-primary" />
+                  <span className="text-xs font-black uppercase tracking-widest text-slate-400">Vista Previa (como la ve el alumno)</span>
+                </div>
+                <div className="border-2 rounded-3xl bg-white p-6 md:p-8 max-h-[75vh] overflow-y-auto shadow-inner">
+                  {lessonTitle && (
+                    <h2 className="text-2xl font-black text-slate-900 mb-6 pb-4 border-b">{lessonTitle}</h2>
+                  )}
+                  {blocks.length > 0 ? (
+                    <LessonBlocks content={JSON.stringify(blocks)} />
+                  ) : (
+                    <p className="text-center text-muted-foreground py-16">
+                      Agregá bloques a la izquierda para ver cómo va quedando la clase acá.
+                    </p>
+                  )}
+                </div>
+              </div>
               </div>
 
               <Button onClick={() => saveMutation.mutate()} className="w-full h-14 gradient-primary text-white font-black text-lg shadow-xl" disabled={!lessonTitle || blocks.length === 0 || saveMutation.isPending}>

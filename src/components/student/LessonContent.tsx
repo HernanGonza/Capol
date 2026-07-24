@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import confetti from "canvas-confetti";
 
@@ -43,47 +43,41 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
   const [showJitsi, setShowJitsi] = useState(false);
   const [showRecording, setShowRecording] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const exportRef = useRef<HTMLDivElement>(null);
 
   const exportToPdf = async () => {
-    if (!exportRef.current) return;
     setExporting(true);
     try {
       // Carga diferida: son librerías pesadas que solo hacen falta si se exporta un PDF.
-      const [{ default: jsPDF }, { default: html2canvas }] = await Promise.all([
-        import("jspdf"),
-        import("html2canvas"),
+      // Generamos el PDF con @react-pdf/renderer: texto vectorial real (no una captura
+      // de pantalla), con fuentes propias embebidas (Helvetica, que soporta tildes/ñ/¿/¡
+      // sin problemas) y soporte real de negrita/cursiva dentro del texto en Markdown.
+      const [{ pdf: buildPdf }, { default: LessonPdfDocument }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/LessonPdfDocument"),
       ]);
-      const canvas = await html2canvas(exportRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff",
-      });
-      const imgData = canvas.toDataURL("image/png");
-      const pdf = new jsPDF("p", "mm", "a4");
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
+      const blob = await buildPdf(
+        <LessonPdfDocument
+          lessonTitle={lesson.titulo}
+          lessonDescription={lesson.descripcion}
+          content={lesson.content}
+        />
+      ).toBlob();
 
       const safeTitle = lesson.titulo.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9 -]/g, "");
-      pdf.save(`${safeTitle}.pdf`);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${safeTitle}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
       toast.success("PDF descargado");
     } catch (e) {
-      toast.error("No se pudo exportar el PDF");
+      console.error("Error exportando PDF:", e);
+      toast.error("No se pudo exportar el PDF. Si el problema sigue, avisale a soporte.");
     } finally {
       setExporting(false);
     }
@@ -160,7 +154,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
             onClick={exportToPdf}
             disabled={exporting}
             className="rounded-2xl shrink-0 border-slate-200 font-bold"
-            title="Descarga el material de esta clase en PDF (no incluye video ni consola interactiva)"
+            title="Descarga el material de esta clase en PDF (el video embebido y la consola interactiva quedan como un link/nota, no se pueden incluir tal cual)"
           >
             <FileDown className="w-4 h-4 mr-2" />
             {exporting ? "Generando..." : "Exportar PDF"}
@@ -168,14 +162,8 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
         </div>
       </div>
 
-      {/* TODOS LOS BLOQUES DINÁMICOS (contenido que se exporta a PDF) */}
-      <div ref={exportRef} className="bg-white space-y-8">
-        <div>
-          <h2 className="text-2xl font-black text-slate-900">{lesson.titulo}</h2>
-          {lesson.descripcion && <p className="text-slate-500 mt-1">{lesson.descripcion}</p>}
-        </div>
-        <LessonBlocks content={lesson.content} />
-      </div>
+      {/* TODOS LOS BLOQUES DINÁMICOS */}
+      <LessonBlocks content={lesson.content} />
 
       {/* CLASE EN VIVO O GRABACIÓN */}
       {isClassOver ? (
