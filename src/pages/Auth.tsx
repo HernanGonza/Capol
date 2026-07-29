@@ -10,60 +10,13 @@ import {
   Mail, Lock, User, Phone, MapPin,
   Eye, EyeOff, CheckCircle, XCircle, Camera, ArrowLeft, Shield, CreditCard
 } from "lucide-react";
-
-const PROVINCIAS_AR = [
-  "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba",
-  "Corrientes", "Entre Ríos", "Formosa", "Jujuy", "La Pampa", "La Rioja",
-  "Mendoza", "Misiones", "Neuquén", "Río Negro", "Salta", "San Juan",
-  "San Luis", "Santa Cruz", "Santa Fe", "Santiago del Estero",
-  "Tierra del Fuego", "Tucumán",
-];
+import { PROVINCIAS_AR, PAISES_MUNDO } from "@/lib/geo";
 
 const passwordChecks = (pw: string) => [
   { label: "Al menos 8 caracteres", ok: pw.length >= 8 },
   { label: "Una mayúscula", ok: /[A-Z]/.test(pw) },
   { label: "Un número", ok: /[0-9]/.test(pw) },
   { label: "Un carácter especial", ok: /[^A-Za-z0-9]/.test(pw) },
-];
-
-const PAISES_MUNDO = [
-  "Argentina", "Bolivia", "Brasil", "Chile", "Colombia", "Costa Rica",
-  "Cuba", "Ecuador", "El Salvador", "Guatemala", "Honduras", "México",
-  "Nicaragua", "Panamá", "Paraguay", "Perú", "República Dominicana",
-  "Uruguay", "Venezuela",
-  "Alemania", "Australia", "Austria", "Bélgica", "Canadá", "China",
-  "Corea del Sur", "España", "Estados Unidos", "Francia", "India",
-  "Israel", "Italia", "Japón", "Nueva Zelanda", "Países Bajos",
-  "Polonia", "Portugal", "Reino Unido", "Rusia", "Sudáfrica",
-  "Suecia", "Suiza", "Turquía", "Ucrania",
-  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Antigua y Barbuda",
-  "Armenia", "Azerbaijan", "Bahamas", "Bahréin", "Bangladesh", "Barbados",
-  "Belarus", "Belize", "Benín", "Bután", "Bosnia y Herzegovina", "Botsuana",
-  "Brunéi", "Bulgaria", "Burkina Faso", "Burundi", "Cabo Verde", "Camboya",
-  "Camerún", "Catar", "Comoras", "Congo", "Croacia", "Chipre",
-  "Dinamarca", "Djibouti", "Dominica", "Egipto", "Emiratos Árabes Unidos",
-  "Eritrea", "Eslovaquia", "Eslovenia", "Estonia", "Etiopía", "Fiji",
-  "Filipinas", "Finlandia", "Gabón", "Gambia", "Georgia", "Ghana",
-  "Granada", "Grecia", "Guinea", "Guinea-Bisáu", "Guinea Ecuatorial",
-  "Guyana", "Haití", "Hungría", "Indonesia", "Irak", "Irán",
-  "Irlanda", "Islandia", "Islas Marshall", "Islas Salomón", "Jamaica",
-  "Jordania", "Kazajistán", "Kenia", "Kirguistán", "Kiribati",
-  "Kosovo", "Kuwait", "Laos", "Lesoto", "Letonia", "Líbano",
-  "Liberia", "Libia", "Liechtenstein", "Lituania", "Luxemburgo",
-  "Macedonia del Norte", "Madagascar", "Malasia", "Malaui", "Maldivas",
-  "Mali", "Malta", "Marruecos", "Mauricio", "Mauritania", "Micronesia",
-  "Moldavia", "Mónaco", "Mongolia", "Montenegro", "Mozambique",
-  "Myanmar", "Namibia", "Nauru", "Nepal", "Níger", "Nigeria",
-  "Noruega", "Omán", "Pakistán", "Palaos", "Palestina", "Papúa Nueva Guinea",
-  "República Centroafricana", "República Checa", "República del Congo",
-  "Ruanda", "Rumania", "Saint Kitts y Nevis", "Samoa", "San Marino",
-  "Santa Lucía", "Santo Tomé y Príncipe", "San Vicente y las Granadinas",
-  "Senegal", "Serbia", "Seychelles", "Sierra Leona", "Singapur",
-  "Somalia", "Sri Lanka", "Sudán", "Sudán del Sur", "Surinam",
-  "Suazilandia", "Tailandia", "Tanzania", "Timor Oriental", "Togo",
-  "Tonga", "Trinidad y Tobago", "Túnez", "Turkmenistán", "Tuvalu",
-  "Uganda", "Uzbekistán", "Vanuatu", "Vietnam", "Yemen", "Yibuti",
-  "Zambia", "Zimbabue",
 ];
 
 const Auth = () => {
@@ -76,6 +29,10 @@ const Auth = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
+
+  const [forgotMode, setForgotMode] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [forgotSent, setForgotSent] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [form, setForm] = useState({
@@ -125,6 +82,23 @@ const Auth = () => {
       } else {
         navigate("/dashboard");
       }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(forgotEmail, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      // No confirmamos si el email existe o no (evita filtrar qué cuentas están registradas).
+      setForgotSent(true);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -212,9 +186,9 @@ const Auth = () => {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3">
-            <img src="/logo-capol.webp" alt="CAPOL" className="h-12 w-12 rounded-xl shadow-lg shadow-indigo-500/20" />
+            <img src="/logo-capol.webp" alt="CapOL" className="h-12 w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20" />
             <div className="text-left">
-              <p className="font-black text-xl text-white tracking-tight">CAPOL</p>
+              <p className="font-black text-xl text-white tracking-tight">CapOL</p>
               <p className="text-[10px] text-indigo-300/70 font-medium tracking-[0.2em] uppercase">Escuela Virtual</p>
             </div>
           </div>
@@ -226,7 +200,7 @@ const Auth = () => {
             {["Iniciar Sesión", "Crear Cuenta"].map((label, i) => (
               <button
                 key={label}
-                onClick={() => setIsLogin(i === 0)}
+                onClick={() => { setIsLogin(i === 0); setForgotMode(false); }}
                 className={`flex-1 py-4 text-sm font-bold transition-all ${
                   (i === 0) === isLogin
                     ? "bg-indigo-500/20 text-indigo-300 border-b-2 border-indigo-400"
@@ -238,8 +212,42 @@ const Auth = () => {
             ))}
           </div>
 
-          <div className="p-8 overflow-y-auto max-h-[72vh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" key={isLogin ? "login" : "register"} style={{animation: "fadeSlideIn 0.3s ease"}}>
-            {isLogin ? (
+          <div className="p-8 overflow-y-auto max-h-[72vh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" key={forgotMode ? "forgot" : isLogin ? "login" : "register"} style={{animation: "fadeSlideIn 0.3s ease"}}>
+            {forgotMode ? (
+              <div className="space-y-5">
+                <button
+                  type="button"
+                  onClick={() => setForgotMode(false)}
+                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Volver a iniciar sesión
+                </button>
+                {forgotSent ? (
+                  <div className="text-center space-y-3 py-4">
+                    <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto" />
+                    <p className="text-sm text-white/70">
+                      Si <strong className="text-white">{forgotEmail}</strong> está registrado, te enviamos un email con un link para restablecer tu contraseña.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleForgotPassword} className="space-y-5">
+                    <p className="text-sm text-white/50">Ingresá tu email y te mandamos un link para restablecer tu contraseña.</p>
+                    <div className="space-y-1.5">
+                      <Label className={labelClass}>Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                        <Input type="email" placeholder="tu@email.com" value={forgotEmail}
+                          onChange={(e) => setForgotEmail(e.target.value)}
+                          className={`pl-9 ${inputClass}`} required />
+                      </div>
+                    </div>
+                    <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/25">
+                      {loading ? "Enviando..." : "Enviar link de recuperación"}
+                    </Button>
+                  </form>
+                )}
+              </div>
+            ) : isLogin ? (
               <form onSubmit={handleLogin} className="space-y-5">
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Email</Label>
@@ -259,6 +267,15 @@ const Auth = () => {
                       className={`pl-9 pr-10 ${inputClass}`} required />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-white/30 hover:text-white/60">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => { setForgotMode(true); setForgotSent(false); setForgotEmail(loginData.email); }}
+                      className="text-xs text-indigo-300/70 hover:text-indigo-300 transition-colors"
+                    >
+                      ¿Olvidaste tu contraseña?
                     </button>
                   </div>
                 </div>

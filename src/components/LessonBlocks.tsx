@@ -161,7 +161,7 @@ const LessonBlocks = ({ content }: Props) => {
                           if (oIndex === pregunta.correcta) { toast.success("¡Respuesta Correcta!"); } else { toast.error("Incorrecto, prueba otra vez."); }
                         }}
                       >
-                        <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mr-4 shrink-0 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center mr-4 shrink-0 text-sm">
                           {String.fromCharCode(65 + oIndex)}
                         </div>
                         {opcion}

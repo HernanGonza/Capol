@@ -23,6 +23,7 @@ const formatPrecio = (course: any) => {
   const monto = new Intl.NumberFormat("es-AR").format(course.precio);
   if (course.tipo_precio === "mensual") return `${simbolo} ${monto}/mes`;
   if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x ${simbolo} ${monto}`;
+  if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x ${simbolo} ${monto}`;
   return `${simbolo} ${monto}`;
 };
 
@@ -127,7 +128,7 @@ const AdminCourses = () => {
         tipo_flyer: form.tipo_flyer, publicado: form.publicado,
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
-        cantidad_cuotas: form.tipo_precio === "cuotas" && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
+        cantidad_cuotas: (form.tipo_precio === "cuotas" || form.tipo_precio === "clase") && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
         moneda: form.moneda,
       };
       if (editingCourse) {
@@ -278,9 +279,14 @@ const AdminCourses = () => {
                         <option value="curso">Pago único por curso</option>
                         <option value="mensual">Mensual</option>
                         <option value="cuotas">En cuotas</option>
+                        <option value="clase">Por clase</option>
                       </select>
                       {form.tipo_precio === "cuotas" && (
                         <Input type="number" min="2" max="36" placeholder="Cant. cuotas"
+                          value={form.cantidad_cuotas} onChange={(e) => setForm({ ...form, cantidad_cuotas: e.target.value })} />
+                      )}
+                      {form.tipo_precio === "clase" && (
+                        <Input type="number" min="1" max="200" placeholder="Cant. clases"
                           value={form.cantidad_cuotas} onChange={(e) => setForm({ ...form, cantidad_cuotas: e.target.value })} />
                       )}
                     </div>
@@ -343,13 +349,13 @@ const AdminCourses = () => {
               const hasVideoFlyer = isVideoFlyer(course);
               const precioLabel = formatPrecio(course);
               return (
-                <Card key={course.id} className="border-none shadow-card bg-white flex flex-col overflow-hidden">
+                <Card key={course.id} className="border-none shadow-card bg-card flex flex-col overflow-hidden">
                   {course.url_flyer && (
                     <div className="relative h-32 bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
                       {hasVideoFlyer
                         ? <video src={course.url_flyer} className="w-full h-full object-contain bg-black" muted loop autoPlay playsInline />
                         : <img src={course.url_flyer} alt={course.titulo} className="w-full h-full object-cover" />}
-                      <div className="absolute inset-0 bg-gradient-to-t from-white via-transparent to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-card via-transparent to-transparent" />
                       {hasVideoFlyer && (
                         <div className="absolute top-2 left-2">
                           <Badge variant="secondary" className="bg-black/50 text-white border-none text-[10px]">
@@ -373,7 +379,7 @@ const AdminCourses = () => {
                           {course.publicado ? "Activo" : "Borrador"}
                         </Badge>
                         {precioLabel && !course.url_flyer && (
-                          <Badge className="bg-emerald-100 text-emerald-700 border-none text-[10px]">
+                          <Badge className="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border-none text-[10px]">
                             <DollarSign className="w-2.5 h-2.5 mr-0.5" />{precioLabel}
                           </Badge>
                         )}
@@ -389,12 +395,12 @@ const AdminCourses = () => {
                         <p className="font-bold text-lg">{course.total_enrollments}</p>
                       </div>
                       <div className="text-center border-x">
-                        <p className="text-[10px] uppercase font-bold text-green-600 mb-1">Activos</p>
-                        <p className="font-bold text-lg text-green-700">{course.active_count}</p>
+                        <p className="text-[10px] uppercase font-bold text-green-600 dark:text-green-400 mb-1">Activos</p>
+                        <p className="font-bold text-lg text-green-700 dark:text-green-400">{course.active_count}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Clases</p>
-                        <p className="font-bold text-lg text-blue-700">{course.total_lessons}</p>
+                        <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-1">Clases</p>
+                        <p className="font-bold text-lg text-blue-700 dark:text-blue-400">{course.total_lessons}</p>
                       </div>
                     </div>
                     <div className="flex gap-2">

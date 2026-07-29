@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import Tilt from "react-parallax-tilt";
+import ScrollReveal from "scrollreveal";
 import {
   GraduationCap,
   Users,
@@ -54,6 +55,35 @@ const Landing = () => {
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
+
+  // Las tarjetas de curso van apareciendo a medida que se scrollea hasta ellas
+  // (scrollrevealjs.org). Importante: agregamos una red de seguridad que, a los
+  // pocos segundos, fuerza que todo quede visible igual, pase lo que pase — así
+  // nunca puede repetirse el problema de contenido invisible que tuvimos antes.
+  useEffect(() => {
+    if (courses.length === 0) return;
+
+    const sr = ScrollReveal({
+      distance: "40px",
+      duration: 700,
+      easing: "cubic-bezier(0.5, 0, 0, 1)",
+      interval: 70,
+      reset: false,
+    });
+    sr.reveal(".reveal-card", { origin: "bottom" });
+
+    const safety = window.setTimeout(() => {
+      document.querySelectorAll<HTMLElement>(".reveal-card").forEach((el) => {
+        el.style.opacity = "1";
+        el.style.transform = "none";
+      });
+    }, 2500);
+
+    return () => {
+      sr.destroy();
+      window.clearTimeout(safety);
+    };
+  }, [courses.length]);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -166,13 +196,13 @@ const Landing = () => {
             <div className="relative">
               <img
                 src="/logo-capol.webp"
-                alt="CAPOL"
-                className="h-12 w-12 rounded-xl shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow"
+                alt="CapOL"
+                className="h-12 w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow"
               />
-              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-xl blur opacity-30 group-hover:opacity-50 transition-opacity" />
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity -z-10" />
             </div>
             <div>
-              <span className="font-black text-xl tracking-tight">CAPOL</span>
+              <span className="font-black text-xl tracking-tight">CapOL</span>
               <p className="text-[10px] text-indigo-300/70 font-medium tracking-[0.2em] uppercase">
                 Escuela Virtual
               </p>
@@ -378,7 +408,7 @@ const Landing = () => {
                   glareBorderRadius="24px"
                   scale={1.02}
                   transitionSpeed={1500}
-                  className="animate-fade-in"
+                  className="reveal-card"
                 >
                 <Card
                   className="group bg-transparent border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
@@ -493,7 +523,7 @@ const Landing = () => {
 
               <p className="text-white/60 text-lg max-w-xl mx-auto">
                 Unite a cientos de estudiantes que ya están transformando su
-                futuro profesional con CAPOL.
+                futuro profesional con CapOL.
               </p>
 
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
@@ -599,11 +629,11 @@ const Landing = () => {
           <div className="flex items-center gap-3 justify-center md:justify-start">
             <img
               src="/logo-capol.webp"
-              alt="CAPOL"
-              className="h-10 w-10 rounded-xl"
+              alt="CapOL"
+              className="h-10 w-10 rounded-full object-cover"
             />
             <div className="text-left">
-              <span className="font-bold text-white">CAPOL</span>
+              <span className="font-bold text-white">CapOL</span>
               <p className="text-xs text-white/40">
                 Escuela Virtual de Informática
               </p>
@@ -611,7 +641,7 @@ const Landing = () => {
           </div>
 
           <p className="text-white/30 text-sm text-center">
-            © {new Date().getFullYear()} CAPOL. Todos los derechos reservados.
+            © {new Date().getFullYear()} CapOL. Todos los derechos reservados.
           </p>
 
           <div className="flex items-center gap-4 justify-center md:justify-end">
@@ -639,7 +669,7 @@ const Landing = () => {
             className="flex items-center gap-2 text-white/30 hover:text-white/70 text-xs font-medium transition-colors"
           >
             <span>Desarrollado por</span>
-            <img src="/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />
+            <img src="public/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />
             <span className="font-bold tracking-wide">PARALELO SOFTWARE STUDIO</span>
           </a>
         </div>

@@ -13,6 +13,7 @@ interface AuthContextType {
   role: AppRole | null;
   profile: Database["public"]["Tables"]["perfiles"]["Row"] | null;
   signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -22,6 +23,7 @@ const AuthContext = createContext<AuthContextType>({
   role: null,
   profile: null,
   signOut: async () => {},
+  refreshProfile: async () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -78,27 +80,41 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
         setSession(newSession);
-        setUser(newSession?.user ?? null);
-        if (newSession?.user) {
-          // Importante: si ya habíamos terminado de cargar antes (ej: se mostró
-          // la pantalla de login sin usuario logueado), "loading" ya estaba en
-          // false. Al iniciar sesión hay que volver a ponerlo en true mientras
-          // se busca el rol — si no, cualquier pantalla que decida una ruta
-          // según el rol lo ve como null por un instante (por eso un profesor
-          // terminaba en /dashboard en vez de /teacher).
-          setLoading(true);
-          // No se puede hacer `await` de una llamada a Supabase directo adentro
-          // del callback de onAuthStateChange (deadlock conocido). Se difiere
-          // con setTimeout, y recién ahí se consulta rol/perfil.
-          const authUser = newSession.user;
-          setTimeout(() => {
-            fetchUserData(authUser).finally(() => { if (!cancelled) setLoading(false); });
-          }, 0);
-        } else {
-          setRole(null);
-          setProfile(null);
-          setLoading(false);
-        }
+
+        // Comparamos contra el usuario previo con el updater de setUser (en vez de
+        // leer la variable "user" del closure, que quedaría stale al estar este
+        // efecto con deps []). Esto nos permite distinguir un login real de un
+        // simple TOKEN_REFRESHED — Supabase dispara este último automáticamente
+        // cada vez que la pestaña recupera el foco, y si tratáramos ese caso igual
+        // que un login (loading=true) desmontaríamos toda la ruta protegida cada
+        // vez que el usuario vuelve de otra pestaña, perdiendo su estado (por eso
+        // la app "volvía al principio" al cambiar de pestaña).
+        setUser((prevUser) => {
+          const newUser = newSession?.user ?? null;
+          const isNewUser = prevUser?.id !== newUser?.id;
+
+          if (newUser) {
+            if (isNewUser) {
+              // Al iniciar sesión hay que poner loading=true mientras se busca el
+              // rol — si no, cualquier pantalla que decida una ruta según el rol
+              // lo ve como null por un instante (por eso un profesor terminaba en
+              // /dashboard en vez de /teacher).
+              setLoading(true);
+              // No se puede hacer `await` de una llamada a Supabase directo adentro
+              // del callback de onAuthStateChange (deadlock conocido). Se difiere
+              // con setTimeout, y recién ahí se consulta rol/perfil.
+              setTimeout(() => {
+                fetchUserData(newUser).finally(() => { if (!cancelled) setLoading(false); });
+              }, 0);
+            }
+          } else {
+            setRole(null);
+            setProfile(null);
+            setLoading(false);
+          }
+
+          return newUser;
+        });
       }
     );
 
@@ -128,8 +144,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     navigate("/");
   };
 
+  // Vuelve a leer el perfil desde la base — se usa después de guardar cambios
+  // en "Mi Perfil" para que el sidebar (avatar, nombre) se actualice al toque,
+  // sin depender de que vuelva a dispararse un evento de auth.
+  const refreshProfile = async () => {
+    if (!user) return;
+    const { data: prof } = await supabase.from("perfiles").select("*").eq("id", user.id).single();
+    if (prof) setProfile(prof);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, loading, role, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, role, profile, signOut, refreshProfile }}>
       {children}
     </AuthContext.Provider>
   );

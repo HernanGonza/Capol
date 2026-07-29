@@ -213,7 +213,7 @@ const TeacherDashboard = () => {
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {assignedCourses?.map((course) => course && (
-                <Card key={course.id} className="border-none shadow-card bg-white">
+                <Card key={course.id} className="border-none shadow-card bg-card">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
                       <Badge 
@@ -239,8 +239,8 @@ const TeacherDashboard = () => {
                         <p className="font-bold text-lg">{course.inscripciones?.[0]?.count || 0}</p>
                       </div>
                       <div className="text-center">
-                        <p className="text-[10px] uppercase font-bold text-blue-600 mb-1">Clases</p>
-                        <p className="font-bold text-lg text-blue-700">{course.lecciones?.[0]?.count || 0}</p>
+                        <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-1">Clases</p>
+                        <p className="font-bold text-lg text-blue-700 dark:text-blue-400">{course.lecciones?.[0]?.count || 0}</p>
                       </div>
                     </div>
 

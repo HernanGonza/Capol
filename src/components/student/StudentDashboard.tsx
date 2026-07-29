@@ -91,6 +91,7 @@ const StudentDashboard = () => {
     const m = new Intl.NumberFormat("es-AR").format(course.precio);
     if (course.tipo_precio === "mensual") return `${s} ${m}/mes`;
     if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x ${s} ${m}`;
+    if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x ${s} ${m}`;
     return `${s} ${m}`;
   };
 
@@ -137,7 +138,7 @@ const StudentDashboard = () => {
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {enrollments.map((item) => (
                 <Link key={item.id} to={`/course/${item.course?.id}`}>
-                  <Card className="overflow-hidden border-none shadow-card hover:shadow-elevated transition-all duration-300 group bg-white">
+                  <Card className="overflow-hidden border-none shadow-card hover:shadow-elevated transition-all duration-300 group bg-card">
                     <div className="h-44 relative overflow-hidden">
                       {item.course?.url_imagen
                         ? <img src={item.course.url_imagen} alt={item.course.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
@@ -157,7 +158,7 @@ const StudentDashboard = () => {
                           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tu Progreso</span>
                           <span className="font-bold text-primary">{item.percent}%</span>
                         </div>
-                        <Progress value={item.percent} className="h-2 bg-slate-100" />
+                        <Progress value={item.percent} className="h-2 bg-muted" />
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium">
                             <PlayCircle className="w-4 h-4 text-primary/60" />
@@ -174,8 +175,8 @@ const StudentDashboard = () => {
               ))}
             </div>
           ) : (
-            <Card className="p-10 text-center border-none shadow-card bg-slate-50/50">
-              <div className="w-16 h-16 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-4">
+            <Card className="p-10 text-center border-none shadow-card bg-muted/50">
+              <div className="w-16 h-16 bg-background rounded-full shadow-sm flex items-center justify-center mx-auto mb-4">
                 <BookOpen className="w-8 h-8 text-muted-foreground/30" />
               </div>
               <h3 className="font-bold text-lg">Aún no tenés cursos activos</h3>
@@ -202,7 +203,7 @@ const StudentDashboard = () => {
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {availableCourses.map((course: any) => (
-                  <Card key={course.id} className="overflow-hidden border border-border/50 shadow-sm hover:shadow-card transition-all duration-300 group bg-white">
+                  <Card key={course.id} className="overflow-hidden border border-border/50 shadow-sm hover:shadow-card transition-all duration-300 group bg-card">
                     <div className="h-36 relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50">
                       {course.url_flyer || course.url_imagen ? (
                         course.tipo_flyer === "video"
@@ -228,7 +229,7 @@ const StudentDashboard = () => {
                       <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{course.descripcion || "Más información próximamente."}</p>
                       <div className="flex items-center justify-between">
                         {formatPrecio(course)
-                          ? <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-full"><DollarSign className="w-3 h-3" />{formatPrecio(course)}</span>
+                          ? <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full"><DollarSign className="w-3 h-3" />{formatPrecio(course)}</span>
                           : <span className="text-xs text-muted-foreground">Consultar precio</span>}
                         <button
                           onClick={() => setModalCourse(course)}
@@ -266,17 +267,17 @@ const StudentDashboard = () => {
               )}
 
               {modalCourse.precio ? (
-                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 rounded-full flex items-center justify-center shrink-0">
-                    <DollarSign className="w-5 h-5 text-emerald-600" />
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/60 rounded-full flex items-center justify-center shrink-0">
+                    <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
                   </div>
                   <div>
-                    <p className="text-xs text-emerald-600 font-semibold uppercase tracking-wide">Precio del curso</p>
-                    <p className="font-black text-xl text-emerald-800">{formatPrecio(modalCourse)}</p>
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wide">Precio del curso</p>
+                    <p className="font-black text-xl text-emerald-800 dark:text-emerald-300">{formatPrecio(modalCourse)}</p>
                   </div>
                 </div>
               ) : (
-                <div className="bg-slate-50 border rounded-xl p-4">
+                <div className="bg-muted border rounded-xl p-4">
                   <p className="text-sm text-muted-foreground">El precio se acordará al momento del contacto.</p>
                 </div>
               )}
@@ -295,14 +296,14 @@ const StudentDashboard = () => {
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {mediosDePago.map((medio: string, i: number) => (
-                      <span key={i} className="bg-slate-100 text-slate-700 text-xs font-semibold px-3 py-1.5 rounded-full border">{medio}</span>
+                      <span key={i} className="bg-muted text-foreground text-xs font-semibold px-3 py-1.5 rounded-full border">{medio}</span>
                     ))}
                   </div>
                 </div>
               )}
 
               {yaSolicitado.has(modalCourse.id) ? (
-                <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-emerald-700 font-semibold text-sm">
+                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4 text-emerald-700 dark:text-emerald-400 font-semibold text-sm">
                   <CheckCircle className="w-5 h-5" /> Solicitud enviada — te contactaremos pronto
                 </div>
               ) : (

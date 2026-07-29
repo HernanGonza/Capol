@@ -85,7 +85,7 @@ const AdminDashboard = () => {
       value: stats?.totalStudents,
       description: `${stats?.activeCount} alumnos al día`,
       icon: Users,
-      color: "bg-white",
+      color: "bg-card",
       path: "/admin/students" // Ajustar según tu ruta de usuarios
     },
     {
@@ -93,7 +93,7 @@ const AdminDashboard = () => {
       value: `${stats?.activeCourses} / ${stats?.totalCourses}`,
       description: "Contenido activo",
       icon: BookOpen,
-      color: "bg-white",
+      color: "bg-card",
       path: "/admin/courses"
     },
     {
@@ -101,7 +101,7 @@ const AdminDashboard = () => {
       value: stats?.expiredCount,
       description: "Suscripciones vencidas",
       icon: AlertTriangle,
-      color: "bg-white text-destructive",
+      color: "bg-card text-destructive",
       path: "/admin/subscriptions?filter=expired"
     }
   ];
@@ -149,7 +149,7 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Tasa media de finalización de clases</p>
               </div>
             </div>
-            <Progress value={stats?.completionRate} className="h-2 bg-indigo-50" />
+            <Progress value={stats?.completionRate} className="h-2 bg-muted" />
           </CardContent>
         </Card>
 
@@ -166,7 +166,7 @@ const AdminDashboard = () => {
                 <p className="text-xs text-muted-foreground">Ratio alumnos activos vs total</p>
               </div>
             </div>
-            <Progress value={stats?.healthRatio} className="h-2 bg-green-50" />
+            <Progress value={stats?.healthRatio} className="h-2 bg-muted" />
           </CardContent>
         </Card>
       </div>

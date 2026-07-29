@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck } from "lucide-react";
+import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap } from "lucide-react";
 
 const AdminStudents = () => {
   const queryClient = useQueryClient();
@@ -148,6 +148,21 @@ const AdminStudents = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Convertir la cuenta de un alumno en profesor: pasa a gestionarse desde
+  // "Profesores" (asignación de cursos), y deja de listarse acá.
+  const promoteToTeacherMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const { error } = await supabase.from("roles_usuario").update({ rol: "teacher" }).eq("usuario_id", userId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["all-students"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-teachers"] });
+      toast.success("Alumno convertido a profesor. Ya lo podés gestionar desde \"Profesores\".");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -206,9 +221,24 @@ const AdminStudents = () => {
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
                     {s.activo ? (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Activo</Badge>
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">Activo</Badge>
                     ) : (
-                      <Badge variant="outline" className="bg-slate-100 text-slate-500 border-slate-200">Dado de baja</Badge>
+                      <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Dado de baja</Badge>
+                    )}
+                    {s.activo && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                        disabled={promoteToTeacherMutation.isPending}
+                        onClick={() => {
+                          if (confirm(`¿Convertir a ${s.nombre_completo} en profesor? Va a dejar de figurar como alumno y vas a poder asignarle cursos desde "Profesores".`)) {
+                            promoteToTeacherMutation.mutate(s.id);
+                          }
+                        }}
+                      >
+                        <GraduationCap className="w-4 h-4 mr-1" /> Hacer Profesor
+                      </Button>
                     )}
                     {s.activo ? (
                       <Button
@@ -227,7 +257,7 @@ const AdminStudents = () => {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-emerald-700 hover:bg-emerald-50"
+                        className="text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
                         onClick={() => toggleActivoMutation.mutate({ id: s.id, activo: true })}
                       >
                         <UserCheck className="w-4 h-4 mr-1" /> Reactivar
@@ -297,11 +327,11 @@ const AdminStudents = () => {
                     <div className="text-right">
                       <p className="text-[10px] uppercase font-bold text-muted-foreground">Suscripción</p>
                       {e.subscription?.estado === 'active' ? (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">ACTIVA</Badge>
+                        <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">ACTIVA</Badge>
                       ) : e.subscription?.estado === 'expired' ? (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">VENCIDA</Badge>
+                        <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900">VENCIDA</Badge>
                       ) : (
-                        <Badge variant="outline" className="bg-slate-50 text-slate-500 border-slate-200">PENDIENTE</Badge>
+                        <Badge variant="outline" className="bg-muted text-muted-foreground border-border">PENDIENTE</Badge>
                       )}
                     </div>
                     <Button

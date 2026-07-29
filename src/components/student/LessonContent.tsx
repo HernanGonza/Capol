@@ -138,11 +138,11 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
           </Button>
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-black tracking-tighter text-slate-900 leading-tight">
+              <h1 className="text-4xl font-black tracking-tighter text-foreground leading-tight">
                 {lesson.titulo}
               </h1>
               {isCompleted && (
-                <div className="flex items-center gap-1 bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-bounce">
+                <div className="flex items-center gap-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-bounce">
                   <CheckCircle className="w-3 h-3" /> Completada
                 </div>
               )}
@@ -257,8 +257,8 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
       {/* BOTÓN FINAL DE COMPLETADO */}
       <div className="pt-16 mt-20 border-t border-slate-100 space-y-10">
         {isPreview ? (
-          <div className="bg-indigo-50 border-2 border-indigo-100 rounded-[2.5rem] p-10 text-center space-y-2">
-            <p className="text-indigo-700 font-bold">Estás en modo vista previa: así es como un alumno ve esta clase.</p>
+          <div className="bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-100 dark:border-indigo-900 rounded-[2.5rem] p-10 text-center space-y-2">
+            <p className="text-indigo-700 dark:text-indigo-400 font-bold">Estás en modo vista previa: así es como un alumno ve esta clase.</p>
           </div>
         ) : !isCompleted ? (
           <div className="bg-slate-900 rounded-[2.5rem] p-10 text-center space-y-6 shadow-2xl shadow-primary/20">
@@ -277,17 +277,17 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview }: Props
             </Button>
           </div>
         ) : (
-          <div className="bg-emerald-50 border-2 border-emerald-100 rounded-[2.5rem] p-10 text-center space-y-4 animate-in zoom-in-95 duration-500">
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-100 dark:border-emerald-900 rounded-[2.5rem] p-10 text-center space-y-4 animate-in zoom-in-95 duration-500">
             <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto">
               <CheckCircle className="w-10 h-10" />
             </div>
-            <h3 className="text-2xl font-black text-emerald-900 tracking-tight">¡Lección Dominada!</h3>
-            <p className="text-emerald-700 font-medium max-w-md mx-auto">Ya completaste este contenido. ¡Buen trabajo!</p>
+            <h3 className="text-2xl font-black text-emerald-900 dark:text-emerald-300 tracking-tight">¡Lección Dominada!</h3>
+            <p className="text-emerald-700 dark:text-emerald-400 font-medium max-w-md mx-auto">Ya completaste este contenido. ¡Buen trabajo!</p>
           </div>
         )}
 
         <div className="flex items-center justify-between opacity-60">
-          <Button variant="ghost" onClick={onBack} className="text-slate-500 hover:text-slate-900 font-bold">
+          <Button variant="ghost" onClick={onBack} className="text-muted-foreground hover:text-foreground font-bold">
             <ArrowLeft className="w-5 h-5 mr-2" /> Volver al Programa
           </Button>
         </div>

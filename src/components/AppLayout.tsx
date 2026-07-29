@@ -14,9 +14,11 @@ import {
   GraduationCap,
   UserPlus,
   ClipboardList,
+  UserCircle,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const { role, profile, signOut } = useAuth();
@@ -40,7 +42,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   });
 
   // Definición de rutas según el rol
-  const navItems = isAdmin
+  const roleNavItems = isAdmin
     ? [
         { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { to: "/admin/courses", label: "Cursos", icon: BookOpen },
@@ -57,6 +59,10 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/dashboard", label: "Mis Cursos", icon: BookOpen },
         { to: "/student/subscriptions", label: "Mis Suscripciones", icon: CreditCard },
       ];
+
+  // "Mi Perfil" se agrega al final para cualquier rol — no forma parte de la
+  // navegación específica del rol, pero tiene que estar disponible siempre.
+  const navItems = [...roleNavItems, { to: "/profile", label: "Mi Perfil", icon: UserCircle }];
 
   const getRoleBadge = () => {
     if (isAdmin) {
@@ -76,6 +82,27 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     return <p className="text-[10px] font-bold uppercase tracking-wider text-sidebar-foreground/40">Alumno</p>;
   };
 
+  // Avatar del usuario: si subió una foto en "Mi Perfil" se muestra esa foto;
+  // si no, cae al círculo con la inicial del nombre (comportamiento anterior).
+  const renderAvatar = (sizeClasses: string, title?: string) =>
+    profile?.url_avatar ? (
+      <img
+        src={profile.url_avatar}
+        alt={profile?.nombre_completo || "Usuario"}
+        title={title}
+        className={`${sizeClasses} rounded-full object-cover shadow-inner shrink-0`}
+      />
+    ) : (
+      <div
+        title={title}
+        className={`${sizeClasses} rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0 ${
+          isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
+        }`}
+      >
+        {(profile?.nombre_completo || "U")[0].toUpperCase()}
+      </div>
+    );
+
   return (
     <div className="h-screen flex bg-background font-sans overflow-hidden">
       {/* Mobile overlay */}
@@ -94,18 +121,18 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       >
         {/* Header del Sidebar */}
         <div className={`p-4 flex items-center border-b border-sidebar-border/50 ${collapsed ? "justify-center" : "justify-between"}`}>
-          <Link to="/" className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
-            <div className="w-9 h-9 rounded-xl shadow-sm flex items-center justify-center overflow-hidden bg-white shrink-0">
-              <img 
-                src="/logo-capol.webp" 
-                alt="Logo CAPOL" 
-                className="w-full h-full object-contain" 
+          <Link to={navItems[0].to} className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
+            <div className="w-9 h-9 rounded-full shadow-sm flex items-center justify-center overflow-hidden shrink-0">
+              <img
+                src="/logo-capol.webp"
+                alt="Logo CapOL"
+                className="w-full h-full object-cover"
               />
             </div>
             {!collapsed && (
               <div className="flex flex-col">
                 <span className="font-bold text-sm tracking-tight leading-none">Plataforma</span>
-                <span className="font-black text-lg text-primary tracking-tighter">CAPOL</span>
+                <span className="font-black text-lg text-primary tracking-tighter">CapOL</span>
               </div>
             )}
           </Link>
@@ -160,11 +187,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         <div className={`p-3 border-t border-sidebar-border/50 bg-sidebar-accent/30 ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
           {!collapsed && (
             <div className="flex items-center gap-3 px-2 py-2 mb-2 bg-white/50 rounded-xl border border-white/20">
-              <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0 ${
-                isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
-              }`}>
-                {(profile?.nombre_completo || "U")[0].toUpperCase()}
-              </div>
+              {renderAvatar("w-9 h-9")}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate text-sidebar-foreground">
                   {profile?.nombre_completo || "Usuario"}
@@ -176,14 +199,10 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             </div>
           )}
           
-          {collapsed && (
-            <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner ${
-              isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
-            }`} title={profile?.nombre_completo || "Usuario"}>
-              {(profile?.nombre_completo || "U")[0].toUpperCase()}
-            </div>
-          )}
+          {collapsed && renderAvatar("w-9 h-9", profile?.nombre_completo || "Usuario")}
           
+          <ThemeToggle collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
+
           <Button
             variant="ghost"
             size={collapsed ? "icon" : "sm"}
@@ -207,9 +226,12 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             <Button variant="ghost" size="icon" onClick={() => setSidebarOpen(true)} className="rounded-full">
               <Menu className="w-5 h-5" />
             </Button>
-            <span className="font-bold text-lg tracking-tighter">CAPOL</span>
+            <span className="font-bold text-lg tracking-tighter">CapOL</span>
           </div>
-          <div className={`w-8 h-8 rounded-full ${isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"}`} />
+          <div className="flex items-center gap-1">
+            <ThemeToggle collapsed />
+            {renderAvatar("w-8 h-8")}
+          </div>
         </header>
 
         {/* Contenido Dinámico - SCROLLEABLE */}

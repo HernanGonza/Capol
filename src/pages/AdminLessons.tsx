@@ -295,11 +295,11 @@ const AdminLessons = () => {
             <div className="space-y-6 pt-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400">Título de la clase</Label>
+                  <Label className="text-xs font-black uppercase text-muted-foreground">Título de la clase</Label>
                   <Input value={lessonTitle} onChange={(e) => setLessonTitle(e.target.value)} placeholder="Ej: Introducción a Props" className="font-bold" />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                  <Label className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
                     <Calendar className="w-3 h-3" /> Fecha de Desbloqueo (Opcional)
                   </Label>
                   <Input 
@@ -310,7 +310,7 @@ const AdminLessons = () => {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                  <Label className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
                     <Calendar className="w-3 h-3" /> Fecha de Fin de Clase (Opcional)
                   </Label>
                   <Input 
@@ -324,7 +324,7 @@ const AdminLessons = () => {
                   </p>
                 </div>
                 <div className="space-y-2 md:col-span-2">
-                  <Label className="text-xs font-black uppercase text-slate-400 flex items-center gap-2">
+                  <Label className="text-xs font-black uppercase text-muted-foreground flex items-center gap-2">
                     <Video className="w-3 h-3" /> Nombre de la Video Llamada (Opcional)
                   </Label>
                   <Input 
@@ -341,13 +341,13 @@ const AdminLessons = () => {
 
               <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
               <div className="space-y-4 min-w-0">
-                <div className="min-h-[350px] border-2 border-dashed rounded-3xl p-6 bg-slate-50/50 space-y-4">
+                <div className="min-h-[350px] border-2 border-dashed rounded-3xl p-6 bg-muted/50 space-y-4">
                   {blocks.map((block, index) => {
                     const blockType = BLOCK_TYPES.find((t) => t.id === block.type);
                     const Icon = blockType?.icon || Type;
 
                     return (
-                      <div key={block.id} className="group bg-white border rounded-2xl p-5 flex gap-4 items-start shadow-sm transition-all hover:shadow-md">
+                      <div key={block.id} className="group bg-card border rounded-2xl p-5 flex gap-4 items-start shadow-sm transition-all hover:shadow-md">
                         <div className="flex flex-col gap-1">
                           <Button variant="ghost" size="icon" onClick={() => moveBlock(index, "up")} className="h-7 w-7"><ArrowUp className="w-4 h-4" /></Button>
                           <Button variant="ghost" size="icon" onClick={() => moveBlock(index, "down")} className="h-7 w-7"><ArrowDown className="w-4 h-4" /></Button>
@@ -356,7 +356,7 @@ const AdminLessons = () => {
                         <div className="flex-1 space-y-3">
                           <div className="flex items-center gap-2">
                             <div className="p-1.5 bg-primary/10 rounded-lg"><Icon className="w-4 h-4 text-primary" /></div>
-                            <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest">{block.type}</span>
+                            <span className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">{block.type}</span>
                           </div>
 
                           {block.type === "text" && (
@@ -391,14 +391,14 @@ const AdminLessons = () => {
                           {block.type === "quiz" && (
                             <div className="space-y-3">
                               {block.preguntas.map((pregunta: any, pIndex: number) => (
-                                <div key={pregunta.id} className="space-y-2 bg-slate-50 p-3 rounded-xl border">
+                                <div key={pregunta.id} className="space-y-2 bg-muted p-3 rounded-xl border">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-[10px] font-black text-slate-400 shrink-0">P{pIndex + 1}</span>
+                                    <span className="text-[10px] font-black text-muted-foreground shrink-0">P{pIndex + 1}</span>
                                     <Input
                                       placeholder="Tu pregunta"
                                       value={pregunta.pregunta}
                                       onChange={(e) => updatePregunta(block.id, pregunta.id, { pregunta: e.target.value })}
-                                      className="bg-white"
+                                      className="bg-background"
                                     />
                                     {block.preguntas.length > 1 && (
                                       <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" onClick={() => removePregunta(block.id, pregunta.id)}>
@@ -421,7 +421,7 @@ const AdminLessons = () => {
                                           placeholder={`Opción ${String.fromCharCode(65 + oIndex)}`}
                                           value={opcion}
                                           onChange={(e) => updateOpcion(block.id, pregunta.id, oIndex, e.target.value)}
-                                          className="bg-white"
+                                          className="bg-background"
                                         />
                                         {pregunta.opciones.length > 2 && (
                                           <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0 text-muted-foreground" onClick={() => removeOpcion(block.id, pregunta.id, oIndex)}>
@@ -442,13 +442,13 @@ const AdminLessons = () => {
                             </div>
                           )}
 
-                          {block.type === "snippet" && <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} className="font-mono bg-slate-50 text-sm" placeholder="Código de solo lectura..." />}
+                          {block.type === "snippet" && <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} className="font-mono bg-muted text-sm" placeholder="Código de solo lectura..." />}
                           
                           {block.type === "checklist" && (
                             <div className="space-y-1.5">
                               {block.items.map((item: string, iIndex: number) => (
                                 <div key={iIndex} className="flex items-center gap-2">
-                                  <span className="text-[10px] font-black text-slate-400 w-4 shrink-0">{iIndex + 1}</span>
+                                  <span className="text-[10px] font-black text-muted-foreground w-4 shrink-0">{iIndex + 1}</span>
                                   <Input
                                     placeholder="Ej: Instalar Node.js"
                                     value={item}
@@ -469,8 +469,8 @@ const AdminLessons = () => {
 
                           {block.type === "diff" && (
                             <div className="grid grid-cols-2 gap-3">
-                              <div className="space-y-1"><Label className="text-[10px] font-bold">ANTES</Label><Textarea value={block.oldValue} onChange={(e) => updateBlock(block.id, block.value, { oldValue: e.target.value })} className="font-mono text-xs bg-red-50/30" /></div>
-                              <div className="space-y-1"><Label className="text-[10px] font-bold">DESPUÉS</Label><Textarea value={block.newValue} onChange={(e) => updateBlock(block.id, block.value, { newValue: e.target.value })} className="font-mono text-xs bg-emerald-50/30" /></div>
+                              <div className="space-y-1"><Label className="text-[10px] font-bold">ANTES</Label><Textarea value={block.oldValue} onChange={(e) => updateBlock(block.id, block.value, { oldValue: e.target.value })} className="font-mono text-xs bg-red-50/30 dark:bg-red-950/20" /></div>
+                              <div className="space-y-1"><Label className="text-[10px] font-bold">DESPUÉS</Label><Textarea value={block.newValue} onChange={(e) => updateBlock(block.id, block.value, { newValue: e.target.value })} className="font-mono text-xs bg-emerald-50/30 dark:bg-emerald-950/20" /></div>
                             </div>
                           )}
                         </div>
@@ -481,7 +481,7 @@ const AdminLessons = () => {
                   })}
                 </div>
 
-                <div className="flex flex-wrap gap-2 justify-center p-4 bg-white border rounded-2xl sticky bottom-0 shadow-lg z-50">
+                <div className="flex flex-wrap gap-2 justify-center p-4 bg-card border rounded-2xl sticky bottom-0 shadow-lg z-50">
                   {BLOCK_TYPES.map((type) => (
                     <Button key={type.id} variant="outline" size="sm" onClick={() => addBlock(type.id)} className="rounded-full font-bold hover:bg-primary hover:text-white transition-all">
                       <type.icon className="w-3.5 h-3.5 mr-2" /> {type.label}
@@ -497,7 +497,7 @@ const AdminLessons = () => {
                   <Eye className="w-4 h-4 text-primary" />
                   <span className="text-xs font-black uppercase tracking-widest text-slate-400">Vista Previa (como la ve el alumno)</span>
                 </div>
-                <div className="border-2 rounded-3xl bg-white p-6 md:p-8 max-h-[75vh] overflow-y-auto shadow-inner">
+                <div className="border-2 rounded-3xl bg-white text-slate-900 p-6 md:p-8 max-h-[75vh] overflow-y-auto shadow-inner">
                   {lessonTitle && (
                     <h2 className="text-2xl font-black text-slate-900 mb-6 pb-4 border-b">{lessonTitle}</h2>
                   )}
@@ -528,19 +528,19 @@ const AdminLessons = () => {
               <Card key={lesson.id} className="group hover:border-primary/50 transition-all cursor-pointer shadow-card" onClick={() => openLessonForEdit(lesson)}>
                 <CardContent className="p-5 flex items-center justify-between">
                   <div className="flex items-center gap-5">
-                    <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center font-black text-slate-400 group-hover:bg-primary group-hover:text-white transition-colors">{idx + 1}</div>
+                    <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center font-black text-muted-foreground group-hover:bg-primary group-hover:text-white transition-colors">{idx + 1}</div>
                     <div>
-                      <h3 className="font-bold text-slate-800 text-lg">{lesson.titulo}</h3>
+                      <h3 className="font-bold text-foreground text-lg">{lesson.titulo}</h3>
                       <div className="flex items-center gap-3">
                         <p className="text-xs text-muted-foreground">{JSON.parse(lesson.content || "[]").length} bloque(s)</p>
                         
                         {lesson.fecha_desbloqueo && (
                           unlocked ? (
-                            <span className="flex items-center gap-1 text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
+                            <span className="flex items-center gap-1 text-[10px] bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
                               <LockOpen className="w-2.5 h-2.5" /> Clase desbloqueada
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
+                            <span className="flex items-center gap-1 text-[10px] bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-tighter">
                               <Calendar className="w-2.5 h-2.5" /> Desbloquea: {new Date(lesson.fecha_desbloqueo).toLocaleDateString()}
                             </span>
                           )

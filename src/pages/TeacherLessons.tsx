@@ -242,10 +242,10 @@ const TeacherLessons = () => {
   if (showJitsi) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-100 overflow-hidden flex flex-col">
-        <div className="h-16 shrink-0 bg-white border-b flex items-center justify-between px-4 md:px-6 shadow-sm">
+        <div className="h-16 shrink-0 bg-white text-slate-900 border-b flex items-center justify-between px-4 md:px-6 shadow-sm">
           <div className="min-w-0">
             <p className="font-bold truncate">{activeLesson?.titulo}</p>
-            <p className="text-xs text-muted-foreground truncate">{course?.titulo}</p>
+            <p className="text-xs text-slate-500 truncate">{course?.titulo}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <Button
@@ -277,7 +277,7 @@ const TeacherLessons = () => {
         </div>
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2">
           {/* Contenido de la clase, igual a lo que ve el alumno */}
-          <div className="overflow-y-auto p-6 md:p-10 bg-white">
+          <div className="overflow-y-auto p-6 md:p-10 bg-white text-slate-900">
             <LessonBlocks content={activeLesson?.content} />
           </div>
           {/* Video llamada */}
@@ -490,12 +490,12 @@ const TeacherLessons = () => {
                         )}
                         {isClassOver(lesson) ? (
                           lesson.grabacion_url ? (
-                            <Badge variant="outline" className="shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200">
+                            <Badge variant="outline" className="shrink-0 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900">
                               <FileVideo className="w-3 h-3 mr-1" />
                               Grabada
                             </Badge>
                           ) : (
-                            <Badge variant="outline" className="shrink-0 bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="shrink-0 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900">
                               Falta el link de la grabación
                             </Badge>
                           )
@@ -550,7 +550,7 @@ const TeacherLessons = () => {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="text-amber-700 border-amber-200 hover:bg-amber-50"
+                              className="text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950/40"
                               disabled={endClassMutation.isPending}
                               onClick={() => {
                                 if (confirm("¿Terminar esta clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {

@@ -205,9 +205,9 @@ const AdminSubscriptions = () => {
   };
 
   const statusColor: Record<string, string> = {
-    active: "bg-green-50 text-green-700 border-green-200",
-    cancelled: "bg-red-50 text-red-700 border-red-200",
-    expired: "bg-slate-50 text-slate-600 border-slate-200",
+    active: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
+    cancelled: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
+    expired: "bg-muted text-muted-foreground border-border",
   };
 
   return (
@@ -344,7 +344,7 @@ const AdminSubscriptions = () => {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Próx. Cobro</span>
-                      <span className="text-blue-600 font-bold">
+                      <span className="text-blue-600 dark:text-blue-400 font-bold">
                         {sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "dd/MM/yyyy") : "-"}
                       </span>
                     </div>
@@ -360,7 +360,7 @@ const AdminSubscriptions = () => {
                     <Button 
                       variant="outline" 
                       size="sm" 
-                      className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200"
+                      className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/40 border-green-200 dark:border-green-900"
                       onClick={() => handleQuickRenew(sub)}
                     >
                       <RefreshCw className="w-4 h-4 mr-2" /> Renovar Mes

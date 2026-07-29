@@ -177,13 +177,13 @@ const CourseView = () => {
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
         {isStaffPreview && (
-          <div className="flex items-center gap-2 bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-semibold rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400 text-sm font-semibold rounded-xl px-4 py-3">
             <Video className="w-4 h-4 shrink-0" />
             Estás viendo este curso en modo vista previa, como lo ve un alumno.
           </div>
         )}
         <header className="border-b pb-6">
-          <h1 className="text-3xl font-bold tracking-tight text-slate-900">{course?.titulo}</h1>
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
           <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
         </header>
 
@@ -200,7 +200,7 @@ const CourseView = () => {
                     ? "hover:shadow-md cursor-pointer border-l-4" 
                     : "opacity-60 bg-muted/30 cursor-not-allowed"
                 } ${
-                  completado ? "border-l-emerald-500 bg-emerald-50/20" : "border-l-transparent"
+                  completado ? "border-l-emerald-500 bg-emerald-50/20 dark:bg-emerald-950/10" : "border-l-transparent"
                 }`}
                 onClick={() => unlocked && setSelectedLessonId(lesson.id)}
               >
@@ -224,11 +224,11 @@ const CourseView = () => {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-3">
-                      <h3 className={`font-semibold text-lg truncate ${!unlocked ? "text-muted-foreground" : "text-slate-800"}`}>
+                      <h3 className={`font-semibold text-lg truncate ${!unlocked ? "text-muted-foreground" : "text-foreground"}`}>
                         {lesson.titulo}
                       </h3>
                       {completado && (
-                        <span className="text-emerald-600 text-[10px] font-black uppercase tracking-widest bg-emerald-100 px-2 py-0.5 rounded-full">
+                        <span className="text-emerald-600 dark:text-emerald-400 text-[10px] font-black uppercase tracking-widest bg-emerald-100 dark:bg-emerald-950/50 px-2 py-0.5 rounded-full">
                           Completada
                         </span>
                       )}
@@ -255,7 +255,7 @@ const CourseView = () => {
           })}
 
           {lessons?.length === 0 && (
-            <div className="text-center py-20 bg-slate-50 rounded-3xl border-2 border-dashed">
+            <div className="text-center py-20 bg-muted rounded-3xl border-2 border-dashed">
               <p className="text-muted-foreground font-medium">Próximamente se añadirán lecciones a este curso.</p>
             </div>
           )}

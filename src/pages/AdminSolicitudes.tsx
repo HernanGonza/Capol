@@ -95,13 +95,14 @@ const AdminSolicitudes = () => {
     const m = new Intl.NumberFormat("es-AR").format(curso.precio);
     if (curso.tipo_precio === "mensual") return `${s} ${m}/mes`;
     if (curso.tipo_precio === "cuotas") return `${curso.cantidad_cuotas}x ${s} ${m}`;
+    if (curso.tipo_precio === "clase") return `${curso.cantidad_cuotas} clases x ${s} ${m}`;
     return `${s} ${m}`;
   };
 
   const estadoBadge = (estado: string) => {
-    if (estado === "pendiente") return <Badge className="bg-yellow-100 text-yellow-700 border-none"><Clock className="w-3 h-3 mr-1" />Pendiente</Badge>;
-    if (estado === "aprobada") return <Badge className="bg-emerald-100 text-emerald-700 border-none"><CheckCircle className="w-3 h-3 mr-1" />Aprobada</Badge>;
-    return <Badge className="bg-red-100 text-red-700 border-none"><XCircle className="w-3 h-3 mr-1" />Rechazada</Badge>;
+    if (estado === "pendiente") return <Badge className="bg-yellow-100 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-400 border-none"><Clock className="w-3 h-3 mr-1" />Pendiente</Badge>;
+    if (estado === "aprobada") return <Badge className="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border-none"><CheckCircle className="w-3 h-3 mr-1" />Aprobada</Badge>;
+    return <Badge className="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-none"><XCircle className="w-3 h-3 mr-1" />Rechazada</Badge>;
   };
 
   const pendientes = solicitudes?.filter(s => s.estado === "pendiente") || [];
@@ -111,8 +112,8 @@ const AdminSolicitudes = () => {
     if (!value) return null;
     return (
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
-          <Icon className="w-4 h-4 text-indigo-500" />
+        <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg flex items-center justify-center shrink-0 mt-0.5">
+          <Icon className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
         </div>
         <div>
           <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
@@ -144,12 +145,12 @@ const AdminSolicitudes = () => {
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Pendientes</h2>
                 {pendientes.map((s: any) => (
                   <Card key={s.id}
-                    className="border-yellow-200 shadow-sm bg-yellow-50/40 cursor-pointer hover:shadow-md transition-all"
+                    className="border-yellow-200 dark:border-yellow-900 shadow-sm bg-yellow-50/40 dark:bg-yellow-950/20 cursor-pointer hover:shadow-md transition-all"
                     onClick={() => setModalAlumno(s)}>
                     <CardContent className="p-5">
                       <div className="flex items-start justify-between gap-4 flex-wrap">
                         <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-10 h-10 rounded-full bg-indigo-100 dark:bg-indigo-950/50 flex items-center justify-center overflow-hidden shrink-0">
                             {s.perfiles?.url_avatar
                               ? <img src={s.perfiles.url_avatar} className="w-full h-full object-cover" />
                               : <User className="w-5 h-5 text-indigo-400" />}
@@ -166,7 +167,7 @@ const AdminSolicitudes = () => {
                                 <BookOpen className="w-3.5 h-3.5" /> {s.cursos?.titulo}
                               </span>
                               <span className="text-muted-foreground">·</span>
-                              <span className="text-sm font-semibold text-emerald-700">{formatPrecio(s.cursos)}</span>
+                              <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">{formatPrecio(s.cursos)}</span>
                             </div>
                             <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
                               <Calendar className="w-3 h-3" />
@@ -176,7 +177,7 @@ const AdminSolicitudes = () => {
                         </div>
                         <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
                           <Button size="sm" variant="outline"
-                            className="border-red-200 text-red-600 hover:bg-red-50"
+                            className="border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
                             disabled={resolverMutation.isPending}
                             onClick={() => resolverMutation.mutate({ id: s.id, estado: "rechazada", usuarioId: s.usuario_id, cursoId: s.curso_id })}>
                             <XCircle className="w-3.5 h-3.5 mr-1" /> Rechazar
@@ -201,15 +202,15 @@ const AdminSolicitudes = () => {
                 <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Historial</h2>
                 {resueltas.map((s: any) => (
                   <Card key={s.id}
-                    className="border-none shadow-sm bg-white opacity-70 cursor-pointer hover:opacity-100 transition-all"
+                    className="border-none shadow-sm bg-card opacity-70 cursor-pointer hover:opacity-100 transition-all"
                     onClick={() => setModalAlumno(s)}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between gap-4 flex-wrap">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center overflow-hidden shrink-0">
                             {s.perfiles?.url_avatar
                               ? <img src={s.perfiles.url_avatar} className="w-full h-full object-cover" />
-                              : <User className="w-4 h-4 text-slate-400" />}
+                              : <User className="w-4 h-4 text-muted-foreground" />}
                           </div>
                           <div>
                             <p className="font-semibold text-sm">{s.perfiles?.nombre_completo}</p>
@@ -230,7 +231,7 @@ const AdminSolicitudes = () => {
             )}
 
             {!pendientes.length && !resueltas.length && (
-              <Card className="p-12 text-center border-none shadow-card bg-slate-50/50">
+              <Card className="p-12 text-center border-none shadow-card bg-muted/50">
                 <Clock className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
                 <h3 className="font-bold text-lg">No hay solicitudes aún</h3>
                 <p className="text-muted-foreground text-sm mt-1">Cuando un alumno solicite inscribirse, aparecerá aquí.</p>
@@ -247,7 +248,7 @@ const AdminSolicitudes = () => {
             <div className="space-y-5">
               {/* Header alumno */}
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-indigo-100 flex items-center justify-center overflow-hidden shrink-0">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-100 dark:bg-indigo-950/50 flex items-center justify-center overflow-hidden shrink-0">
                   {modalAlumno.perfiles?.url_avatar
                     ? <img src={modalAlumno.perfiles.url_avatar} className="w-full h-full object-cover" />
                     : <User className="w-7 h-7 text-indigo-400" />}
@@ -264,12 +265,12 @@ const AdminSolicitudes = () => {
               </div>
 
               {/* Curso */}
-              <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-4 flex items-center gap-3">
-                <BookOpen className="w-5 h-5 text-indigo-500 shrink-0" />
+              <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900 rounded-xl p-4 flex items-center gap-3">
+                <BookOpen className="w-5 h-5 text-indigo-500 dark:text-indigo-400 shrink-0" />
                 <div>
-                  <p className="text-xs text-indigo-500 font-semibold uppercase tracking-wide">Curso solicitado</p>
+                  <p className="text-xs text-indigo-500 dark:text-indigo-400 font-semibold uppercase tracking-wide">Curso solicitado</p>
                   <p className="font-bold text-base">{modalAlumno.cursos?.titulo}</p>
-                  <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1">
+                  <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 flex items-center gap-1">
                     <DollarSign className="w-3.5 h-3.5" />{formatPrecio(modalAlumno.cursos)}
                   </p>
                 </div>
@@ -317,8 +318,8 @@ const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value
   if (!value) return null;
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 bg-indigo-50 rounded-lg flex items-center justify-center shrink-0">
-        <Icon className="w-4 h-4 text-indigo-500" />
+      <div className="w-8 h-8 bg-indigo-50 dark:bg-indigo-950/50 rounded-lg flex items-center justify-center shrink-0">
+        <Icon className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
       </div>
       <div>
         <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wide">{label}</p>
