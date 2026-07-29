@@ -39,10 +39,12 @@ import {
   FileVideo,
   CalendarClock,
   Square,
+  ClipboardCheck,
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
+import RevisarEntregasDialog from "@/components/RevisarEntregasDialog";
 
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -54,6 +56,7 @@ const TeacherLessons = () => {
   const [editingLesson, setEditingLesson] = useState<any>(null);
   const [blockEditorOpen, setBlockEditorOpen] = useState(false);
   const [blockEditorLesson, setBlockEditorLesson] = useState<any>(null);
+  const [reviewLesson, setReviewLesson] = useState<any>(null);
   const [showJitsi, setShowJitsi] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string>("");
   const [activeLesson, setActiveLesson] = useState<any>(null);
@@ -595,6 +598,15 @@ const TeacherLessons = () => {
                           </Button>
                         </>
                       )}
+                      {index === (lessons?.length || 0) - 1 && (
+                        <Button
+                          size="sm"
+                          className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                          onClick={() => setReviewLesson(lesson)}
+                        >
+                          <ClipboardCheck className="w-4 h-4 mr-1" /> Revisar Entregas
+                        </Button>
+                      )}
                       <Button variant="outline" size="sm" onClick={() => { setBlockEditorLesson(lesson); setBlockEditorOpen(true); }}>
                         <Eye className="w-4 h-4 mr-1" /> Constructor
                       </Button>
@@ -656,6 +668,11 @@ const TeacherLessons = () => {
         lesson={blockEditorLesson}
         nextOrder={lessons?.length || 0}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] })}
+      />
+      <RevisarEntregasDialog
+        open={!!reviewLesson}
+        onOpenChange={(o) => !o && setReviewLesson(null)}
+        lesson={reviewLesson}
       />
       {endClassDialog}
     </AppLayout>

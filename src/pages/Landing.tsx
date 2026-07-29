@@ -9,7 +9,6 @@ import Tilt from "react-parallax-tilt";
 import ScrollReveal from "scrollreveal";
 import {
   GraduationCap,
-  Users,
   BookOpen,
   ArrowRight,
   Sparkles,
@@ -20,6 +19,7 @@ import {
   Monitor,
   Calendar,
   Clock,
+  Maximize2,
   Mail,
   Send,
   ArrowUp,
@@ -36,6 +36,8 @@ interface Course {
   tipo_flyer: string | null;
   url_imagen: string | null;
   estado: "proximamente" | "activo";
+  fecha_inicio: string | null;
+  horarios: string | null;
   lecciones: { count: number }[];
   inscripciones: { count: number }[];
 }
@@ -43,7 +45,7 @@ interface Course {
 const Landing = () => {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedVideo, setSelectedVideo] = useState<string | null>(null);
+  const [selectedCourseMedia, setSelectedCourseMedia] = useState<{ url: string; type: "video" | "image"; titulo: string; descripcion: string | null } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [totalAlumnos, setTotalAlumnos] = useState<number | null>(null);
   const [inscritosPorCurso, setInscritosPorCurso] = useState<Record<string, number>>({});
@@ -100,6 +102,8 @@ const Landing = () => {
           tipo_flyer,
           url_imagen,
           estado,
+          fecha_inicio,
+          horarios,
           lecciones (count),
           inscripciones (count)
         `,
@@ -135,14 +139,20 @@ const Landing = () => {
     fetchCourses();
   }, []);
 
-  const openVideoModal = (videoUrl: string) => {
-    setSelectedVideo(videoUrl);
+  const openMediaModal = (course: Course) => {
+    const isVideo = course.tipo_flyer === "video" || course.url_flyer?.endsWith(".mp4");
+    setSelectedCourseMedia({
+      url: course.url_flyer || course.url_imagen || "",
+      type: isVideo ? "video" : "image",
+      titulo: course.titulo,
+      descripcion: course.descripcion,
+    });
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     setIsModalOpen(false);
-    setSelectedVideo(null);
+    setSelectedCourseMedia(null);
   };
 
   const handleScrollTo = (e: React.MouseEvent, id: string) => {
@@ -424,7 +434,7 @@ const Landing = () => {
                       course.url_flyer?.endsWith(".mp4") ? (
                         <button
                           type="button"
-                          onClick={() => openVideoModal(course.url_flyer || "")}
+                          onClick={() => openMediaModal(course)}
                           className="relative w-full h-full block cursor-pointer"
                           aria-label="Ver video del curso en grande"
                         >
@@ -443,11 +453,23 @@ const Landing = () => {
                           </div>
                         </button>
                       ) : (
-                        <img
-                          src={course.url_flyer || course.url_imagen || ""}
-                          alt={course.titulo}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                        />
+                        <button
+                          type="button"
+                          onClick={() => openMediaModal(course)}
+                          className="relative w-full h-full block cursor-pointer"
+                          aria-label="Ver imagen del curso en grande"
+                        >
+                          <img
+                            src={course.url_flyer || course.url_imagen || ""}
+                            alt={course.titulo}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
+                            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
+                              <Maximize2 className="w-6 h-6 text-black" />
+                            </div>
+                          </div>
+                        </button>
                       )
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
@@ -487,16 +509,27 @@ const Landing = () => {
                         {course.descripcion ||
                           "Próximamente más información sobre este curso."}
                       </p>
+                      {(course.fecha_inicio || course.horarios) && (
+                        <div className="mt-3 space-y-1.5">
+                          {course.fecha_inicio && (
+                            <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
+                              <Calendar className="w-3.5 h-3.5 shrink-0" />
+                              <span>
+                                Inicia el {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                              </span>
+                            </div>
+                          )}
+                          {course.horarios && (
+                            <div className="flex items-center gap-2 text-white/40 text-xs font-semibold">
+                              <Clock className="w-3.5 h-3.5 shrink-0" />
+                              <span>{course.horarios}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
-                      <div className="flex items-center gap-2 text-white/40 text-sm">
-                        <Users className="w-4 h-4" />
-                        <span>
-                          {inscritosPorCurso[course.id] || 0} inscriptos
-                        </span>
-                      </div>
-
+                    <div className="flex items-center justify-end pt-4 border-t border-white/10">
                       <Link to="/auth?registro=1">
                         <Button
                           size="sm"
@@ -691,17 +724,33 @@ const Landing = () => {
         </div>
       </footer>
 
-      {/* Modal de video del flyer del curso */}
+      {/* Modal de video/imagen del flyer del curso, con descripción completa */}
       <Dialog open={isModalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
-        <DialogContent className="sm:max-w-2xl bg-black border-white/10 p-2">
-          {selectedVideo && (
-            <video
-              src={selectedVideo}
-              className="w-full max-h-[80vh] rounded-xl"
-              controls
-              autoPlay
-              playsInline
-            />
+        <DialogContent className="sm:max-w-2xl bg-[#0f0f15] border-white/10 p-0 overflow-hidden max-h-[85vh] overflow-y-auto">
+          {selectedCourseMedia && (
+            <>
+              {selectedCourseMedia.type === "video" ? (
+                <video
+                  src={selectedCourseMedia.url}
+                  className="w-full max-h-[60vh] bg-black"
+                  controls
+                  autoPlay
+                  playsInline
+                />
+              ) : (
+                <img
+                  src={selectedCourseMedia.url}
+                  alt={selectedCourseMedia.titulo}
+                  className="w-full max-h-[60vh] object-contain bg-black"
+                />
+              )}
+              <div className="p-6 space-y-2">
+                <h3 className="text-xl font-bold text-white">{selectedCourseMedia.titulo}</h3>
+                <p className="text-white/60 text-sm leading-relaxed whitespace-pre-line">
+                  {selectedCourseMedia.descripcion || "Sin descripción disponible."}
+                </p>
+              </div>
+            </>
           )}
         </DialogContent>
       </Dialog>

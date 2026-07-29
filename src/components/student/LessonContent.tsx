@@ -304,8 +304,8 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastL
         )
       )}
 
-      {/* TRABAJO FINAL: solo en la última clase configurada del curso */}
-      {isLastLesson && !isPreview && (
+      {/* TRABAJO FINAL: solo en la última clase configurada del curso, y hasta que el profesor la apruebe */}
+      {isLastLesson && !isPreview && !isCompleted && (
         <div className="pt-16">
           <Card className="border-2 border-primary/20 shadow-elevated rounded-[2rem] overflow-hidden">
             <CardContent className="p-8 space-y-6">
@@ -398,25 +398,46 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastL
           <div className="bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-100 dark:border-indigo-900 rounded-[2.5rem] p-10 text-center space-y-2">
             <p className="text-indigo-700 dark:text-indigo-400 font-bold">Estás en modo vista previa: así es como un alumno ve esta clase.</p>
           </div>
+        ) : isLastLesson && !isCompleted ? (
+          // La última clase no se auto-completa: la aprueba el profesor después de
+          // revisar el trabajo final entregado (ver tarjeta "Trabajo Final" arriba).
+          <div className="bg-slate-900 rounded-[2.5rem] p-10 text-center space-y-4">
+            {requiresSubmission ? (
+              <>
+                <Lock className="w-12 h-12 text-amber-400 mx-auto" />
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-white tracking-tight">Todavía falta tu entrega</h3>
+                  <p className="text-slate-400 font-medium max-w-md mx-auto">
+                    Subí tu trabajo final más arriba para que tu profesor lo pueda corregir.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                <Clock className="w-12 h-12 text-amber-400 mx-auto animate-pulse" />
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-white tracking-tight">Tu profesor va a corregir tu trabajo final</h3>
+                  <p className="text-slate-400 font-medium max-w-md mx-auto">
+                    Te vamos a avisar cuando lo apruebe — ahí la clase va a quedar completada automáticamente.
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
         ) : !isCompleted ? (
           <div className="bg-slate-900 rounded-[2.5rem] p-10 text-center space-y-6 shadow-2xl shadow-primary/20">
             <Trophy className="w-12 h-12 text-amber-400 mx-auto animate-bounce" />
             <div className="space-y-2">
               <h3 className="text-2xl font-black text-white tracking-tight">¿Terminaste de estudiar?</h3>
-              <p className="text-slate-400 font-medium">
-                {requiresSubmission
-                  ? "Entregá tu trabajo final más arriba para poder completar esta clase."
-                  : "Marca esta lección como completada para seguir avanzando."}
-              </p>
+              <p className="text-slate-400 font-medium">Marca esta lección como completada para seguir avanzando.</p>
             </div>
             <Button
               onClick={() => completeMutation.mutate()}
-              className="gradient-primary text-white font-black px-12 h-16 rounded-2xl text-xl shadow-xl hover:scale-105 transition-transform w-full md:w-auto disabled:opacity-50"
-              disabled={completeMutation.isPending || requiresSubmission}
-              title={requiresSubmission ? "Entregá tu trabajo final para poder completar esta clase" : undefined}
+              className="gradient-primary text-white font-black px-12 h-16 rounded-2xl text-xl shadow-xl hover:scale-105 transition-transform w-full md:w-auto"
+              disabled={completeMutation.isPending}
             >
-              {completeMutation.isPending ? "GUARDANDO..." : requiresSubmission ? "ENTREGÁ TU TRABAJO FINAL PRIMERO" : "MARCAR COMO CLASE COMPLETADA"}
-              {requiresSubmission ? <Lock className="ml-2 w-5 h-5" /> : <CheckCircle className="ml-2 w-6 h-6" />}
+              {completeMutation.isPending ? "GUARDANDO..." : "MARCAR COMO CLASE COMPLETADA"}
+              <CheckCircle className="ml-2 w-6 h-6" />
             </Button>
           </div>
         ) : (

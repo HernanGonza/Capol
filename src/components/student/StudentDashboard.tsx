@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   BookOpen, Clock, CheckCircle, PlayCircle, GraduationCap,
-  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap
+  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap, Calendar
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openCertificate } from "@/lib/certificate";
@@ -28,7 +28,7 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select(`
           id, estado, curso_id,
-          cursos (id, titulo, descripcion, url_imagen, lecciones (id))
+          cursos (id, titulo, descripcion, url_imagen, fecha_inicio, horarios, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
         .eq("estado", "active")
@@ -64,7 +64,7 @@ const StudentDashboard = () => {
     queryFn: async () => {
       const { data: allCourses } = await supabase
         .from("cursos")
-        .select(`id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
+        .select(`id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, fecha_inicio, horarios, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
         .eq("publicado", true)
         .order("creado_en", { ascending: false });
 
@@ -158,8 +158,14 @@ const StudentDashboard = () => {
                     </div>
                     <CardContent className="p-5">
                       <h3 className="font-bold text-xl mb-2 line-clamp-1 group-hover:text-primary transition-colors">{item.course?.titulo}</h3>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mb-6 h-10">{item.course?.descripcion || "Comenzá a explorar las lecciones."}</p>
-                      <div className="space-y-3">
+                      <p className="text-sm text-muted-foreground line-clamp-2 h-10">{item.course?.descripcion || "Comenzá a explorar las lecciones."}</p>
+                      {item.course?.horarios && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-medium mb-4">
+                          <Clock className="w-3.5 h-3.5 shrink-0" />
+                          <span className="line-clamp-1">{item.course.horarios}</span>
+                        </div>
+                      )}
+                      <div className={item.course?.horarios ? "space-y-3" : "space-y-3 mt-6"}>
                         <div className="flex justify-between items-end text-sm">
                           <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Tu Progreso</span>
                           <span className="font-bold text-primary">{item.percent}%</span>
@@ -260,7 +266,25 @@ const StudentDashboard = () => {
                     </div>
                     <CardContent className="p-4">
                       <h3 className="font-bold text-base line-clamp-1 group-hover:text-primary transition-colors mb-1">{course.titulo}</h3>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{course.descripcion || "Más información próximamente."}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{course.descripcion || "Más información próximamente."}</p>
+                      {(course.fecha_inicio || course.horarios) && (
+                        <div className="space-y-1 mb-3">
+                          {course.fecha_inicio && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-primary font-semibold">
+                              <Calendar className="w-3 h-3 shrink-0" />
+                              <span>
+                                Inicia el {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
+                              </span>
+                            </div>
+                          )}
+                          {course.horarios && (
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              <span className="line-clamp-1">{course.horarios}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between">
                         {formatPrecio(course)
                           ? <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full"><DollarSign className="w-3 h-3" />{formatPrecio(course)}</span>

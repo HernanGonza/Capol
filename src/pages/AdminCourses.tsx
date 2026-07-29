@@ -36,6 +36,7 @@ const AdminCourses = () => {
   const [form, setForm] = useState({
     titulo: "", descripcion: "", url_imagen: "", url_flyer: "",
     tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo",
+    fecha_inicio: "", horarios: "",
     precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS",
   });
   const [uploading, setUploading] = useState(false);
@@ -126,6 +127,8 @@ const AdminCourses = () => {
         titulo: form.titulo, descripcion: form.descripcion,
         url_imagen: form.url_imagen, url_flyer: form.url_flyer,
         tipo_flyer: form.tipo_flyer, publicado: form.publicado, estado: form.estado,
+        fecha_inicio: form.estado === "proximamente" && form.fecha_inicio ? form.fecha_inicio : null,
+        horarios: form.horarios.trim() || null,
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
         cantidad_cuotas: (form.tipo_precio === "cuotas" || form.tipo_precio === "clase") && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
@@ -148,7 +151,7 @@ const AdminCourses = () => {
   });
 
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS" });
+    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", fecha_inicio: "", horarios: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS" });
     setEditingCourse(null); setPreviewUrl(null); setPreviewType("image");
   };
 
@@ -159,6 +162,7 @@ const AdminCourses = () => {
       titulo: course.titulo, descripcion: course.descripcion || "",
       url_imagen: course.url_imagen || "", url_flyer: course.url_flyer || "",
       tipo_flyer: flyerType, publicado: course.publicado, estado: course.estado || "activo",
+      fecha_inicio: course.fecha_inicio || "", horarios: course.horarios || "",
       precio: course.precio?.toString() || "",
       tipo_precio: course.tipo_precio || "curso",
       cantidad_cuotas: course.cantidad_cuotas?.toString() || "",
@@ -345,6 +349,25 @@ const AdminCourses = () => {
                       Se muestra como badge en la tarjeta del curso. No afecta si el curso aparece en la landing (eso lo controla "Publicado").
                     </p>
                   </div>
+
+                  {form.estado === "proximamente" && (
+                    <div className="space-y-2">
+                      <Label className={labelCls}>Fecha de inicio (opcional)</Label>
+                      <Input type="date" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} />
+                      <p className="text-xs text-muted-foreground">
+                        Si la cargás, se muestra en la tarjeta ("Inicia el ..."). Si la dejás vacía, no se muestra nada.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label className={labelCls}>Horarios (opcional)</Label>
+                    <Input placeholder="Ej: Martes y Jueves de 21 a 22hs" value={form.horarios} onChange={(e) => setForm({ ...form, horarios: e.target.value })} />
+                    <p className="text-xs text-muted-foreground">
+                      Si lo cargás, se muestra en la tarjeta. Si lo dejás vacío, no se muestra nada.
+                    </p>
+                  </div>
+
                   <Button type="submit" className="w-full gradient-primary text-primary-foreground h-11" disabled={saveMutation.isPending || uploading}>
                     {saveMutation.isPending ? "Guardando..." : "Confirmar"}
                   </Button>

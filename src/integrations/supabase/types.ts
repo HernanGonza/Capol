@@ -40,6 +40,8 @@ export type Database = {
           creado_por: string | null
           descripcion: string | null
           estado: Database["public"]["Enums"]["curso_estado"]
+          fecha_inicio: string | null
+          horarios: string | null
           id: string
           moneda: string | null
           precio: number | null
@@ -57,6 +59,8 @@ export type Database = {
           creado_por?: string | null
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["curso_estado"]
+          fecha_inicio?: string | null
+          horarios?: string | null
           id?: string
           moneda?: string | null
           precio?: number | null
@@ -74,6 +78,8 @@ export type Database = {
           creado_por?: string | null
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["curso_estado"]
+          fecha_inicio?: string | null
+          horarios?: string | null
           id?: string
           moneda?: string | null
           precio?: number | null
