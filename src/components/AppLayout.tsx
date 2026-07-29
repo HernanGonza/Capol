@@ -50,6 +50,10 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
         { to: "/admin/teachers", label: "Profesores", icon: UserPlus },
         { to: "/admin/solicitudes", label: "Solicitudes", icon: ClipboardList, badge: solicitudesPendientes },
+        // El admin también puede estar asignado como docente a algún curso
+        // (docentes_cursos) — necesita el mismo acceso que un profesor a sus
+        // clases en vivo, no solo la gestión administrativa.
+        { to: "/teacher", label: "Mis Clases (Profesor)", icon: GraduationCap },
       ]
     : isTeacher
     ? [

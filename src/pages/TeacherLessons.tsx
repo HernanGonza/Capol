@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
+import LessonEditorDialog from "@/components/LessonEditorDialog";
 
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -41,6 +42,8 @@ const TeacherLessons = () => {
   
   const [open, setOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [blockEditorOpen, setBlockEditorOpen] = useState(false);
+  const [blockEditorLesson, setBlockEditorLesson] = useState<any>(null);
   const [showJitsi, setShowJitsi] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string>("");
   const [activeLesson, setActiveLesson] = useState<any>(null);
@@ -546,29 +549,25 @@ const TeacherLessons = () => {
                           >
                             <Play className="w-4 h-4 mr-1" /> Iniciar Clase
                           </Button>
-                          {lesson.sala_jitsi && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950/40"
-                              disabled={endClassMutation.isPending}
-                              onClick={() => {
-                                if (confirm("¿Terminar esta clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {
-                                  endClassMutation.mutate(lesson.id);
-                                }
-                              }}
-                              title="Terminar clase"
-                            >
-                              <Square className="w-4 h-4" />
-                            </Button>
-                          )}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40"
+                            disabled={endClassMutation.isPending || !!lesson.fecha_fin_clase}
+                            onClick={() => {
+                              if (confirm("¿Terminar esta clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {
+                                endClassMutation.mutate(lesson.id);
+                              }
+                            }}
+                            title={lesson.fecha_fin_clase ? "Desactivado porque tiene fecha de cierre automatizada" : "Terminar clase"}
+                          >
+                            <Square className="w-4 h-4" />
+                          </Button>
                         </>
                       )}
-                      <Link to={`/admin/courses/${courseId}/lessons?edit=${lesson.id}`}>
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-4 h-4 mr-1" /> Constructor
-                        </Button>
-                      </Link>
+                      <Button variant="outline" size="sm" onClick={() => { setBlockEditorLesson(lesson); setBlockEditorOpen(true); }}>
+                        <Eye className="w-4 h-4 mr-1" /> Constructor
+                      </Button>
                       <Button variant="outline" size="icon" onClick={() => openEdit(lesson)}>
                         <Edit className="w-4 h-4" />
                       </Button>
@@ -619,6 +618,15 @@ const TeacherLessons = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      <LessonEditorDialog
+        open={blockEditorOpen}
+        onOpenChange={setBlockEditorOpen}
+        courseId={courseId!}
+        lesson={blockEditorLesson}
+        nextOrder={lessons?.length || 0}
+        onSaved={() => queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] })}
+      />
     </AppLayout>
   );
 };
