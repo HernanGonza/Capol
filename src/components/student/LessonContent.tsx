@@ -1,5 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { openCertificate } from "@/lib/certificate";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -19,6 +21,7 @@ import {
   Link2,
   Lock,
   FileCheck2,
+  Award,
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
@@ -47,6 +50,7 @@ const getDriveEmbedUrl = (url: string): string | null => {
 
 const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastLesson }: Props) => {
   const queryClient = useQueryClient();
+  const { profile } = useAuth();
   const [showJitsi, setShowJitsi] = useState(false);
   const [showRecording, setShowRecording] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -438,6 +442,24 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastL
             >
               {completeMutation.isPending ? "GUARDANDO..." : "MARCAR COMO CLASE COMPLETADA"}
               <CheckCircle className="ml-2 w-6 h-6" />
+            </Button>
+          </div>
+        ) : isLastLesson ? (
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 border-2 border-emerald-100 dark:border-emerald-900 rounded-[2.5rem] p-10 text-center space-y-4 animate-in zoom-in-95 duration-500">
+            <div className="w-16 h-16 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto">
+              <Award className="w-10 h-10" />
+            </div>
+            <h3 className="text-2xl font-black text-emerald-900 dark:text-emerald-300 tracking-tight">¡Aprobaste el trabajo final!</h3>
+            <p className="text-emerald-700 dark:text-emerald-400 font-medium max-w-md mx-auto">Ya podés descargar tu certificado de finalización del curso.</p>
+            <Button
+              onClick={() => openCertificate({
+                studentName: profile?.nombre_completo || "Alumno",
+                courseTitle: courseTitle || "",
+                completionDate: progress?.completado_en,
+              })}
+              className="gradient-primary text-white font-black px-10 h-14 rounded-2xl text-lg shadow-xl hover:scale-105 transition-transform"
+            >
+              <Award className="w-5 h-5 mr-2" /> Ver Certificado
             </Button>
           </div>
         ) : (
