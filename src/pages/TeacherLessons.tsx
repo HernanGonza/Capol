@@ -10,6 +10,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { 
@@ -49,6 +59,7 @@ const TeacherLessons = () => {
   const [activeLesson, setActiveLesson] = useState<any>(null);
   const [recordingLinkLesson, setRecordingLinkLesson] = useState<any>(null);
   const [recordingLinkValue, setRecordingLinkValue] = useState("");
+  const [endClassConfirmLesson, setEndClassConfirmLesson] = useState<any>(null);
   const [savingRecordingLink, setSavingRecordingLink] = useState(false);
   const [form, setForm] = useState({
     titulo: "",
@@ -206,6 +217,32 @@ const TeacherLessons = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const confirmEndClass = () => {
+    if (endClassConfirmLesson) {
+      endClassMutation.mutate(endClassConfirmLesson.id);
+      setEndClassConfirmLesson(null);
+    }
+  };
+
+  const endClassDialog = (
+    <AlertDialog open={!!endClassConfirmLesson} onOpenChange={(o) => !o && setEndClassConfirmLesson(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Terminar esta clase ahora?</AlertDialogTitle>
+          <AlertDialogDescription>
+            La video llamada va a dejar de estar disponible y vas a poder subir la grabación.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmEndClass} disabled={endClassMutation.isPending}>
+            {endClassMutation.isPending ? "Terminando..." : "Terminar Clase"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   const resetForm = () => {
     setForm({ titulo: "", descripcion: "", fecha_desbloqueo: "", fecha_fin_clase: "", sala_jitsi: "" });
     setEditingLesson(null);
@@ -256,11 +293,7 @@ const TeacherLessons = () => {
               size="sm"
               className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg"
               disabled={endClassMutation.isPending}
-              onClick={() => {
-                if (confirm("¿Terminar la clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {
-                  endClassMutation.mutate(activeLesson.id);
-                }
-              }}
+              onClick={() => setEndClassConfirmLesson(activeLesson)}
             >
               <Square className="w-4 h-4 mr-2" /> Terminar Clase
             </Button>
@@ -300,6 +333,7 @@ const TeacherLessons = () => {
             </div>
           </div>
         </div>
+        {endClassDialog}
       </div>
     );
   }
@@ -554,11 +588,7 @@ const TeacherLessons = () => {
                             variant="outline"
                             className="text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900 hover:bg-amber-50 dark:hover:bg-amber-950/40 disabled:opacity-40"
                             disabled={endClassMutation.isPending || !!lesson.fecha_fin_clase}
-                            onClick={() => {
-                              if (confirm("¿Terminar esta clase ahora? La video llamada va a dejar de estar disponible y vas a poder subir la grabación.")) {
-                                endClassMutation.mutate(lesson.id);
-                              }
-                            }}
+                            onClick={() => setEndClassConfirmLesson(lesson)}
                             title={lesson.fecha_fin_clase ? "Desactivado porque tiene fecha de cierre automatizada" : "Terminar clase"}
                           >
                             <Square className="w-4 h-4" />
@@ -627,6 +657,7 @@ const TeacherLessons = () => {
         nextOrder={lessons?.length || 0}
         onSaved={() => queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] })}
       />
+      {endClassDialog}
     </AppLayout>
   );
 };

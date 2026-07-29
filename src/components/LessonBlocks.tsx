@@ -78,7 +78,7 @@ const LessonBlocks = ({ content }: Props) => {
 
           {/* 1. TEXTO / MD */}
           {block.type === 'text' && (
-            <div className="prose prose-slate max-w-none prose-lg prose-headings:font-black prose-p:text-slate-600 prose-a:text-primary prose-img:rounded-2xl prose-pre:bg-slate-900 prose-pre:text-slate-100">
+            <div className="prose prose-lg dark:prose-invert max-w-none prose-headings:font-black prose-a:text-primary prose-img:rounded-2xl prose-pre:bg-slate-900 prose-pre:text-slate-100">
               <div
                 dangerouslySetInnerHTML={{ __html: renderMarkdown(block.value) }}
                 className="leading-relaxed"
@@ -88,7 +88,7 @@ const LessonBlocks = ({ content }: Props) => {
 
           {/* 2. VIDEO */}
           {block.type === 'video' && (
-            <Card className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-slate-100">
+            <Card className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-muted">
               <div className="aspect-video">
                 <iframe src={getEmbedUrl(block.value)} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media" />
               </div>
@@ -98,7 +98,7 @@ const LessonBlocks = ({ content }: Props) => {
           {/* 3. IMAGEN */}
           {block.type === 'image' && (
             <div className="flex flex-col items-center group">
-              <img src={block.value} alt="Visual" className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-white" />
+              <img src={block.value} alt="Visual" className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-background" />
             </div>
           )}
 
@@ -116,9 +116,9 @@ const LessonBlocks = ({ content }: Props) => {
           {/* 5. CALLOUT */}
           {block.type === 'callout' && (
             <div className={`p-6 rounded-2xl border-l-[6px] flex gap-5 shadow-sm ${
-              block.style === 'warning' ? 'bg-amber-50 border-amber-500 text-amber-900' :
-              block.style === 'tip' ? 'bg-emerald-50 border-emerald-500 text-emerald-900' :
-              'bg-blue-50 border-blue-500 text-blue-900'
+              block.style === 'warning' ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-500 text-amber-900 dark:text-amber-300' :
+              block.style === 'tip' ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-500 text-emerald-900 dark:text-emerald-300' :
+              'bg-blue-50 dark:bg-blue-950/30 border-blue-500 text-blue-900 dark:text-blue-300'
             }`}>
               <Info className="w-7 h-7 shrink-0 opacity-80" />
               <div className="font-bold text-lg leading-snug">{block.value}</div>
@@ -127,15 +127,15 @@ const LessonBlocks = ({ content }: Props) => {
 
           {/* 6. RECURSO */}
           {block.type === 'download' && (
-            <a href={block.value} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-6 bg-white border-2 border-slate-100 rounded-3xl hover:border-primary hover:shadow-xl transition-all group">
+            <a href={block.value} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-6 bg-card border-2 border-border rounded-3xl hover:border-primary hover:shadow-xl transition-all group">
               <div className="flex items-center gap-5">
-                <div className="p-4 bg-slate-50 rounded-2xl group-hover:bg-primary/10 transition-colors"><Download className="w-7 h-7 text-slate-400 group-hover:text-primary" /></div>
+                <div className="p-4 bg-muted rounded-2xl group-hover:bg-primary/10 transition-colors"><Download className="w-7 h-7 text-muted-foreground group-hover:text-primary" /></div>
                 <div>
-                  <div className="font-black text-xl text-slate-900">Material de Apoyo</div>
-                  <div className="text-sm text-slate-400 font-bold uppercase tracking-tighter">Descargar archivos</div>
+                  <div className="font-black text-xl text-foreground">Material de Apoyo</div>
+                  <div className="text-sm text-muted-foreground font-bold uppercase tracking-tighter">Descargar archivos</div>
                 </div>
               </div>
-              <ArrowRight className="w-6 h-6 text-slate-300 group-hover:text-primary group-hover:translate-x-2 transition-all" />
+              <ArrowRight className="w-6 h-6 text-muted-foreground group-hover:text-primary group-hover:translate-x-2 transition-all" />
             </a>
           )}
 
@@ -143,10 +143,10 @@ const LessonBlocks = ({ content }: Props) => {
           {block.type === 'quiz' && (
             <div className="space-y-5">
               {getQuizQuestions(block).map((pregunta, qIndex) => (
-                <Card key={pregunta.id} className="border-2 border-slate-100 shadow-xl rounded-[2rem] overflow-hidden">
-                  <div className="bg-slate-50 p-6 border-b flex items-center gap-4">
+                <Card key={pregunta.id} className="border-2 border-border shadow-xl rounded-[2rem] overflow-hidden">
+                  <div className="bg-muted p-6 border-b flex items-center gap-4">
                     <HelpCircle className="w-6 h-6 text-primary shrink-0" />
-                    <h4 className="font-black text-xl text-slate-800">
+                    <h4 className="font-black text-xl text-foreground">
                       {getQuizQuestions(block).length > 1 && <span className="text-primary mr-2">{qIndex + 1}.</span>}
                       {pregunta.pregunta}
                     </h4>
@@ -161,7 +161,7 @@ const LessonBlocks = ({ content }: Props) => {
                           if (oIndex === pregunta.correcta) { toast.success("¡Respuesta Correcta!"); } else { toast.error("Incorrecto, prueba otra vez."); }
                         }}
                       >
-                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-700 flex items-center justify-center mr-4 shrink-0 text-sm">
+                        <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center mr-4 shrink-0 text-sm">
                           {String.fromCharCode(65 + oIndex)}
                         </div>
                         {opcion}
@@ -190,16 +190,16 @@ const LessonBlocks = ({ content }: Props) => {
 
           {/* 9. CHECKLIST */}
           {block.type === 'checklist' && (
-            <div className="bg-slate-50/50 p-8 rounded-[2rem] border-2 border-dashed border-slate-200 space-y-6">
-              <div className="flex items-center gap-3 border-b border-slate-200 pb-4">
+            <div className="bg-muted/50 p-8 rounded-[2rem] border-2 border-dashed border-border space-y-6">
+              <div className="flex items-center gap-3 border-b border-border pb-4">
                 <CheckSquare className="w-6 h-6 text-primary" />
-                <h4 className="font-black text-sm uppercase tracking-[0.2em] text-slate-500">Hoja de Ruta</h4>
+                <h4 className="font-black text-sm uppercase tracking-[0.2em] text-muted-foreground">Hoja de Ruta</h4>
               </div>
               <div className="grid gap-3">
                 {getChecklistItems(block).map((task: string, i: number) => (
-                  <label key={i} className="flex items-center gap-4 p-4 bg-white rounded-2xl border border-slate-100 cursor-pointer hover:shadow-md transition-all group">
-                    <input type="checkbox" className="w-6 h-6 rounded-lg border-slate-300 text-primary cursor-pointer" />
-                    <span className="text-slate-700 font-bold group-has-[:checked]:line-through group-has-[:checked]:text-slate-300 transition-all text-lg">
+                  <label key={i} className="flex items-center gap-4 p-4 bg-card rounded-2xl border border-border cursor-pointer hover:shadow-md transition-all group">
+                    <input type="checkbox" className="w-6 h-6 rounded-lg border-input text-primary cursor-pointer" />
+                    <span className="text-foreground font-bold group-has-[:checked]:line-through group-has-[:checked]:text-muted-foreground transition-all text-lg">
                       {task}
                     </span>
                   </label>
@@ -211,17 +211,17 @@ const LessonBlocks = ({ content }: Props) => {
           {/* 10. DIFF (COMPARACIÓN) */}
           {block.type === 'diff' && (
             <div className="space-y-4">
-              <div className="flex items-center gap-2 text-slate-400 font-black text-[10px] uppercase tracking-[0.3em] px-4">
+              <div className="flex items-center gap-2 text-muted-foreground font-black text-[10px] uppercase tracking-[0.3em] px-4">
                 <GitCompare className="w-4 h-4" /> <span>Comparativa de cambios</span>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-slate-200 border-4 border-slate-200 rounded-[2rem] overflow-hidden shadow-2xl">
-                <div className="bg-white p-6 border-r">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-border border-4 border-border rounded-[2rem] overflow-hidden shadow-2xl">
+                <div className="bg-card p-6 border-r border-border">
                   <div className="text-[10px] font-black text-red-400 mb-3 uppercase">Anterior</div>
-                  <pre className="font-mono text-xs text-slate-500 bg-red-50/30 p-5 rounded-2xl"><code>{block.oldValue}</code></pre>
+                  <pre className="font-mono text-xs text-muted-foreground bg-red-50/30 dark:bg-red-950/20 p-5 rounded-2xl"><code>{block.oldValue}</code></pre>
                 </div>
-                <div className="bg-white p-6">
+                <div className="bg-card p-6">
                   <div className="text-[10px] font-black text-emerald-500 mb-3 uppercase">Nuevo</div>
-                  <pre className="font-mono text-xs text-slate-800 bg-emerald-50/50 p-5 rounded-2xl border border-emerald-100"><code>{block.newValue}</code></pre>
+                  <pre className="font-mono text-xs text-foreground bg-emerald-50/50 dark:bg-emerald-950/20 p-5 rounded-2xl border border-emerald-100 dark:border-emerald-900"><code>{block.newValue}</code></pre>
                 </div>
               </div>
             </div>

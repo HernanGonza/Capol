@@ -9,12 +9,13 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   BookOpen, Clock, CheckCircle, PlayCircle, GraduationCap,
-  ArrowRight, Users, DollarSign, X, CreditCard
+  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { openCertificate } from "@/lib/certificate";
 
 const StudentDashboard = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [modalCourse, setModalCourse] = useState<any>(null);
   const [solicitando, setSolicitando] = useState(false);
   const [yaSolicitado, setYaSolicitado] = useState<Set<string>>(new Set());
@@ -36,17 +37,22 @@ const StudentDashboard = () => {
 
       const { data: progress } = await supabase
         .from("progreso_lecciones")
-        .select("leccion_id")
+        .select("leccion_id, completado_en")
         .eq("usuario_id", user!.id)
         .eq("completado", true);
 
       return (subs || []).map((sub: any) => {
         const course = sub.cursos;
         const total = course?.lecciones?.length || 0;
-        const completado = course?.lecciones?.filter((l: any) =>
-          progress?.some((p: any) => p.leccion_id === l.id)
-        ).length || 0;
-        return { id: sub.id, course, total, completado, percent: total > 0 ? Math.round((completado / total) * 100) : 0 };
+        const completedEntries = (course?.lecciones || [])
+          .map((l: any) => progress?.find((p: any) => p.leccion_id === l.id))
+          .filter(Boolean) as { completado_en: string | null }[];
+        const completado = completedEntries.length;
+        // Fecha de finalización del curso = cuando se completó la última clase.
+        const completedAt = completedEntries.length > 0
+          ? completedEntries.reduce((max: string | null, p) => (!max || (p.completado_en || "") > max ? p.completado_en : max), null)
+          : null;
+        return { id: sub.id, course, total, completado, completedAt, percent: total > 0 ? Math.round((completado / total) * 100) : 0 };
       });
     },
     enabled: !!user,
@@ -58,7 +64,7 @@ const StudentDashboard = () => {
     queryFn: async () => {
       const { data: allCourses } = await supabase
         .from("cursos")
-        .select(`id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
+        .select(`id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
         .eq("publicado", true)
         .order("creado_en", { ascending: false });
 
@@ -164,9 +170,26 @@ const StudentDashboard = () => {
                             <PlayCircle className="w-4 h-4 text-primary/60" />
                             <span>{item.completado} / {item.total} Clases</span>
                           </div>
-                          <span className="text-xs font-bold text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                            Continuar <Clock className="w-3 h-3" />
-                          </span>
+                          {item.percent === 100 ? (
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                openCertificate({
+                                  studentName: profile?.nombre_completo || "Alumno",
+                                  courseTitle: item.course?.titulo || "",
+                                  completionDate: item.completedAt,
+                                });
+                              }}
+                              className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
+                            >
+                              <Award className="w-3.5 h-3.5" /> Ver Certificado
+                            </button>
+                          ) : (
+                            <span className="text-xs font-bold text-primary flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                              Continuar <Clock className="w-3 h-3" />
+                            </span>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -215,6 +238,17 @@ const StudentDashboard = () => {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                      <div className="absolute top-2 left-2">
+                        {course.estado === "proximamente" ? (
+                          <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+                            <Clock className="w-2.5 h-2.5 mr-1" /> Próximamente
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+                            <Zap className="w-2.5 h-2.5 mr-1" /> Activo
+                          </Badge>
+                        )}
+                      </div>
                       <div className="absolute bottom-2 left-3 flex items-center gap-2">
                         <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
                           <BookOpen className="w-2.5 h-2.5 mr-1" />{course.lecciones?.[0]?.count || 0} clases

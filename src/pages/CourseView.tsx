@@ -5,13 +5,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle } from "lucide-react";
+import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award } from "lucide-react";
 import { useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
+import { openCertificate } from "@/lib/certificate";
 
 const CourseView = () => {
   const { courseId } = useParams<{ courseId: string }>();
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const navigate = useNavigate();
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
 
@@ -108,6 +109,12 @@ const CourseView = () => {
     return progress?.some((p) => p.leccion_id === lessonId && p.completado);
   };
 
+  const isCourseCompleted = !!lessons && lessons.length > 0 && lessons.every((l) => isLessonCompleted(l.id));
+  // Fecha de finalización del curso = cuando se completó la última clase.
+  const courseCompletedAt = isCourseCompleted
+    ? progress?.reduce((max: string | null, p: any) => (!max || (p.completado_en || "") > max ? p.completado_en : max), null)
+    : null;
+
   const selectedLesson = lessons?.find((l) => l.id === selectedLessonId);
 
   // Pantalla de carga
@@ -167,6 +174,7 @@ const CourseView = () => {
           userId={user!.id}
           courseTitle={course?.titulo}
           isPreview={isStaffPreview}
+          isLastLesson={!!lessons && lessons.length > 0 && lessons[lessons.length - 1].id === selectedLesson.id}
         />
       </AppLayout>
     );
@@ -182,9 +190,23 @@ const CourseView = () => {
             Estás viendo este curso en modo vista previa, como lo ve un alumno.
           </div>
         )}
-        <header className="border-b pb-6">
-          <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
-          <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
+        <header className="border-b pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
+            <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
+          </div>
+          {isCourseCompleted && !isStaffPreview && (
+            <Button
+              onClick={() => openCertificate({
+                studentName: profile?.nombre_completo || "Alumno",
+                courseTitle: course?.titulo || "",
+                completionDate: courseCompletedAt,
+              })}
+              className="gradient-primary text-primary-foreground font-bold shrink-0"
+            >
+              <Award className="w-4 h-4 mr-2" /> Ver Certificado
+            </Button>
+          )}
         </header>
 
         <div className="grid gap-4">

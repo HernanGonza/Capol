@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2 } from "lucide-react";
+import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const MONEDAS = ["ARS", "USD", "EUR", "UYU", "BRL", "CLP"];
@@ -35,7 +35,7 @@ const AdminCourses = () => {
   const [editingCourse, setEditingCourse] = useState<any>(null);
   const [form, setForm] = useState({
     titulo: "", descripcion: "", url_imagen: "", url_flyer: "",
-    tipo_flyer: "image", publicado: false,
+    tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo",
     precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS",
   });
   const [uploading, setUploading] = useState(false);
@@ -125,7 +125,7 @@ const AdminCourses = () => {
       const courseData = {
         titulo: form.titulo, descripcion: form.descripcion,
         url_imagen: form.url_imagen, url_flyer: form.url_flyer,
-        tipo_flyer: form.tipo_flyer, publicado: form.publicado,
+        tipo_flyer: form.tipo_flyer, publicado: form.publicado, estado: form.estado,
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
         cantidad_cuotas: (form.tipo_precio === "cuotas" || form.tipo_precio === "clase") && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
@@ -148,7 +148,7 @@ const AdminCourses = () => {
   });
 
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS" });
+    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS" });
     setEditingCourse(null); setPreviewUrl(null); setPreviewType("image");
   };
 
@@ -158,7 +158,7 @@ const AdminCourses = () => {
     setForm({
       titulo: course.titulo, descripcion: course.descripcion || "",
       url_imagen: course.url_imagen || "", url_flyer: course.url_flyer || "",
-      tipo_flyer: flyerType, publicado: course.publicado,
+      tipo_flyer: flyerType, publicado: course.publicado, estado: course.estado || "activo",
       precio: course.precio?.toString() || "",
       tipo_precio: course.tipo_precio || "curso",
       cantidad_cuotas: course.cantidad_cuotas?.toString() || "",
@@ -330,6 +330,21 @@ const AdminCourses = () => {
                       <Label className="font-semibold cursor-pointer">Publicado</Label>
                     </div>
                   </div>
+
+                  <div className="space-y-2">
+                    <Label className={labelCls}>Estado del curso</Label>
+                    <select
+                      value={form.estado}
+                      onChange={(e) => setForm({ ...form, estado: e.target.value as "proximamente" | "activo" })}
+                      className={selectCls}
+                    >
+                      <option value="activo">Activo</option>
+                      <option value="proximamente">Próximamente</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      Se muestra como badge en la tarjeta del curso. No afecta si el curso aparece en la landing (eso lo controla "Publicado").
+                    </p>
+                  </div>
                   <Button type="submit" className="w-full gradient-primary text-primary-foreground h-11" disabled={saveMutation.isPending || uploading}>
                     {saveMutation.isPending ? "Guardando..." : "Confirmar"}
                   </Button>
@@ -376,8 +391,17 @@ const AdminCourses = () => {
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Badge variant={course.publicado ? "default" : "secondary"} className={course.publicado ? "bg-success/10 text-success border-none" : ""}>
-                          {course.publicado ? "Activo" : "Borrador"}
+                          {course.publicado ? "Publicado" : "Borrador"}
                         </Badge>
+                        {course.estado === "proximamente" ? (
+                          <Badge className="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border-none">
+                            <Clock className="w-3 h-3 mr-1" /> Próximamente
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border-none">
+                            <Zap className="w-3 h-3 mr-1" /> Activo
+                          </Badge>
+                        )}
                         {precioLabel && !course.url_flyer && (
                           <Badge className="bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 border-none text-[10px]">
                             <DollarSign className="w-2.5 h-2.5 mr-0.5" />{precioLabel}

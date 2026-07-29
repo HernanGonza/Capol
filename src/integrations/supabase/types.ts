@@ -39,6 +39,7 @@ export type Database = {
           creado_en: string | null
           creado_por: string | null
           descripcion: string | null
+          estado: Database["public"]["Enums"]["curso_estado"]
           id: string
           moneda: string | null
           precio: number | null
@@ -55,6 +56,7 @@ export type Database = {
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
+          estado?: Database["public"]["Enums"]["curso_estado"]
           id?: string
           moneda?: string | null
           precio?: number | null
@@ -71,6 +73,7 @@ export type Database = {
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
+          estado?: Database["public"]["Enums"]["curso_estado"]
           id?: string
           moneda?: string | null
           precio?: number | null
@@ -164,6 +167,51 @@ export type Database = {
             columns: ["leccion_id"]
             isOneToOne: false
             referencedRelation: "lecciones"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      entregas_trabajo_final: {
+        Row: {
+          creado_en: string
+          id: string
+          leccion_id: string
+          nombre_archivo: string | null
+          tipo: string
+          url: string
+          usuario_id: string
+        }
+        Insert: {
+          creado_en?: string
+          id?: string
+          leccion_id: string
+          nombre_archivo?: string | null
+          tipo: string
+          url: string
+          usuario_id: string
+        }
+        Update: {
+          creado_en?: string
+          id?: string
+          leccion_id?: string
+          nombre_archivo?: string | null
+          tipo?: string
+          url?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "entregas_trabajo_final_leccion_id_fkey"
+            columns: ["leccion_id"]
+            isOneToOne: false
+            referencedRelation: "lecciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entregas_trabajo_final_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
             referencedColumns: ["id"]
           },
         ]
@@ -526,19 +574,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      contar_alumnos_totales: {
-        Args: Record<PropertyKey, never>
-        Returns: number
-      }
+      contar_alumnos_totales: { Args: never; Returns: number }
       contar_inscritos_por_curso: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           cantidad: number
           curso_id: string
         }[]
       }
       contar_lecciones_por_curso: {
-        Args: Record<PropertyKey, never>
+        Args: never
         Returns: {
           cantidad: number
           curso_id: string
@@ -554,6 +599,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "student" | "teacher"
+      curso_estado: "proximamente" | "activo"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -682,6 +728,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "student", "teacher"],
+      curso_estado: ["proximamente", "activo"],
     },
   },
 } as const

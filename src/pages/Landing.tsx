@@ -19,6 +19,7 @@ import {
   Zap,
   Monitor,
   Calendar,
+  Clock,
   Mail,
   Send,
   ArrowUp,
@@ -34,6 +35,7 @@ interface Course {
   url_flyer: string | null;
   tipo_flyer: string | null;
   url_imagen: string | null;
+  estado: "proximamente" | "activo";
   lecciones: { count: number }[];
   inscripciones: { count: number }[];
 }
@@ -97,6 +99,7 @@ const Landing = () => {
           url_flyer,
           tipo_flyer,
           url_imagen,
+          estado,
           lecciones (count),
           inscripciones (count)
         `,
@@ -252,7 +255,7 @@ const Landing = () => {
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9] animate-fade-in">
               <span className="block text-white">Aprendé</span>
               <span className="block bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
-                Informática
+                Informática, Programación y más
               </span>
               <span className="block text-white/90">desde tu casa</span>
             </h1>
@@ -452,6 +455,19 @@ const Landing = () => {
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+                    {/* Badge de estado */}
+                    <div className="absolute top-4 left-4">
+                      {course.estado === "proximamente" ? (
+                        <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none font-bold">
+                          <Clock className="w-3 h-3 mr-1" /> Próximamente
+                        </Badge>
+                      ) : (
+                        <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none font-bold">
+                          <Zap className="w-3 h-3 mr-1" /> Activo
+                        </Badge>
+                      )}
+                    </div>
 
                     {/* Badge de clases */}
                     <div className="absolute top-4 right-4">
