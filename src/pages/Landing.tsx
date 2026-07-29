@@ -263,7 +263,7 @@ const Landing = () => {
 
             {/* Título principal */}
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9] animate-fade-in">
-              <span className="block text-white">Aprendé</span>
+              <span className="block text-white">Aprende</span>
               <span className="block bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Informática, Programación y más
               </span>
