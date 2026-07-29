@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Profile from "./pages/Profile";
+import Messages from "./pages/Messages";
 import AdminCourses from "./pages/AdminCourses";
 import AdminLessons from "./pages/AdminLessons";
 import AdminStudents from "./pages/AdminStudents";
@@ -73,6 +74,7 @@ const App = () => (
             {/* Rutas protegidas generales */}
             <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="/course/:courseId" element={<ProtectedRoute><CourseView /></ProtectedRoute>} />
             <Route path="/student/subscriptions" element={<ProtectedRoute><StudentSubscriptions /></ProtectedRoute>} />
             

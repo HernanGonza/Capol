@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -10,11 +11,12 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle, MessageSquare } from "lucide-react";
 import { format, isBefore, parseISO, addDays } from "date-fns";
 
 const AdminSubscriptions = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -357,13 +359,22 @@ const AdminSubscriptions = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
+                    <Button
+                      variant="outline"
+                      size="sm"
                       className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/40 border-green-200 dark:border-green-900"
                       onClick={() => handleQuickRenew(sub)}
                     >
                       <RefreshCw className="w-4 h-4 mr-2" /> Renovar Mes
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="hover:bg-primary/10"
+                      title="Mandar mensaje"
+                      onClick={() => navigate(`/messages?with=${sub.usuario_id}&curso=${sub.curso_id}`)}
+                    >
+                      <MessageSquare className="w-4 h-4" />
                     </Button>
                     <Button variant="ghost" size="icon" className="hover:bg-primary/10" onClick={() => handleEdit(sub)}>
                       <Edit2 className="w-4 h-4" />

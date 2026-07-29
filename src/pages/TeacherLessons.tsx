@@ -40,6 +40,8 @@ import {
   CalendarClock,
   Square,
   ClipboardCheck,
+  Users,
+  MessageSquare,
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
@@ -100,6 +102,21 @@ const TeacherLessons = () => {
         .single();
       if (error) throw error;
       return data;
+    },
+    enabled: !!courseId && hasAccess,
+  });
+
+  // Alumnos con suscripción activa a este curso — para poder mandarles un mensaje
+  const { data: studentsInCourse } = useQuery({
+    queryKey: ["teacher-course-students", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("usuario_id, perfiles:usuario_id(nombre_completo, url_avatar)")
+        .eq("curso_id", courseId!)
+        .eq("estado", "active");
+      if (error) throw error;
+      return data || [];
     },
     enabled: !!courseId && hasAccess,
   });
@@ -475,6 +492,44 @@ const TeacherLessons = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* Alumnos inscriptos: acceso rápido para mandarles un mensaje */}
+        <Card className="shadow-card overflow-hidden">
+          <CardHeader className="bg-muted/30 border-b py-3">
+            <CardTitle className="text-sm font-bold flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Alumnos Inscriptos ({studentsInCourse?.length || 0})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y">
+              {studentsInCourse?.map((s: any) => (
+                <div key={s.usuario_id} className="flex items-center justify-between p-3 hover:bg-muted/10 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {s.perfiles?.url_avatar ? (
+                      <img src={s.perfiles.url_avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                        {(s.perfiles?.nombre_completo || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <p className="font-medium truncate text-sm">{s.perfiles?.nombre_completo || "Sin nombre"}</p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => navigate(`/messages?with=${s.usuario_id}&curso=${courseId}`)}
+                  >
+                    <MessageSquare className="w-4 h-4 mr-1" /> Mensaje
+                  </Button>
+                </div>
+              ))}
+              {studentsInCourse?.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-6">Todavía no hay alumnos inscriptos en este curso.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Lista de clases */}
         {isLoading ? (

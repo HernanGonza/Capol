@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award } from "lucide-react";
+import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare } from "lucide-react";
 import { useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
@@ -52,6 +52,20 @@ const CourseView = () => {
   });
 
   const isStaffPreview = role === "admin" || !!isAssignedTeacher;
+
+  // Profesor(es) de este curso — para que el alumno le pueda mandar un mensaje
+  const { data: courseTeachers } = useQuery({
+    queryKey: ["course-teachers", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("docentes_cursos")
+        .select("docente_id")
+        .eq("curso_id", courseId!);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!courseId && role === "student",
+  });
 
   // 2. Obtener datos del curso
   const { data: course, isLoading: isLoadingCourse } = useQuery({
@@ -195,18 +209,28 @@ const CourseView = () => {
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
             <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
           </div>
-          {isCourseCompleted && !isStaffPreview && (
-            <Button
-              onClick={() => openCertificate({
-                studentName: profile?.nombre_completo || "Alumno",
-                courseTitle: course?.titulo || "",
-                completionDate: courseCompletedAt,
-              })}
-              className="gradient-primary text-primary-foreground font-bold shrink-0"
-            >
-              <Award className="w-4 h-4 mr-2" /> Ver Certificado
-            </Button>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            {!isStaffPreview && !!courseTeachers?.length && (
+              <Button
+                variant="outline"
+                onClick={() => navigate(`/messages?with=${courseTeachers[0].docente_id}&curso=${courseId}`)}
+              >
+                <MessageSquare className="w-4 h-4 mr-2" /> Mensaje al Profesor
+              </Button>
+            )}
+            {isCourseCompleted && !isStaffPreview && (
+              <Button
+                onClick={() => openCertificate({
+                  studentName: profile?.nombre_completo || "Alumno",
+                  courseTitle: course?.titulo || "",
+                  completionDate: courseCompletedAt,
+                })}
+                className="gradient-primary text-primary-foreground font-bold"
+              >
+                <Award className="w-4 h-4 mr-2" /> Ver Certificado
+              </Button>
+            )}
+          </div>
         </header>
 
         <div className="grid gap-4">

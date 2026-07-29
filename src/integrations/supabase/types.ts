@@ -317,6 +317,58 @@ export type Database = {
           },
         ]
       }
+      mensajes: {
+        Row: {
+          contenido: string
+          creado_en: string
+          curso_id: string | null
+          destinatario_id: string
+          id: string
+          leido: boolean
+          remitente_id: string
+        }
+        Insert: {
+          contenido: string
+          creado_en?: string
+          curso_id?: string | null
+          destinatario_id: string
+          id?: string
+          leido?: boolean
+          remitente_id: string
+        }
+        Update: {
+          contenido?: string
+          creado_en?: string
+          curso_id?: string | null
+          destinatario_id?: string
+          id?: string
+          leido?: boolean
+          remitente_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensajes_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensajes_destinatario_id_fkey"
+            columns: ["destinatario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensajes_remitente_id_fkey"
+            columns: ["remitente_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mensajes_contacto: {
         Row: {
           creado_en: string

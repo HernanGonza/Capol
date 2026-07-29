@@ -15,13 +15,14 @@ import {
   UserPlus,
   ClipboardList,
   UserCircle,
+  MessageSquare,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
-  const { role, profile, signOut } = useAuth();
+  const { user, role, profile, signOut } = useAuth();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -41,6 +42,20 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     refetchInterval: 30000,
   });
 
+  const { data: mensajesNoLeidos } = useQuery({
+    queryKey: ["mensajes-no-leidos-count", user?.id],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("mensajes")
+        .select("*", { count: "exact", head: true })
+        .eq("destinatario_id", user!.id)
+        .eq("leido", false);
+      return count || 0;
+    },
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
   // Definición de rutas según el rol
   const roleNavItems = isAdmin
     ? [
@@ -54,14 +69,17 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         // (docentes_cursos) — necesita el mismo acceso que un profesor a sus
         // clases en vivo, no solo la gestión administrativa.
         { to: "/teacher", label: "Mis Clases (Profesor)", icon: GraduationCap },
+        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesNoLeidos },
       ]
     : isTeacher
     ? [
         { to: "/teacher", label: "Mi Panel", icon: LayoutDashboard },
+        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesNoLeidos },
       ]
     : [
         { to: "/dashboard", label: "Mis Cursos", icon: BookOpen },
         { to: "/student/subscriptions", label: "Mis Suscripciones", icon: CreditCard },
+        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesNoLeidos },
       ];
 
   // "Mi Perfil" se agrega al final para cualquier rol — no forma parte de la
@@ -124,7 +142,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         } ${collapsed ? "w-[72px]" : "w-64"}`}
       >
         {/* Header del Sidebar */}
-        <div className={`p-4 flex items-center border-b border-sidebar-border/50 ${collapsed ? "justify-center" : "justify-between"}`}>
+        <div className={`shrink-0 p-4 flex items-center border-b border-sidebar-border/50 ${collapsed ? "justify-center" : "justify-between"}`}>
           <Link to={navItems[0].to} className={`flex items-center gap-3 ${collapsed ? "justify-center" : ""}`}>
             <div className="w-9 h-9 rounded-full shadow-sm flex items-center justify-center overflow-hidden shrink-0">
               <img
@@ -153,7 +171,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         {/* Navegación Principal */}
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/dashboard" && item.to !== "/teacher" && location.pathname.startsWith(item.to));
             return (
@@ -188,7 +206,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         </nav>
 
         {/* Footer del Sidebar (Perfil y Logout) */}
-        <div className={`p-3 border-t border-sidebar-border/50 bg-sidebar-accent/30 ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
+        <div className={`shrink-0 p-3 border-t border-sidebar-border/50 bg-sidebar-accent/30 ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
           {!collapsed && (
             <div className="flex items-center gap-3 px-2 py-2 mb-2 bg-white/50 rounded-xl border border-white/20">
               {renderAvatar("w-9 h-9")}

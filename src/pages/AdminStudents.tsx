@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
@@ -9,10 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap } from "lucide-react";
+import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare } from "lucide-react";
 
 const AdminStudents = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
@@ -225,6 +227,13 @@ const AdminStudents = () => {
                     ) : (
                       <Badge variant="outline" className="bg-muted text-muted-foreground border-border">Dado de baja</Badge>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/messages?with=${s.id}`)}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-1" /> Mensaje
+                    </Button>
                     {s.activo && (
                       <Button
                         variant="outline"
@@ -334,6 +343,14 @@ const AdminStudents = () => {
                         <Badge variant="outline" className="bg-muted text-muted-foreground border-border">PENDIENTE</Badge>
                       )}
                     </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Mandar mensaje"
+                      onClick={() => navigate(`/messages?with=${e.usuario_id}&curso=${e.curso_id}`)}
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"
