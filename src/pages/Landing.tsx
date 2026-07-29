@@ -669,7 +669,7 @@ const Landing = () => {
             className="flex items-center gap-2 text-white/30 hover:text-white/70 text-xs font-medium transition-colors"
           >
             <span>Desarrollado por</span>
-            <img src="public/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />
+            <img src="/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />
             <span className="font-bold tracking-wide">PARALELO SOFTWARE STUDIO</span>
           </a>
         </div>
