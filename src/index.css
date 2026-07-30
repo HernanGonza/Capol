@@ -115,36 +115,6 @@
   background: transparent;
 }
 
-/* Efecto "circle" para el toggle de tema claro/oscuro (theme-toggle.rdsx.dev) */
-@supports (view-transition-name: root) {
-  /* Sin esto, la superposición de la transición (que vive arriba de toda la
-     página mientras dura la animación) intercepta los clicks aunque la
-     animación ya se vea terminada — por eso quedaba "trabado" un rato después
-     de tocar el toggle. Dejamos pasar los eventos directo a la página real. */
-  ::view-transition {
-    pointer-events: none;
-  }
-  ::view-transition-old(root) {
-    animation: none;
-  }
-  ::view-transition-new(root) {
-    /* clip-path en vez de mask-size: acá el navegador solo recorta la capa
-       (lo puede hacer por GPU), en vez de tener que re-rasterizar una
-       máscara SVG en cada frame a tamaños de hasta 200vmax — eso último era
-       lo que dejaba todo trabado un rato después de que la animación se
-       veía terminada. */
-    animation: theme-circle-reveal 2.5s cubic-bezier(0.25, 1, 0.5, 1);
-  }
-  @keyframes theme-circle-reveal {
-    from {
-      clip-path: circle(0% at 50% 50%);
-    }
-    to {
-      clip-path: circle(150% at 50% 50%);
-    }
-  }
-}
-
 @layer utilities {
   .gradient-primary {
     background: var(--gradient-primary);

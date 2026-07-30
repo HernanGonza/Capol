@@ -11,6 +11,7 @@ import {
   Eye, EyeOff, CheckCircle, XCircle, Camera, ArrowLeft, Shield, CreditCard
 } from "lucide-react";
 import { PROVINCIAS_AR, PAISES_MUNDO, CODIGO_TELEFONICO } from "@/lib/geo";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const passwordChecks = (pw: string) => [
   { label: "Al menos 8 caracteres", ok: pw.length >= 8 },
@@ -173,8 +174,10 @@ const Auth = () => {
     }
   };
 
-  const inputClass = "bg-white/5 border-white/10 text-white placeholder:text-white/20 focus:border-indigo-400 focus:ring-indigo-400/20 rounded-xl";
-  const labelClass = "text-white/60 text-xs font-medium";
+  const inputClass = "bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/20 focus:border-indigo-400 focus:ring-indigo-400/20 rounded-xl";
+  const labelClass = "text-slate-600 dark:text-white/60 text-xs font-medium";
+  const selectClass = "w-full h-10 rounded-xl bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-900 dark:text-white text-sm px-3 focus:border-indigo-400 focus:outline-none";
+  const optionClass = "bg-white dark:bg-[#1a1a2e]";
 
   return (
     <>
@@ -188,34 +191,41 @@ const Auth = () => {
           to   { opacity: 0; }
         }
       `}</style>
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="h-screen bg-white dark:bg-[#0a0a0f] text-slate-900 dark:text-white flex items-center justify-center p-4 relative overflow-hidden">
       <div className="fixed inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
       <div className="fixed top-0 left-1/4 w-[600px] h-[600px] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none" />
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[150px] pointer-events-none" />
 
+      <div className="fixed top-4 right-4 z-20">
+        <ThemeToggle
+          collapsed
+          className="bg-white/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 backdrop-blur-sm text-slate-500 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
+        />
+      </div>
+
       <div className="w-full max-w-lg relative z-10">
         {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="text-center mb-4">
           <div className="inline-flex items-center gap-3">
             <img src="/logo-capol.webp" alt="CapOL" className="h-12 w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20" />
             <div className="text-left">
-              <p className="font-black text-xl text-white tracking-tight">CapOL</p>
-              <p className="text-[10px] text-indigo-300/70 font-medium tracking-[0.2em] uppercase">Escuela Virtual</p>
+              <p className="font-black text-xl text-slate-900 dark:text-white tracking-tight">CapOL</p>
+              <p className="text-[10px] text-indigo-600/80 dark:text-indigo-300/70 font-medium tracking-[0.2em] uppercase">Escuela Virtual</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white/5 border border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl">
+        <div className="bg-white/70 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl overflow-hidden backdrop-blur-xl shadow-2xl">
           {/* Tabs */}
-          <div className="flex border-b border-white/10">
+          <div className="flex border-b border-slate-200 dark:border-white/10">
             {["Iniciar Sesión", "Crear Cuenta"].map((label, i) => (
               <button
                 key={label}
                 onClick={() => { setIsLogin(i === 0); setForgotMode(false); }}
                 className={`flex-1 py-4 text-sm font-bold transition-all ${
                   (i === 0) === isLogin
-                    ? "bg-indigo-500/20 text-indigo-300 border-b-2 border-indigo-400"
-                    : "text-white/40 hover:text-white/70"
+                    ? "bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 border-b-2 border-indigo-400"
+                    : "text-slate-500 dark:text-white/40 hover:text-slate-700 dark:hover:text-white/70"
                 }`}
               >
                 {label}
@@ -223,30 +233,30 @@ const Auth = () => {
             ))}
           </div>
 
-          <div className="p-8 overflow-y-auto max-h-[72vh] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" key={forgotMode ? "forgot" : isLogin ? "login" : "register"} style={{animation: "fadeSlideIn 0.3s ease"}}>
+          <div className="p-8 overflow-y-auto max-h-[calc(100vh-12rem)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" key={forgotMode ? "forgot" : isLogin ? "login" : "register"} style={{animation: "fadeSlideIn 0.3s ease"}}>
             {forgotMode ? (
               <div className="space-y-5">
                 <button
                   type="button"
                   onClick={() => setForgotMode(false)}
-                  className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors"
+                  className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-white/40 hover:text-slate-700 dark:hover:text-white/70 transition-colors"
                 >
                   <ArrowLeft className="w-3.5 h-3.5" /> Volver a iniciar sesión
                 </button>
                 {forgotSent ? (
                   <div className="text-center space-y-3 py-4">
                     <CheckCircle className="w-10 h-10 text-emerald-400 mx-auto" />
-                    <p className="text-sm text-white/70">
-                      Si <strong className="text-white">{forgotEmail}</strong> está registrado, te enviamos un email con un link para restablecer tu contraseña.
+                    <p className="text-sm text-slate-600 dark:text-white/70">
+                      Si <strong className="text-slate-900 dark:text-white">{forgotEmail}</strong> está registrado, te enviamos un email con un link para restablecer tu contraseña.
                     </p>
                   </div>
                 ) : (
                   <form onSubmit={handleForgotPassword} className="space-y-5">
-                    <p className="text-sm text-white/50">Ingresá tu email y te mandamos un link para restablecer tu contraseña.</p>
+                    <p className="text-sm text-slate-600 dark:text-white/50">Ingresá tu email y te mandamos un link para restablecer tu contraseña.</p>
                     <div className="space-y-1.5">
                       <Label className={labelClass}>Email</Label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                        <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                         <Input type="email" placeholder="tu@email.com" value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
                           className={`pl-9 ${inputClass}`} required />
@@ -263,7 +273,7 @@ const Auth = () => {
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                     <Input type="email" placeholder="tu@email.com" value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       className={`pl-9 ${inputClass}`} required />
@@ -272,11 +282,11 @@ const Auth = () => {
                 <div className="space-y-1.5">
                   <Label className={labelClass}>Contraseña</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                     <Input type={showPassword ? "text" : "password"} placeholder="••••••••" value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       className={`pl-9 pr-10 ${inputClass}`} required />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-white/30 hover:text-white/60">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
@@ -284,7 +294,7 @@ const Auth = () => {
                     <button
                       type="button"
                       onClick={() => { setForgotMode(true); setForgotSent(false); setForgotEmail(loginData.email); }}
-                      className="text-xs text-indigo-300/70 hover:text-indigo-300 transition-colors"
+                      className="text-xs text-indigo-600/80 dark:text-indigo-300/70 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
                     >
                       ¿Olvidaste tu contraseña?
                     </button>
@@ -299,19 +309,19 @@ const Auth = () => {
                 {/* Avatar */}
                 <div className="flex flex-col items-center gap-2">
                   <div onClick={() => fileInputRef.current?.click()}
-                    className="w-20 h-20 rounded-2xl border-2 border-dashed border-white/20 hover:border-indigo-400 cursor-pointer flex items-center justify-center overflow-hidden bg-white/5 transition-all group">
+                    className="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-300 dark:border-white/20 hover:border-indigo-400 cursor-pointer flex items-center justify-center overflow-hidden bg-slate-50 dark:bg-white/5 transition-all group">
                     {avatarPreview
                       ? <img src={avatarPreview} className="w-full h-full object-cover" />
-                      : <div className="text-center"><Camera className="w-6 h-6 text-white/30 group-hover:text-indigo-400 mx-auto mb-1 transition-colors" /><p className="text-[10px] text-white/30 group-hover:text-indigo-300 transition-colors">Foto</p></div>
+                      : <div className="text-center"><Camera className="w-6 h-6 text-slate-400 dark:text-white/30 group-hover:text-indigo-400 mx-auto mb-1 transition-colors" /><p className="text-[10px] text-slate-400 dark:text-white/30 group-hover:text-indigo-600 dark:group-hover:text-indigo-300 transition-colors">Foto</p></div>
                     }
                   </div>
                   <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
-                  <p className="text-[11px] text-white/25">Foto de perfil (opcional)</p>
+                  <p className="text-[11px] text-slate-400 dark:text-white/25">Foto de perfil (opcional)</p>
                 </div>
 
                 {/* Datos personales */}
                 <div className="space-y-3">
-                  <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                  <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                     <User className="w-3 h-3" /> Datos Personales
                   </p>
                   <div className="space-y-1.5">
@@ -324,7 +334,7 @@ const Auth = () => {
                     <div className="space-y-1.5">
                       <Label className={labelClass}>DNI / Número de identificación *</Label>
                       <div className="relative">
-                        <CreditCard className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                        <CreditCard className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                         <Input placeholder="12345678" value={form.dni}
                           onChange={(e) => setForm({ ...form, dni: e.target.value })}
                           className={`pl-9 ${inputClass}`} required />
@@ -352,16 +362,16 @@ const Auth = () => {
                           });
                         }}
                         required
-                        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm px-3 focus:border-indigo-400 focus:outline-none"
+                        className={selectClass}
                       >
-                        {PAISES_MUNDO.map((p) => <option key={p} value={p} className="bg-[#1a1a2e]">{p}</option>)}
+                        {PAISES_MUNDO.map((p) => <option key={p} value={p} className={optionClass}>{p}</option>)}
                       </select>
                     </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Teléfono *</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input placeholder="+54 9 ..." value={form.telefono}
                         onChange={(e) => setForm({ ...form, telefono: e.target.value })}
                         className={`pl-9 ${inputClass}`} required />
@@ -371,7 +381,7 @@ const Auth = () => {
 
                 {/* Ubicación */}
                 <div className="space-y-3">
-                  <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                  <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                     <MapPin className="w-3 h-3" /> Ubicación
                   </p>
                   <div className="space-y-1.5">
@@ -393,13 +403,13 @@ const Auth = () => {
                         value={form.pais === "Argentina" ? form.provincia : "Fuera de Argentina"}
                         onChange={(e) => setForm({ ...form, provincia: e.target.value })}
                         disabled={form.pais !== "Argentina"}
-                        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm px-3 focus:border-indigo-400 focus:outline-none disabled:opacity-40 disabled:cursor-not-allowed"
+                        className={`${selectClass} disabled:opacity-40 disabled:cursor-not-allowed`}
                       >
                         {form.pais !== "Argentina"
-                          ? <option value="Fuera de Argentina" className="bg-[#1a1a2e]">Fuera de Argentina</option>
+                          ? <option value="Fuera de Argentina" className={optionClass}>Fuera de Argentina</option>
                           : <>
-                              <option value="" className="bg-[#1a1a2e]">Seleccionar</option>
-                              {PROVINCIAS_AR.map((p) => <option key={p} value={p} className="bg-[#1a1a2e]">{p}</option>)}
+                              <option value="" className={optionClass}>Seleccionar</option>
+                              {PROVINCIAS_AR.map((p) => <option key={p} value={p} className={optionClass}>{p}</option>)}
                             </>
                         }
                       </select>
@@ -409,13 +419,13 @@ const Auth = () => {
 
                 {/* Acceso */}
                 <div className="space-y-3">
-                  <p className="text-[11px] font-bold text-indigo-400 uppercase tracking-widest flex items-center gap-2">
+                  <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                     <Shield className="w-3 h-3" /> Acceso
                   </p>
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Email *</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                      <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input type="email" placeholder="tu@email.com" value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
                         className={`pl-9 ${inputClass}`} required />
@@ -424,11 +434,11 @@ const Auth = () => {
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Contraseña *</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input type={showPassword ? "text" : "password"} placeholder="••••••••" value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
                         className={`pl-9 pr-10 ${inputClass}`} required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-white/30 hover:text-white/60">
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -436,12 +446,12 @@ const Auth = () => {
                       <div className="space-y-2 pt-1">
                         <div className="flex gap-1">
                           {[0,1,2,3].map((i) => (
-                            <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < passwordStrength ? strengthColor : "bg-white/10"}`} />
+                            <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < passwordStrength ? strengthColor : "bg-slate-200 dark:bg-white/10"}`} />
                           ))}
                         </div>
                         <div className="grid grid-cols-2 gap-1">
                           {checks.map((c) => (
-                            <div key={c.label} className={`flex items-center gap-1 text-[11px] ${c.ok ? "text-emerald-400" : "text-white/30"}`}>
+                            <div key={c.label} className={`flex items-center gap-1 text-[11px] ${c.ok ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-white/30"}`}>
                               {c.ok ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
                               {c.label}
                             </div>
@@ -453,12 +463,12 @@ const Auth = () => {
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Repetir contraseña *</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                      <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input type={showConfirm ? "text" : "password"} placeholder="••••••••" value={form.confirmar_password}
                         onChange={(e) => setForm({ ...form, confirmar_password: e.target.value })}
                         className={`pl-9 pr-10 ${inputClass} ${form.confirmar_password && form.password !== form.confirmar_password ? "border-red-500/50" : form.confirmar_password && form.password === form.confirmar_password ? "border-emerald-500/50" : ""}`}
                         required />
-                      <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-white/30 hover:text-white/60">
+                      <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                         {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -474,7 +484,7 @@ const Auth = () => {
                 <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/25">
                   {loading ? "Creando cuenta..." : "Crear Cuenta"}
                 </Button>
-                <p className="text-center text-[11px] text-white/25">
+                <p className="text-center text-[11px] text-slate-400 dark:text-white/25">
                   Al registrarte, recibirás un email de confirmación para activar tu cuenta.
                 </p>
               </form>
@@ -482,8 +492,8 @@ const Auth = () => {
           </div>
         </div>
 
-        <div className="text-center mt-6">
-          <a href="/" className="text-white/30 hover:text-white/60 text-sm flex items-center justify-center gap-2 transition-colors">
+        <div className="text-center mt-4">
+          <a href="/" className="text-slate-400 dark:text-white/30 hover:text-slate-700 dark:hover:text-white/60 text-sm flex items-center justify-center gap-2 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Volver al inicio
           </a>
         </div>

@@ -16,7 +16,7 @@ const ThemeToggle = ({ className, collapsed }: Props) => {
     <Button
       variant="ghost"
       size={collapsed ? "icon" : "sm"}
-      onClick={toggleTheme}
+      onClick={(e) => toggleTheme(e.clientX, e.clientY)}
       title={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
       className={cn(
         "rounded-lg font-semibold transition-colors",

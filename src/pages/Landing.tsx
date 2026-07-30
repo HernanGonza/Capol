@@ -28,6 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import ThemeToggle from "@/components/ThemeToggle";
 
 interface Course {
   id: string;
@@ -233,7 +234,7 @@ const Landing = () => {
   // .reveal-fade, ahora reemplazadas por animate-fade-in vía CSS, sin ese riesgo).
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-white overflow-hidden">
+    <div className="min-h-screen bg-white dark:bg-[#0a0a0f] text-slate-900 dark:text-white overflow-hidden">
       {/* Efecto de grid de fondo */}
       <div className="fixed inset-0 bg-[linear-gradient(rgba(99,102,241,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(99,102,241,0.03)_1px,transparent_1px)] bg-[size:60px_60px] pointer-events-none" />
 
@@ -242,7 +243,7 @@ const Landing = () => {
       <div className="fixed bottom-0 right-1/4 w-[500px] h-[500px] bg-purple-500/15 rounded-full blur-[150px] pointer-events-none" />
 
       {/* NAVBAR */}
-      <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 backdrop-blur-xl bg-black/40">
+      <nav className="fixed top-0 inset-x-0 z-50 border-b border-slate-200 dark:border-white/5 backdrop-blur-xl bg-white/70 dark:bg-black/40">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
           <Link to="/" className="flex items-center gap-2 sm:gap-3 group shrink-0 min-w-0">
             <div className="relative shrink-0">
@@ -255,17 +256,21 @@ const Landing = () => {
             </div>
             <div className="min-w-0">
               <span className="font-black text-lg sm:text-xl tracking-tight block leading-tight">CapOL</span>
-              <p className="hidden sm:block text-[10px] text-indigo-300/70 font-medium tracking-[0.2em] uppercase">
+              <p className="hidden sm:block text-[10px] text-indigo-600/80 dark:text-indigo-300/70 font-medium tracking-[0.2em] uppercase">
                 Escuela Virtual
               </p>
             </div>
           </Link>
 
           <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
+            <ThemeToggle
+              collapsed
+              className="text-slate-500 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5"
+            />
             <a href="#contacto" onClick={(e) => handleScrollTo(e, "contacto")}>
               <Button
                 variant="ghost"
-                className="text-white/70 hover:text-white hover:bg-white/5 font-semibold hidden sm:inline-flex"
+                className="text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 font-semibold hidden sm:inline-flex"
               >
                 Contacto
               </Button>
@@ -273,7 +278,7 @@ const Landing = () => {
             <Link to="/auth">
               <Button
                 variant="ghost"
-                className="text-white/70 hover:text-white hover:bg-white/5 font-semibold px-2 sm:px-4 text-sm sm:text-base"
+                className="text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 font-semibold px-2 sm:px-4 text-sm sm:text-base"
               >
                 Iniciar Sesión
               </Button>
@@ -293,26 +298,26 @@ const Landing = () => {
         <div className="max-w-7xl mx-auto">
           <div className="max-w-4xl mx-auto text-center space-y-8">
             {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 backdrop-blur-sm animate-fade-in">
-              <Sparkles className="w-4 h-4 text-indigo-400" />
-              <span className="text-sm font-medium text-indigo-300">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 backdrop-blur-sm animate-fade-in">
+              <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-300">
                 Capacitación Online de Calidad
               </span>
             </div>
 
             {/* Título principal */}
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9] animate-fade-in">
-              <span className="block text-white">Aprende</span>
+              <span className="block text-slate-900 dark:text-white">Aprende</span>
               <span className="block bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
                 Informática, Programación y más
               </span>
-              <span className="block text-white/90">desde tu casa</span>
+              <span className="block text-slate-700 dark:text-white/90">desde tu casa</span>
             </h1>
 
-            <p className="text-lg md:text-xl text-white/50 max-w-2xl mx-auto leading-relaxed font-medium animate-fade-in">
+            <p className="text-lg md:text-xl text-slate-600 dark:text-white/50 max-w-2xl mx-auto leading-relaxed font-medium animate-fade-in">
               Cursos en vivo con profesores expertos, material de estudio
               interactivo y certificación al completar.
-              <span className="text-indigo-400">
+              <span className="text-indigo-600 dark:text-indigo-400">
                 {" "}
                 Tu futuro digital empieza acá.
               </span>
@@ -323,7 +328,7 @@ const Landing = () => {
               <Link to="/auth?registro=1">
                 <Button
                   size="lg"
-                  className="bg-white text-black hover:bg-white/90 font-black text-lg px-8 h-14 rounded-2xl shadow-2xl shadow-white/10 hover:shadow-white/20 transition-all group"
+                  className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-white/90 font-black text-lg px-8 h-14 rounded-2xl shadow-2xl shadow-slate-900/10 dark:shadow-white/10 hover:shadow-slate-900/20 dark:hover:shadow-white/20 transition-all group"
                 >
                   <Play className="w-5 h-5 mr-2 group-hover:scale-110 transition-transform" />
                   Comenzar Ahora
@@ -333,7 +338,7 @@ const Landing = () => {
                 <Button
                   size="lg"
                   variant="outline"
-                  className="bg-transparent border-white/30 text-white hover:bg-white hover:text-black font-semibold text-lg px-8 h-14 rounded-2xl transition-colors"
+                  className="bg-transparent border-slate-300 dark:border-white/30 text-slate-900 dark:text-white hover:bg-slate-900 dark:hover:bg-white hover:text-white dark:hover:text-black font-semibold text-lg px-8 h-14 rounded-2xl transition-colors"
                 >
                   Ver Cursos
                   <ArrowRight className="w-5 h-5 ml-2" />
@@ -344,28 +349,28 @@ const Landing = () => {
             {/* Stats */}
             <div className="flex items-center justify-center gap-8 pt-12 animate-fade-in">
               <div className="text-center">
-                <p className="text-3xl font-black text-white">
+                <p className="text-3xl font-black text-slate-900 dark:text-white">
                   {totalAlumnos !== null ? `${totalAlumnos}+` : "—"}
                 </p>
-                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
+                <p className="text-xs text-slate-500 dark:text-white/40 font-medium uppercase tracking-wider">
                   Alumnos
                 </p>
               </div>
-              <div className="w-px h-10 bg-white/10" />
+              <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
               <div className="text-center">
-                <p className="text-3xl font-black text-white">
+                <p className="text-3xl font-black text-slate-900 dark:text-white">
                   {courses.length}
                 </p>
-                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
+                <p className="text-xs text-slate-500 dark:text-white/40 font-medium uppercase tracking-wider">
                   Cursos
                 </p>
               </div>
-              <div className="w-px h-10 bg-white/10" />
+              <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
               <div className="text-center">
-                <p className="text-3xl font-black text-indigo-400">
+                <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
                   {totalRegistrados !== null ? totalRegistrados : "—"}
                 </p>
-                <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
+                <p className="text-xs text-slate-500 dark:text-white/40 font-medium uppercase tracking-wider">
                   Inscripciones
                 </p>
               </div>
@@ -375,37 +380,37 @@ const Landing = () => {
       </section>
 
       {/* FEATURES */}
-      <section className="relative py-14 px-6 border-t border-white/5">
+      <section className="relative py-14 px-6 border-t border-slate-200 dark:border-white/5">
         <div className="max-w-7xl mx-auto">
           <div className="grid md:grid-cols-3 gap-6">
-            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-indigo-500/30 transition-all">
+            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-slate-50 dark:from-white/5 to-transparent border border-slate-200 dark:border-white/10 hover:border-indigo-500/30 transition-all">
               <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Monitor className="w-7 h-7 text-indigo-400" />
+                <Monitor className="w-7 h-7 text-indigo-500 dark:text-indigo-400" />
               </div>
               <h3 className="text-xl font-bold mb-3">Clases en Vivo</h3>
-              <p className="text-white/50 leading-relaxed">
+              <p className="text-slate-600 dark:text-white/50 leading-relaxed">
                 Videoconferencias interactivas con tus profesores. Preguntá,
                 participá y aprendé en tiempo real.
               </p>
             </div>
 
-            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-purple-500/30 transition-all">
+            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-slate-50 dark:from-white/5 to-transparent border border-slate-200 dark:border-white/10 hover:border-purple-500/30 transition-all">
               <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <BookOpen className="w-7 h-7 text-purple-400" />
+                <BookOpen className="w-7 h-7 text-purple-500 dark:text-purple-400" />
               </div>
               <h3 className="text-xl font-bold mb-3">Material Interactivo</h3>
-              <p className="text-white/50 leading-relaxed">
+              <p className="text-slate-600 dark:text-white/50 leading-relaxed">
                 Videos, ejercicios prácticos, consola integrada y quizzes para
                 reforzar cada concepto.
               </p>
             </div>
 
-            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-white/5 to-transparent border border-white/10 hover:border-pink-500/30 transition-all">
+            <div className="animate-fade-in group p-8 rounded-3xl bg-gradient-to-br from-slate-50 dark:from-white/5 to-transparent border border-slate-200 dark:border-white/10 hover:border-pink-500/30 transition-all">
               <div className="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
-                <Zap className="w-7 h-7 text-pink-400" />
+                <Zap className="w-7 h-7 text-pink-500 dark:text-pink-400" />
               </div>
               <h3 className="text-xl font-bold mb-3">A tu Ritmo</h3>
-              <p className="text-white/50 leading-relaxed">
+              <p className="text-slate-600 dark:text-white/50 leading-relaxed">
                 Accedé al contenido cuando quieras. Cuando el profesor graba la
                 clase, vas a poder repasarla las veces que necesites.
               </p>
@@ -418,13 +423,13 @@ const Landing = () => {
       <section id="cursos" className="relative py-16 px-6">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <Badge className="mb-4 bg-indigo-500/10 text-indigo-400 border-indigo-500/20 font-bold">
+            <Badge className="mb-4 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold">
               CATÁLOGO
             </Badge>
             <h2 className="text-4xl md:text-5xl font-black tracking-tight mb-4">
               Cursos Disponibles
             </h2>
-            <p className="text-white/50 text-lg max-w-2xl mx-auto">
+            <p className="text-slate-600 dark:text-white/50 text-lg max-w-2xl mx-auto">
               Elegí el curso que mejor se adapte a tus objetivos profesionales
             </p>
           </div>
@@ -434,15 +439,15 @@ const Landing = () => {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-[400px] rounded-3xl bg-white/5 animate-pulse"
+                  className="h-[400px] rounded-3xl bg-slate-100 dark:bg-white/5 animate-pulse"
                 />
               ))}
             </div>
           ) : courses.length === 0 ? (
             <div className="text-center py-20">
-              <GraduationCap className="w-16 h-16 text-white/20 mx-auto mb-6" />
+              <GraduationCap className="w-16 h-16 text-slate-300 dark:text-white/20 mx-auto mb-6" />
               <h3 className="text-2xl font-bold mb-2">Próximamente</h3>
-              <p className="text-white/50">
+              <p className="text-slate-600 dark:text-white/50">
                 Estamos preparando nuevos cursos para vos
               </p>
             </div>
@@ -463,7 +468,7 @@ const Landing = () => {
                   className="reveal-card"
                 >
                 <Card
-                  className="group bg-transparent border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
+                  className="group bg-transparent border-slate-200 dark:border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   {/* Flyer/Imagen/Video */}
@@ -512,7 +517,7 @@ const Landing = () => {
                       )
                     ) : (
                       <div className="absolute inset-0 flex items-center justify-center">
-                        <GraduationCap className="w-20 h-20 text-white/20" />
+                        <GraduationCap className="w-20 h-20 text-slate-400 dark:text-white/20" />
                       </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
@@ -543,19 +548,19 @@ const Landing = () => {
                     </div>
                   </div>
 
-                  <CardContent className="p-6 space-y-4 bg-[#0f0f15]">
+                  <CardContent className="p-6 space-y-4 bg-white dark:bg-[#0f0f15]">
                     <div>
-                      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-indigo-400 transition-colors">
+                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
                         {course.titulo}
                       </h3>
-                      <p className="text-white/50 text-sm line-clamp-2 leading-relaxed">
+                      <p className="text-slate-600 dark:text-white/50 text-sm line-clamp-2 leading-relaxed">
                         {course.descripcion ||
                           "Próximamente más información sobre este curso."}
                       </p>
                       {(course.fecha_inicio || course.horarios) && (
                         <div className="mt-3 space-y-1.5">
                           {course.fecha_inicio && (
-                            <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
+                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
                               <Calendar className="w-3.5 h-3.5 shrink-0" />
                               <span>
                                 Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
@@ -563,7 +568,7 @@ const Landing = () => {
                             </div>
                           )}
                           {course.horarios && (
-                            <div className="flex items-center gap-2 text-white/40 text-xs font-semibold">
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
                               <Clock className="w-3.5 h-3.5 shrink-0" />
                               <span>{course.horarios}</span>
                             </div>
@@ -572,19 +577,19 @@ const Landing = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                    <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-white/10">
                       {course.precio ? (
                         <div className="flex items-baseline gap-1">
                           {course.tipo_precio === "cuotas" && (
-                            <span className="text-white/50 text-xs font-semibold">{course.cantidad_cuotas}x</span>
+                            <span className="text-slate-600 dark:text-white/50 text-xs font-semibold">{course.cantidad_cuotas}x</span>
                           )}
                           {course.tipo_precio === "clase" && (
-                            <span className="text-white/50 text-xs font-semibold">{course.cantidad_cuotas} clases x</span>
+                            <span className="text-slate-600 dark:text-white/50 text-xs font-semibold">{course.cantidad_cuotas} clases x</span>
                           )}
                           <PriceTag
                             usdAmount={course.precio}
                             suffix={course.tipo_precio === "mensual" ? "/mes" : ""}
-                            className="text-white font-bold text-lg"
+                            className="text-slate-900 dark:text-white font-bold text-lg"
                           />
                         </div>
                       ) : (
@@ -612,7 +617,7 @@ const Landing = () => {
       {/* CTA FINAL */}
       <section className="relative py-24 px-6">
         <div className="max-w-4xl mx-auto">
-          <div className="relative rounded-[2.5rem] bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-white/10 p-12 md:p-16 text-center overflow-hidden">
+          <div className="relative rounded-[2.5rem] bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-pink-500/20 border border-slate-200 dark:border-white/10 p-12 md:p-16 text-center overflow-hidden">
             {/* Glow interno */}
             <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/10 to-purple-500/10 blur-3xl" />
 
@@ -630,7 +635,7 @@ const Landing = () => {
                 ¿Listo para empezar tu carrera en tecnología?
               </h2>
 
-              <p className="text-white/60 text-lg max-w-xl mx-auto">
+              <p className="text-slate-600 dark:text-white/60 text-lg max-w-xl mx-auto">
                 Unite a cientos de estudiantes que ya están transformando su
                 futuro profesional con CapOL.
               </p>
@@ -639,7 +644,7 @@ const Landing = () => {
                 <Link to="/auth?registro=1">
                   <Button
                     size="lg"
-                    className="bg-white text-black hover:bg-white/90 font-black text-lg px-10 h-14 rounded-2xl shadow-2xl"
+                    className="bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-black dark:hover:bg-white/90 font-black text-lg px-10 h-14 rounded-2xl shadow-2xl"
                   >
                     Crear Cuenta Gratis
                     <ArrowRight className="w-5 h-5 ml-2" />
@@ -647,7 +652,7 @@ const Landing = () => {
                 </Link>
               </div>
 
-              <div className="flex items-center justify-center gap-6 pt-6 text-sm text-white/40">
+              <div className="flex items-center justify-center gap-6 pt-6 text-sm text-slate-500 dark:text-white/40">
                 <span className="flex items-center gap-2">
                   <CheckCircle className="w-4 h-4 text-emerald-400" />
                   Sin tarjeta de crédito
@@ -663,53 +668,53 @@ const Landing = () => {
       </section>
 
       {/* CONTACTO */}
-      <section id="contacto" className="relative py-16 px-6 border-t border-white/5">
+      <section id="contacto" className="relative py-16 px-6 border-t border-slate-200 dark:border-white/5">
         <div className="max-w-3xl mx-auto">
           <div className="text-center mb-10 animate-fade-in">
-            <Badge className="mb-4 bg-indigo-500/10 text-indigo-400 border-indigo-500/20 font-bold">
+            <Badge className="mb-4 bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20 font-bold">
               CONTACTO
             </Badge>
             <h2 className="text-3xl md:text-4xl font-black tracking-tight mb-4">
               ¿Tenés dudas? Escribinos
             </h2>
-            <p className="text-white/50 text-lg">
+            <p className="text-slate-600 dark:text-white/50 text-lg">
               Contanos qué necesitás y te respondemos a la brevedad.
             </p>
           </div>
 
-          <form onSubmit={handleContactSubmit} className="animate-fade-in bg-white/5 border border-white/10 rounded-3xl p-6 md:p-10 space-y-5">
+          <form onSubmit={handleContactSubmit} className="animate-fade-in bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-3xl p-6 md:p-10 space-y-5">
             <div className="grid md:grid-cols-2 gap-5">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-white/40 tracking-wider">Nombre</label>
+                <label className="text-xs font-bold uppercase text-slate-500 dark:text-white/40 tracking-wider">Nombre</label>
                 <Input
                   required
                   value={contactForm.nombre}
                   onChange={(e) => setContactForm({ ...contactForm, nombre: e.target.value })}
                   placeholder="Tu nombre"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-12 rounded-xl"
+                  className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30 h-12 rounded-xl"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase text-white/40 tracking-wider">Email</label>
+                <label className="text-xs font-bold uppercase text-slate-500 dark:text-white/40 tracking-wider">Email</label>
                 <Input
                   required
                   type="email"
                   value={contactForm.email}
                   onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
                   placeholder="tu@email.com"
-                  className="bg-white/5 border-white/10 text-white placeholder:text-white/30 h-12 rounded-xl"
+                  className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30 h-12 rounded-xl"
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase text-white/40 tracking-wider">Mensaje</label>
+              <label className="text-xs font-bold uppercase text-slate-500 dark:text-white/40 tracking-wider">Mensaje</label>
               <Textarea
                 required
                 value={contactForm.mensaje}
                 onChange={(e) => setContactForm({ ...contactForm, mensaje: e.target.value })}
                 placeholder="Contanos en qué te podemos ayudar..."
                 rows={5}
-                className="bg-white/5 border-white/10 text-white placeholder:text-white/30 rounded-xl resize-none"
+                className="bg-white dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-white/30 rounded-xl resize-none"
               />
             </div>
             <Button
@@ -725,7 +730,7 @@ const Landing = () => {
             </Button>
           </form>
 
-          <div className="flex items-center justify-center gap-2 mt-8 text-white/40 text-sm">
+          <div className="flex items-center justify-center gap-2 mt-8 text-slate-500 dark:text-white/40 text-sm">
             <Mail className="w-4 h-4" />
             <span>También podés escribirnos directamente a nuestro correo</span>
           </div>
@@ -733,7 +738,7 @@ const Landing = () => {
       </section>
 
       {/* FOOTER */}
-      <footer className="border-t border-white/5 py-12 px-6">
+      <footer className="border-t border-slate-200 dark:border-white/5 py-12 px-6">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 items-center gap-6 text-center md:text-left">
           <div className="flex items-center gap-3 justify-center md:justify-start">
             <img
@@ -742,40 +747,40 @@ const Landing = () => {
               className="h-10 w-10 rounded-full object-cover"
             />
             <div className="text-left">
-              <span className="font-bold text-white">CapOL</span>
-              <p className="text-xs text-white/40">
+              <span className="font-bold text-slate-900 dark:text-white">CapOL</span>
+              <p className="text-xs text-slate-500 dark:text-white/40">
                 Escuela Virtual de Informática
               </p>
             </div>
           </div>
 
-          <p className="text-white/30 text-sm text-center">
+          <p className="text-slate-400 dark:text-white/30 text-sm text-center">
             © {new Date().getFullYear()} CapOL. Todos los derechos reservados.
           </p>
 
           <div className="flex items-center gap-4 justify-center md:justify-end">
             <Link
               to="/auth"
-              className="text-white/50 hover:text-white text-sm font-medium transition-colors"
+              className="text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors"
             >
               Acceder
             </Link>
-            <span className="text-white/20">|</span>
+            <span className="text-slate-300 dark:text-white/20">|</span>
             <a
               href="mailto:contacto@capol.com"
-              className="text-white/50 hover:text-white text-sm font-medium transition-colors"
+              className="text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors"
             >
               Contacto
             </a>
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/5 flex justify-center">
+        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-slate-200 dark:border-white/5 flex justify-center">
           <a
             href="https://www.paralelo.tech"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-white/30 hover:text-white/70 text-xs font-medium transition-colors"
+            className="flex items-center gap-2 text-slate-400 dark:text-white/30 hover:text-slate-700 dark:hover:text-white/70 text-xs font-medium transition-colors"
           >
             <span>Desarrollado por</span>
             <img src="/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />
@@ -786,7 +791,7 @@ const Landing = () => {
 
       {/* Modal de video/imagen del flyer del curso, con descripción completa */}
       <Dialog open={isModalOpen} onOpenChange={(o) => { if (!o) closeModal(); }}>
-        <DialogContent className="sm:max-w-2xl bg-[#0f0f15] border-white/10 p-0 overflow-hidden max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:max-w-2xl bg-white dark:bg-[#0f0f15] border-slate-200 dark:border-white/10 p-0 overflow-hidden max-h-[85vh] overflow-y-auto">
           {selectedCourseMedia && (
             <>
               {selectedCourseMedia.type === "video" ? (
@@ -805,8 +810,8 @@ const Landing = () => {
                 />
               )}
               <div className="p-6 space-y-2">
-                <h3 className="text-xl font-bold text-white">{selectedCourseMedia.titulo}</h3>
-                <p className="text-white/60 text-sm leading-relaxed whitespace-pre-line">
+                <h3 className="text-xl font-bold text-slate-900 dark:text-white">{selectedCourseMedia.titulo}</h3>
+                <p className="text-slate-600 dark:text-white/60 text-sm leading-relaxed whitespace-pre-line">
                   {selectedCourseMedia.descripcion || "Sin descripción disponible."}
                 </p>
               </div>
@@ -820,7 +825,7 @@ const Landing = () => {
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Volver arriba"
-          className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-white text-slate-900 shadow-2xl shadow-black/40 flex items-center justify-center hover:scale-110 transition-transform animate-fade-in"
+          className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 dark:bg-none dark:bg-white text-white dark:text-slate-900 shadow-2xl shadow-indigo-500/30 dark:shadow-black/40 flex items-center justify-center hover:scale-110 transition-transform animate-fade-in"
         >
           <ArrowUp className="w-5 h-5" />
         </button>
