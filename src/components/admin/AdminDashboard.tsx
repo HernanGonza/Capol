@@ -1,15 +1,18 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { 
-  Users, 
-  TrendingUp, 
-  BookOpen, 
-  GraduationCap, 
-  AlertTriangle, 
+import {
+  Users,
+  TrendingUp,
+  BookOpen,
+  GraduationCap,
+  AlertTriangle,
   CheckCircle,
   ChevronRight,
-  ClipboardList
+  ClipboardList,
+  UserPlus,
+  Award,
+  Trophy,
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
@@ -20,16 +23,26 @@ const AdminDashboard = () => {
   const { data: stats, isLoading } = useQuery({
     queryKey: ["admin-master-stats"],
     queryFn: async () => {
+      const inicioDeMes = new Date();
+      inicioDeMes.setDate(1);
+      inicioDeMes.setHours(0, 0, 0, 0);
+
       const [
         { data: roles },
         { data: subs },
         { data: courses },
-        { data: progress }
+        { data: progress },
+        { data: teacherRoles },
+        { data: enrollments },
+        { data: allProfiles },
       ] = await Promise.all([
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "student"),
-        supabase.from("suscripciones").select("estado, price, moneda"),
-        supabase.from("cursos").select("id, publicado"),
-        supabase.from("progreso_lecciones").select("completado")
+        supabase.from("suscripciones").select("usuario_id, curso_id, estado, price, moneda"),
+        supabase.from("cursos").select("id, titulo, publicado"),
+        supabase.from("progreso_lecciones").select("completado"),
+        supabase.from("roles_usuario").select("usuario_id").eq("rol", "teacher"),
+        supabase.from("inscripciones").select("usuario_id, completado_en"),
+        supabase.from("perfiles").select("id, creado_en"),
       ]);
 
       const totalStudents = roles?.length || 0;
@@ -48,6 +61,27 @@ const AdminDashboard = () => {
       }, {});
       const completionRate = progress?.length ? (progress.filter(p => p.completado).length / progress.length) * 100 : 0;
 
+      const studentIds = new Set((roles || []).map((r) => r.usuario_id));
+      const nuevosEsteMes = (allProfiles || []).filter(
+        (p) => studentIds.has(p.id) && p.creado_en && new Date(p.creado_en) >= inicioDeMes
+      ).length;
+
+      const certificadosEmitidos = (enrollments || []).filter((e) => !!e.completado_en).length;
+
+      // Top cursos por cantidad de alumnos activos
+      const conteoPorCurso = activeSubs.reduce((acc: Record<string, number>, s: any) => {
+        if (!s.curso_id) return acc;
+        acc[s.curso_id] = (acc[s.curso_id] || 0) + 1;
+        return acc;
+      }, {});
+      const topCursos = Object.entries(conteoPorCurso)
+        .map(([cursoId, cantidad]) => ({
+          titulo: courses?.find((c) => c.id === cursoId)?.titulo || "Curso",
+          cantidad: cantidad as number,
+        }))
+        .sort((a, b) => b.cantidad - a.cantidad)
+        .slice(0, 5);
+
       return {
         totalStudents,
         activeCourses,
@@ -56,7 +90,11 @@ const AdminDashboard = () => {
         expiredCount: alumnosVencidos,
         revenueByCurrency,
         completionRate,
-        healthRatio: totalStudents > 0 ? (alumnosAlDia / totalStudents) * 100 : 0
+        healthRatio: totalStudents > 0 ? (alumnosAlDia / totalStudents) * 100 : 0,
+        totalTeachers: teacherRoles?.length || 0,
+        nuevosEsteMes,
+        certificadosEmitidos,
+        topCursos,
       };
     },
   });
@@ -135,7 +173,43 @@ const AdminDashboard = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="border-none shadow-card">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center shrink-0">
+              <UserPlus className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <div>
+              <p className="text-xl font-bold">{stats?.totalTeachers}</p>
+              <p className="text-xs text-muted-foreground">Profesores activos</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-card">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <p className="text-xl font-bold">{stats?.nuevosEsteMes}</p>
+              <p className="text-xs text-muted-foreground">Alumnos nuevos este mes</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="border-none shadow-card">
+          <CardContent className="p-4 flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center shrink-0">
+              <Award className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <div>
+              <p className="text-xl font-bold">{stats?.certificadosEmitidos}</p>
+              <p className="text-xs text-muted-foreground">Certificados emitidos</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="border-none shadow-card">
           <CardHeader>
             <CardTitle className="text-lg flex items-center gap-2">
@@ -167,6 +241,26 @@ const AdminDashboard = () => {
               </div>
             </div>
             <Progress value={stats?.healthRatio} className="h-2 bg-muted" />
+          </CardContent>
+        </Card>
+
+        <Card className="border-none shadow-card">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy className="w-5 h-5 text-amber-500" /> Cursos Más Populares
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {stats?.topCursos.length ? (
+              stats.topCursos.map((c, idx) => (
+                <div key={idx} className="flex items-center justify-between text-sm">
+                  <span className="truncate flex-1">{idx + 1}. {c.titulo}</span>
+                  <span className="font-bold text-muted-foreground shrink-0 ml-2">{c.cantidad}</span>
+                </div>
+              ))
+            ) : (
+              <p className="text-xs text-muted-foreground">Todavía no hay alumnos activos.</p>
+            )}
           </CardContent>
         </Card>
       </div>

@@ -35,6 +35,32 @@ const AdminSubscriptions = () => {
     fin_en: ""
   });
 
+  // Registra un pago en el ledger histórico (tabla "pagos"), snapshoteando
+  // los costos fijos vigentes en este momento — así un cambio futuro en la
+  // configuración financiera no altera retroactivamente meses ya cerrados.
+  const registrarPago = async ({
+    usuario_id,
+    curso_id,
+    suscripcion_id,
+    monto,
+  }: {
+    usuario_id: string;
+    curso_id: string;
+    suscripcion_id: string;
+    monto: number;
+  }) => {
+    const { data: config } = await supabase.from("configuracion_financiera").select("*").single();
+    await supabase.from("pagos").insert({
+      usuario_id,
+      curso_id,
+      suscripcion_id,
+      monto,
+      costo_publicidad_ars: config?.costo_publicidad_ars ?? 5000,
+      costo_plataforma_ars: config?.costo_plataforma_ars ?? 4500,
+    });
+    queryClient.invalidateQueries({ queryKey: ["pagos"] });
+  };
+
   // --- LÓGICA DE AUTO-EXPIRACIÓN ---
   const checkAndExpireSubscriptions = async (subs: any[]) => {
     const now = new Date();
@@ -143,9 +169,19 @@ const AdminSubscriptions = () => {
       if (editingId) {
         const { error } = await supabase.from("suscripciones").update(payload).eq("id", editingId);
         if (error) throw error;
+        // Una edición es una corrección administrativa, no un pago nuevo —
+        // no se registra en el ledger de "pagos".
       } else {
-        const { error } = await supabase.from("suscripciones").insert(payload);
+        const { data: nueva, error } = await supabase.from("suscripciones").insert(payload).select("id").single();
         if (error) throw error;
+        if (form.estado === "active" && nueva) {
+          await registrarPago({
+            usuario_id: payload.usuario_id,
+            curso_id: payload.curso_id,
+            suscripcion_id: nueva.id,
+            monto: payload.price,
+          });
+        }
       }
       // Nota: no hace falta crear la inscripción a mano acá. El trigger
       // "on_suscripcion_activa" en la base la asegura automáticamente
@@ -179,6 +215,13 @@ const AdminSubscriptions = () => {
       toast.error("Error al renovar");
       return;
     }
+
+    await registrarPago({
+      usuario_id: sub.usuario_id,
+      curso_id: sub.curso_id,
+      suscripcion_id: sub.id,
+      monto: sub.price,
+    });
 
     queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
     queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });

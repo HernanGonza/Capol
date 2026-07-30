@@ -16,6 +16,7 @@ import {
   ClipboardList,
   UserCircle,
   MessageSquare,
+  Wallet,
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -114,6 +115,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/admin/courses", label: "Cursos", icon: BookOpen },
         { to: "/admin/students", label: "Alumnos", icon: Users },
         { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
+        { to: "/admin/finanzas", label: "Finanzas", icon: Wallet },
         { to: "/admin/teachers", label: "Profesores", icon: UserPlus },
         { to: "/admin/solicitudes", label: "Solicitudes", icon: ClipboardList, badge: solicitudesPendientes },
         // El admin también puede estar asignado como docente a algún curso

@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      configuracion_financiera: {
+        Row: {
+          actualizado_en: string
+          costo_plataforma_ars: number
+          costo_publicidad_ars: number
+          dia_corte: number
+          id: boolean
+        }
+        Insert: {
+          actualizado_en?: string
+          costo_plataforma_ars?: number
+          costo_publicidad_ars?: number
+          dia_corte?: number
+          id?: boolean
+        }
+        Update: {
+          actualizado_en?: string
+          costo_plataforma_ars?: number
+          costo_publicidad_ars?: number
+          dia_corte?: number
+          id?: boolean
+        }
+        Relationships: []
+      }
       configuracion_global: {
         Row: {
           actualizado_en: string | null
@@ -513,6 +537,61 @@ export type Database = {
           {
             foreignKeyName: "mensajes_reportados_reportado_por_fkey"
             columns: ["reportado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pagos: {
+        Row: {
+          costo_plataforma_ars: number
+          costo_publicidad_ars: number
+          curso_id: string
+          id: string
+          monto: number
+          pagado_en: string
+          suscripcion_id: string | null
+          usuario_id: string
+        }
+        Insert: {
+          costo_plataforma_ars: number
+          costo_publicidad_ars: number
+          curso_id: string
+          id?: string
+          monto: number
+          pagado_en?: string
+          suscripcion_id?: string | null
+          usuario_id: string
+        }
+        Update: {
+          costo_plataforma_ars?: number
+          costo_publicidad_ars?: number
+          curso_id?: string
+          id?: string
+          monto?: number
+          pagado_en?: string
+          suscripcion_id?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_usuario_id_fkey"
+            columns: ["usuario_id"]
             isOneToOne: false
             referencedRelation: "perfiles"
             referencedColumns: ["id"]
