@@ -147,7 +147,7 @@ const Profile = () => {
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label className="text-xs font-bold uppercase text-muted-foreground">DNI</Label>
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">DNI / Número de identificación</Label>
                   <div className="relative">
                     <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input className="pl-9" value={form.dni} onChange={(e) => setForm({ ...form, dni: e.target.value })} />

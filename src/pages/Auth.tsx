@@ -10,7 +10,7 @@ import {
   Mail, Lock, User, Phone, MapPin,
   Eye, EyeOff, CheckCircle, XCircle, Camera, ArrowLeft, Shield, CreditCard
 } from "lucide-react";
-import { PROVINCIAS_AR, PAISES_MUNDO } from "@/lib/geo";
+import { PROVINCIAS_AR, PAISES_MUNDO, CODIGO_TELEFONICO } from "@/lib/geo";
 
 const passwordChecks = (pw: string) => [
   { label: "Al menos 8 caracteres", ok: pw.length >= 8 },
@@ -35,17 +35,18 @@ const Auth = () => {
   const [forgotSent, setForgotSent] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: "", password: "" });
+  const paisInicial = "Argentina";
   const [form, setForm] = useState({
     nombre_completo: "",
     email: "",
     password: "",
     confirmar_password: "",
-    telefono: "",
+    telefono: `${CODIGO_TELEFONICO[paisInicial]} `,
     dni: "",
     direccion: "",
     localidad: "",
     provincia: "",
-    pais: "Argentina",
+    pais: paisInicial,
   });
 
   const checks = passwordChecks(form.password);
@@ -160,7 +161,7 @@ const Auth = () => {
       // foto) de la cuenta que se acaba de crear.
       setForm({
         nombre_completo: "", email: "", password: "", confirmar_password: "",
-        telefono: "", dni: "", direccion: "", localidad: "", provincia: "", pais: "Argentina",
+        telefono: `${CODIGO_TELEFONICO[paisInicial]} `, dni: "", direccion: "", localidad: "", provincia: "", pais: paisInicial,
       });
       setAvatarFile(null);
       setAvatarPreview(null);
@@ -321,7 +322,7 @@ const Auth = () => {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <Label className={labelClass}>DNI *</Label>
+                      <Label className={labelClass}>DNI / Número de identificación *</Label>
                       <div className="relative">
                         <CreditCard className="absolute left-3 top-3 h-4 w-4 text-white/30" />
                         <Input placeholder="12345678" value={form.dni}
@@ -330,13 +331,40 @@ const Auth = () => {
                       </div>
                     </div>
                     <div className="space-y-1.5">
-                      <Label className={labelClass}>Teléfono *</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 h-4 w-4 text-white/30" />
-                        <Input placeholder="+54 9 ..." value={form.telefono}
-                          onChange={(e) => setForm({ ...form, telefono: e.target.value })}
-                          className={`pl-9 ${inputClass}`} required />
-                      </div>
+                      <Label className={labelClass}>País *</Label>
+                      <select
+                        value={form.pais}
+                        onChange={(e) => {
+                          const nuevoPais = e.target.value;
+                          const codigoAnterior = CODIGO_TELEFONICO[form.pais];
+                          const codigoNuevo = CODIGO_TELEFONICO[nuevoPais] || "";
+                          // Solo pisamos el teléfono si todavía no escribió nada más
+                          // que el código anterior (o si está vacío) — si ya tiene su
+                          // número cargado, cambiar de país no se lo debe borrar.
+                          const telefonoSinTocar =
+                            !form.telefono.trim() ||
+                            (codigoAnterior && form.telefono.trim() === codigoAnterior);
+                          setForm({
+                            ...form,
+                            pais: nuevoPais,
+                            provincia: nuevoPais !== "Argentina" ? "Fuera de Argentina" : "",
+                            telefono: telefonoSinTocar ? (codigoNuevo ? `${codigoNuevo} ` : "") : form.telefono,
+                          });
+                        }}
+                        required
+                        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm px-3 focus:border-indigo-400 focus:outline-none"
+                      >
+                        {PAISES_MUNDO.map((p) => <option key={p} value={p} className="bg-[#1a1a2e]">{p}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className={labelClass}>Teléfono *</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-3 h-4 w-4 text-white/30" />
+                      <Input placeholder="+54 9 ..." value={form.telefono}
+                        onChange={(e) => setForm({ ...form, telefono: e.target.value })}
+                        className={`pl-9 ${inputClass}`} required />
                     </div>
                   </div>
                 </div>
@@ -374,19 +402,6 @@ const Auth = () => {
                               {PROVINCIAS_AR.map((p) => <option key={p} value={p} className="bg-[#1a1a2e]">{p}</option>)}
                             </>
                         }
-                      </select>
-                    </div>
-                    <div className="col-span-2 space-y-1.5">
-                      <Label className={labelClass}>País</Label>
-                      <select
-                        value={form.pais}
-                        onChange={(e) => {
-                          const nuevoPais = e.target.value;
-                          setForm({ ...form, pais: nuevoPais, provincia: nuevoPais !== "Argentina" ? "Fuera de Argentina" : "" });
-                        }}
-                        className="w-full h-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm px-3 focus:border-indigo-400 focus:outline-none"
-                      >
-                        {PAISES_MUNDO.map((p) => <option key={p} value={p} className="bg-[#1a1a2e]">{p}</option>)}
                       </select>
                     </div>
                   </div>

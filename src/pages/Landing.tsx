@@ -213,25 +213,25 @@ const Landing = () => {
 
       {/* NAVBAR */}
       <nav className="fixed top-0 inset-x-0 z-50 border-b border-white/5 backdrop-blur-xl bg-black/40">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3 group">
-            <div className="relative">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between gap-2">
+          <Link to="/" className="flex items-center gap-2 sm:gap-3 group shrink-0 min-w-0">
+            <div className="relative shrink-0">
               <img
                 src="/logo-capol.webp"
                 alt="CapOL"
-                className="h-12 w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow"
+                className="h-9 w-9 sm:h-12 sm:w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20 group-hover:shadow-indigo-500/40 transition-shadow shrink-0"
               />
               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full blur opacity-30 group-hover:opacity-50 transition-opacity -z-10" />
             </div>
-            <div>
-              <span className="font-black text-xl tracking-tight">CapOL</span>
-              <p className="text-[10px] text-indigo-300/70 font-medium tracking-[0.2em] uppercase">
+            <div className="min-w-0">
+              <span className="font-black text-lg sm:text-xl tracking-tight block leading-tight">CapOL</span>
+              <p className="hidden sm:block text-[10px] text-indigo-300/70 font-medium tracking-[0.2em] uppercase">
                 Escuela Virtual
               </p>
             </div>
           </Link>
 
-          <div className="flex items-center gap-1 md:gap-3">
+          <div className="flex items-center gap-0.5 sm:gap-3 shrink-0">
             <a href="#contacto" onClick={(e) => handleScrollTo(e, "contacto")}>
               <Button
                 variant="ghost"
@@ -243,15 +243,15 @@ const Landing = () => {
             <Link to="/auth">
               <Button
                 variant="ghost"
-                className="text-white/70 hover:text-white hover:bg-white/5 font-semibold"
+                className="text-white/70 hover:text-white hover:bg-white/5 font-semibold px-2 sm:px-4 text-sm sm:text-base"
               >
                 Iniciar Sesión
               </Button>
             </Link>
             <Link to="/auth?registro=1">
-              <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold px-6 shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
+              <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold px-3 sm:px-6 text-sm sm:text-base shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
                 Inscribirme
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
               </Button>
             </Link>
           </div>
