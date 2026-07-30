@@ -39,6 +39,11 @@ class ErrorBoundary extends Component<Props, State> {
             <p className="text-muted-foreground text-sm">
               Encontramos un error inesperado. Probá recargar la página — si el problema sigue, avisale a soporte.
             </p>
+            {this.state.error.message && (
+              <p className="text-xs text-muted-foreground/60 font-mono break-words bg-muted/50 rounded-lg p-3">
+                {this.state.error.message}
+              </p>
+            )}
             <button
               onClick={this.handleReload}
               className="inline-flex items-center justify-center h-11 px-6 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 transition-opacity"

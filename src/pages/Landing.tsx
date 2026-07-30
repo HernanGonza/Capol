@@ -31,13 +31,15 @@ import { toast } from "sonner";
 
 interface Course {
   id: string;
+  grupo_id: string | null;
   titulo: string;
   descripcion: string | null;
   url_flyer: string | null;
   tipo_flyer: string | null;
   url_imagen: string | null;
-  estado: "proximamente" | "activo";
+  estado: "proximamente" | "activo" | "finalizado";
   fecha_inicio: string | null;
+  fecha_fin: string | null;
   horarios: string | null;
   precio: number | null;
   moneda: string | null;
@@ -53,7 +55,7 @@ const Landing = () => {
   const [selectedCourseMedia, setSelectedCourseMedia] = useState<{ url: string; type: "video" | "image"; titulo: string; descripcion: string | null } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [totalAlumnos, setTotalAlumnos] = useState<number | null>(null);
-  const [inscritosPorCurso, setInscritosPorCurso] = useState<Record<string, number>>({});
+  const [totalRegistrados, setTotalRegistrados] = useState<number | null>(null);
   const [leccionesPorCurso, setLeccionesPorCurso] = useState<Record<string, number>>({});
   const [contactForm, setContactForm] = useState({ nombre: "", email: "", mensaje: "" });
   const [sendingContact, setSendingContact] = useState(false);
@@ -63,6 +65,14 @@ const Landing = () => {
     const onScroll = () => setShowBackToTop(window.scrollY > 500);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Contador de visitas para las métricas del admin — un registro por carga
+  // de la Landing, sin importar si el visitante está logueado o no.
+  useEffect(() => {
+    supabase.from("landing_visits").insert({}).then(({ error }) => {
+      if (error) console.error("No se pudo registrar la visita:", error);
+    });
   }, []);
 
   // Las tarjetas de curso van apareciendo a medida que se scrollea hasta ellas
@@ -101,6 +111,7 @@ const Landing = () => {
         .select(
           `
           id,
+          grupo_id,
           titulo,
           descripcion,
           url_flyer,
@@ -108,6 +119,7 @@ const Landing = () => {
           url_imagen,
           estado,
           fecha_inicio,
+          fecha_fin,
           horarios,
           precio,
           moneda,
@@ -121,7 +133,29 @@ const Landing = () => {
         .order("creado_en", { ascending: false });
 
       if (!error && data) {
-        setCourses(data);
+        // La Landing es la vidriera pública: se muestra una sola tarjeta por
+        // curso, sin importar cuántas ediciones (copias) tenga. Se agrupan
+        // por grupo_id (no por título, que puede repetirse o editarse) y
+        // dentro de cada grupo se prioriza la edición "Próximamente" (la que
+        // se puede inscribir), luego la "Activo" (cursando ahora mismo), y
+        // recién si todas las ediciones ya terminaron, se muestra la más
+        // reciente "Finalizado" como referencia. Así, a medida que una
+        // edición termina y se crea la siguiente, la Landing va mostrando
+        // automáticamente la que corresponda sin intervención manual.
+        const porGrupo = new Map<string, Course[]>();
+        for (const c of data as Course[]) {
+          const key = c.grupo_id || c.id;
+          if (!porGrupo.has(key)) porGrupo.set(key, []);
+          porGrupo.get(key)!.push(c);
+        }
+        const deduplicados = Array.from(porGrupo.values()).map((ediciones) => {
+          const proxima = ediciones.find((c) => c.estado === "proximamente");
+          if (proxima) return proxima;
+          const cursando = ediciones.find((c) => c.estado === "activo");
+          if (cursando) return cursando;
+          return [...ediciones].sort((a, b) => (b.fecha_fin || "").localeCompare(a.fecha_fin || ""))[0];
+        });
+        setCourses(deduplicados);
       }
       setLoading(false);
 
@@ -130,12 +164,8 @@ const Landing = () => {
       const { data: alumnos } = await supabase.rpc("contar_alumnos_totales");
       if (typeof alumnos === "number") setTotalAlumnos(alumnos);
 
-      const { data: inscritos } = await supabase.rpc("contar_inscritos_por_curso");
-      if (inscritos) {
-        const map: Record<string, number> = {};
-        inscritos.forEach((row) => { map[row.curso_id] = row.cantidad; });
-        setInscritosPorCurso(map);
-      }
+      const { data: registrados } = await supabase.rpc("contar_registrados_totales");
+      if (typeof registrados === "number") setTotalRegistrados(registrados);
 
       const { data: lecciones } = await supabase.rpc("contar_lecciones_por_curso");
       if (lecciones) {
@@ -333,7 +363,7 @@ const Landing = () => {
               <div className="w-px h-10 bg-white/10" />
               <div className="text-center">
                 <p className="text-3xl font-black text-indigo-400">
-                  {Object.values(inscritosPorCurso).reduce((a, b) => a + b, 0)}
+                  {totalRegistrados !== null ? totalRegistrados : "—"}
                 </p>
                 <p className="text-xs text-white/40 font-medium uppercase tracking-wider">
                   Inscripciones
@@ -493,6 +523,10 @@ const Landing = () => {
                         <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none font-bold">
                           <Clock className="w-3 h-3 mr-1" /> Próximamente
                         </Badge>
+                      ) : course.estado === "finalizado" ? (
+                        <Badge className="bg-white/20 backdrop-blur-sm text-white border-none font-bold">
+                          <GraduationCap className="w-3 h-3 mr-1" /> Última edición dictada
+                        </Badge>
                       ) : (
                         <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none font-bold">
                           <Zap className="w-3 h-3 mr-1" /> Activo
@@ -524,7 +558,7 @@ const Landing = () => {
                             <div className="flex items-center gap-2 text-indigo-300 text-xs font-semibold">
                               <Calendar className="w-3.5 h-3.5 shrink-0" />
                               <span>
-                                Inicia el {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                                Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
                               </span>
                             </div>
                           )}

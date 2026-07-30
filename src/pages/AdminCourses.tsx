@@ -11,8 +11,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap } from "lucide-react";
+import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap, Copy, FlagOff, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
 
@@ -32,10 +42,12 @@ const AdminCourses = () => {
   const [open, setOpen] = useState(false);
   const [openConfig, setOpenConfig] = useState(false);
   const [editingCourse, setEditingCourse] = useState<any>(null);
+  const [tab, setTab] = useState<"actuales" | "terminados">("actuales");
+  const [confirmAction, setConfirmAction] = useState<{ type: "duplicar" | "terminar" | "eliminar"; course: any } | null>(null);
   const [form, setForm] = useState({
     titulo: "", descripcion: "", url_imagen: "", url_flyer: "",
-    tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo",
-    fecha_inicio: "", horarios: "",
+    tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo" | "finalizado",
+    fecha_inicio: "", fecha_fin: "", horarios: "",
     precio: "", tipo_precio: "curso", cantidad_cuotas: "",
   });
   const { currency: adminCurrency, usdToLocal, formatMoney } = useCurrencyConversion();
@@ -128,6 +140,7 @@ const AdminCourses = () => {
         url_imagen: form.url_imagen, url_flyer: form.url_flyer,
         tipo_flyer: form.tipo_flyer, publicado: form.publicado, estado: form.estado,
         fecha_inicio: form.estado === "proximamente" && form.fecha_inicio ? form.fecha_inicio : null,
+        fecha_fin: form.estado === "finalizado" ? (form.fecha_fin || new Date().toISOString().slice(0, 10)) : null,
         horarios: form.horarios.trim() || null,
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
@@ -152,8 +165,134 @@ const AdminCourses = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Crea una nueva edición del curso (datos + clases) sin alumnos ni pagos —
+  // queda agrupada bajo el mismo grupo_id que el curso original, para que la
+  // Landing y el catálogo de alumnos muestren una sola tarjeta por curso sin
+  // importar cuántas ediciones tenga.
+  const duplicateMutation = useMutation({
+    mutationFn: async (course: any) => {
+      const { data: nuevo, error: errorCurso } = await supabase
+        .from("cursos")
+        .insert({
+          titulo: course.titulo,
+          descripcion: course.descripcion,
+          precio: course.precio,
+          moneda: "USD",
+          tipo_precio: course.tipo_precio,
+          cantidad_cuotas: course.cantidad_cuotas,
+          url_imagen: course.url_imagen,
+          url_flyer: course.url_flyer,
+          tipo_flyer: course.tipo_flyer,
+          horarios: course.horarios,
+          publicado: false,
+          estado: "proximamente",
+          fecha_inicio: null,
+          fecha_fin: null,
+          grupo_id: course.grupo_id || course.id,
+          creado_por: user!.id,
+        })
+        .select()
+        .single();
+      if (errorCurso) throw errorCurso;
+
+      const [{ data: docentes }, { data: lecciones }] = await Promise.all([
+        supabase.from("docentes_cursos").select("docente_id").eq("curso_id", course.id),
+        supabase.from("lecciones").select("*").eq("curso_id", course.id).order("orden"),
+      ]);
+
+      if (docentes?.length) {
+        await supabase.from("docentes_cursos").insert(
+          docentes.map((d) => ({ docente_id: d.docente_id, curso_id: nuevo.id }))
+        );
+      }
+
+      if (lecciones?.length) {
+        await supabase.from("lecciones").insert(
+          lecciones.map((l) => ({
+            curso_id: nuevo.id,
+            titulo: l.titulo,
+            descripcion: l.descripcion,
+            content: l.content,
+            orden: l.orden,
+            url_video: l.url_video,
+            // No copiamos fecha_desbloqueo/fecha_fin_clase/grabacion_url/sala_jitsi:
+            // son propias de la cohorte anterior, la nueva edición arranca sin ellas.
+          }))
+        );
+      }
+
+      return nuevo;
+    },
+    onSuccess: (nuevo) => {
+      queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
+      toast.success("Nueva edición creada. Revisá los datos y publicala cuando esté lista.");
+      openEdit(nuevo);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Marca el curso como terminado: deja de ofrecerse a alumnos nuevos, pero
+  // no toca nada de lo que ya existe (alumnos, clases, pagos, certificados).
+  const terminarMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      const { error } = await supabase
+        .from("cursos")
+        .update({ estado: "finalizado", publicado: false, fecha_fin: new Date().toISOString().slice(0, 10) })
+        .eq("id", courseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
+      toast.success("Curso marcado como finalizado");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  // Borrado real: solo si el curso nunca tuvo alumnos (si los tuvo, borrar en
+  // cascada se llevaría puesto el historial de pagos de Finanzas — mejor
+  // "Terminar" en ese caso).
+  const deleteMutation = useMutation({
+    mutationFn: async (courseId: string) => {
+      const { error } = await supabase.from("cursos").delete().eq("id", courseId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
+      toast.success("Curso eliminado");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const handleDelete = (course: any) => {
+    if (course.total_enrollments > 0) {
+      toast.error(
+        "Este curso tiene alumnos (o los tuvo) y no se puede eliminar sin perder ese historial. Usá \"Terminar Curso\" en su lugar."
+      );
+      return;
+    }
+    setConfirmAction({ type: "eliminar", course });
+  };
+
+  const confirmActionCopy: Record<"duplicar" | "terminar" | "eliminar", { title: string; description: string; confirmLabel: string }> = {
+    duplicar: {
+      title: "¿Crear nueva edición?",
+      description: `Se copian "${confirmAction?.course?.titulo}" y sus clases a una nueva edición, sin alumnos.`,
+      confirmLabel: "Crear edición",
+    },
+    terminar: {
+      title: "¿Marcar como finalizado?",
+      description: `"${confirmAction?.course?.titulo}" deja de ofrecerse a alumnos nuevos. Los que ya lo cursaron no se ven afectados.`,
+      confirmLabel: "Terminar curso",
+    },
+    eliminar: {
+      title: "¿Eliminar definitivamente?",
+      description: `"${confirmAction?.course?.titulo}" se va a eliminar. Esta acción no se puede deshacer.`,
+      confirmLabel: "Eliminar",
+    },
+  };
+
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", fecha_inicio: "", horarios: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "" });
+    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", fecha_inicio: "", fecha_fin: "", horarios: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "" });
     setEditingCourse(null); setPreviewUrl(null); setPreviewType("image");
   };
 
@@ -164,7 +303,7 @@ const AdminCourses = () => {
       titulo: course.titulo, descripcion: course.descripcion || "",
       url_imagen: course.url_imagen || "", url_flyer: course.url_flyer || "",
       tipo_flyer: flyerType, publicado: course.publicado, estado: course.estado || "activo",
-      fecha_inicio: course.fecha_inicio || "", horarios: course.horarios || "",
+      fecha_inicio: course.fecha_inicio || "", fecha_fin: course.fecha_fin || "", horarios: course.horarios || "",
       precio: course.precio?.toString() || "",
       tipo_precio: course.tipo_precio || "curso",
       cantidad_cuotas: course.cantidad_cuotas?.toString() || "",
@@ -344,24 +483,32 @@ const AdminCourses = () => {
                     <Label className={labelCls}>Estado del curso</Label>
                     <select
                       value={form.estado}
-                      onChange={(e) => setForm({ ...form, estado: e.target.value as "proximamente" | "activo" })}
+                      onChange={(e) => setForm({ ...form, estado: e.target.value as "proximamente" | "activo" | "finalizado" })}
                       className={selectCls}
                     >
                       <option value="activo">Activo</option>
                       <option value="proximamente">Próximamente</option>
+                      <option value="finalizado">Finalizado</option>
                     </select>
                     <p className="text-xs text-muted-foreground">
-                      Se muestra como badge en la tarjeta del curso. No afecta si el curso aparece en la landing (eso lo controla "Publicado").
+                      "Proximamente" es la edición que se puede inscribir; "Activo" es la que se está cursando ahora (no se puede inscribir); "Finalizado" ya no se dicta. La Landing solo muestra una tarjeta por curso: prioriza la edición "Próximamente", luego la "Activo", y recién si no hay ninguna, la última "Finalizado". No se borra nada — los alumnos que ya cursaron siguen viendo su curso igual.
                     </p>
                   </div>
 
                   {form.estado === "proximamente" && (
                     <div className="space-y-2">
-                      <Label className={labelCls}>Fecha de inicio (opcional)</Label>
+                      <Label className={labelCls}>Fecha de la próxima edición (opcional)</Label>
                       <Input type="date" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} />
                       <p className="text-xs text-muted-foreground">
-                        Si la cargás, se muestra en la tarjeta ("Inicia el ..."). Si la dejás vacía, no se muestra nada.
+                        Si la cargás, se muestra en la tarjeta ("Próxima edición: ..."). Si la dejás vacía, no se muestra nada.
                       </p>
+                    </div>
+                  )}
+
+                  {form.estado === "finalizado" && (
+                    <div className="space-y-2">
+                      <Label className={labelCls}>Fecha de finalización</Label>
+                      <Input type="date" value={form.fecha_fin} onChange={(e) => setForm({ ...form, fecha_fin: e.target.value })} />
                     </div>
                   )}
 
@@ -382,13 +529,40 @@ const AdminCourses = () => {
           </div>
         </div>
 
+        {/* Tabs Actuales / Terminados */}
+        <div className="flex gap-2 border-b">
+          <button
+            type="button"
+            onClick={() => setTab("actuales")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === "actuales" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Actuales ({courses?.filter((c: any) => c.estado !== "finalizado").length || 0})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("terminados")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === "terminados" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Terminados ({courses?.filter((c: any) => c.estado === "finalizado").length || 0})
+          </button>
+        </div>
+
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => <div key={i} className="h-64 bg-muted animate-pulse rounded-2xl" />)}
           </div>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {courses?.map((course: any) => {
+            {courses
+              ?.filter((c: any) => (tab === "terminados" ? c.estado === "finalizado" : c.estado !== "finalizado"))
+              .sort((a: any, b: any) =>
+                tab === "terminados" ? (b.fecha_fin || "").localeCompare(a.fecha_fin || "") : 0
+              )
+              .map((course: any) => {
               const hasVideoFlyer = isVideoFlyer(course);
               const precioLabel = formatPrecio(course);
               return (
@@ -424,6 +598,10 @@ const AdminCourses = () => {
                         {course.estado === "proximamente" ? (
                           <Badge className="bg-amber-100 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400 border-none">
                             <Clock className="w-3 h-3 mr-1" /> Próximamente
+                          </Badge>
+                        ) : course.estado === "finalizado" ? (
+                          <Badge className="bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-none">
+                            <Archive className="w-3 h-3 mr-1" /> Finalizado{course.fecha_fin ? ` (${course.fecha_fin})` : ""}
                           </Badge>
                         ) : (
                           <Badge className="bg-indigo-100 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-400 border-none">
@@ -461,8 +639,38 @@ const AdminCourses = () => {
                           <Layers className="w-3.5 h-3.5 mr-2" /> Clases
                         </Button>
                       </Link>
-                      <Button variant="outline" size="sm" onClick={() => openEdit(course)}>
+                      <Button variant="outline" size="sm" onClick={() => openEdit(course)} title="Editar">
                         <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        title="Nueva edición (misma serie, sin alumnos)"
+                        disabled={duplicateMutation.isPending}
+                        onClick={() => setConfirmAction({ type: "duplicar", course })}
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                      </Button>
+                      {course.estado !== "finalizado" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          title="Terminar curso"
+                          disabled={terminarMutation.isPending}
+                          onClick={() => setConfirmAction({ type: "terminar", course })}
+                        >
+                          <FlagOff className="w-3.5 h-3.5" />
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:bg-destructive/10"
+                        title="Eliminar curso"
+                        disabled={deleteMutation.isPending}
+                        onClick={() => handleDelete(course)}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </Button>
                     </div>
                   </CardContent>
@@ -471,6 +679,33 @@ const AdminCourses = () => {
             })}
           </div>
         )}
+
+        <AlertDialog open={!!confirmAction} onOpenChange={(o) => { if (!o) setConfirmAction(null); }}>
+          <AlertDialogContent>
+            {confirmAction && (
+              <>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{confirmActionCopy[confirmAction.type].title}</AlertDialogTitle>
+                  <AlertDialogDescription>{confirmActionCopy[confirmAction.type].description}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    className={confirmAction.type === "eliminar" ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
+                    onClick={() => {
+                      if (confirmAction.type === "duplicar") duplicateMutation.mutate(confirmAction.course);
+                      else if (confirmAction.type === "terminar") terminarMutation.mutate(confirmAction.course.id);
+                      else if (confirmAction.type === "eliminar") deleteMutation.mutate(confirmAction.course.id);
+                      setConfirmAction(null);
+                    }}
+                  >
+                    {confirmActionCopy[confirmAction.type].confirmLabel}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </>
+            )}
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </AppLayout>
   );

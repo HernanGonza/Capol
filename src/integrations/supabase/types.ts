@@ -64,7 +64,9 @@ export type Database = {
           creado_por: string | null
           descripcion: string | null
           estado: Database["public"]["Enums"]["curso_estado"]
+          fecha_fin: string | null
           fecha_inicio: string | null
+          grupo_id: string | null
           horarios: string | null
           id: string
           moneda: string | null
@@ -83,7 +85,9 @@ export type Database = {
           creado_por?: string | null
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["curso_estado"]
+          fecha_fin?: string | null
           fecha_inicio?: string | null
+          grupo_id?: string | null
           horarios?: string | null
           id?: string
           moneda?: string | null
@@ -102,7 +106,9 @@ export type Database = {
           creado_por?: string | null
           descripcion?: string | null
           estado?: Database["public"]["Enums"]["curso_estado"]
+          fecha_fin?: string | null
           fecha_inicio?: string | null
+          grupo_id?: string | null
           horarios?: string | null
           id?: string
           moneda?: string | null
@@ -120,6 +126,13 @@ export type Database = {
             columns: ["creado_por"]
             isOneToOne: false
             referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cursos_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
             referencedColumns: ["id"]
           },
         ]
@@ -317,6 +330,21 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      landing_visits: {
+        Row: {
+          id: string
+          visited_at: string
+        }
+        Insert: {
+          id?: string
+          visited_at?: string
+        }
+        Update: {
+          id?: string
+          visited_at?: string
+        }
+        Relationships: []
       }
       lecciones: {
         Row: {
@@ -849,6 +877,7 @@ export type Database = {
           curso_id: string
         }[]
       }
+      contar_registrados_totales: { Args: never; Returns: number }
       dentro_de_cooldown_mensajes: {
         Args: { p_remitente: string }
         Returns: boolean
@@ -883,7 +912,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "student" | "teacher"
-      curso_estado: "proximamente" | "activo"
+      curso_estado: "proximamente" | "activo" | "finalizado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1012,7 +1041,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "student", "teacher"],
-      curso_estado: ["proximamente", "activo"],
+      curso_estado: ["proximamente", "activo", "finalizado"],
     },
   },
 } as const

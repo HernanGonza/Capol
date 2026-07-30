@@ -59,14 +59,17 @@ const StudentDashboard = () => {
     enabled: !!user,
   });
 
-  // Cursos disponibles (publicados y sin suscripción activa del alumno)
+  // Cursos disponibles para inscripción: solo ediciones "proximamente" — un
+  // curso "activo" ya se está cursando, así que un alumno nuevo no puede
+  // sumarse a mitad de camino, tiene que esperar a la próxima edición.
   const { data: availableCourses, isLoading: loadingAvailable } = useQuery({
     queryKey: ["available-courses", user?.id],
     queryFn: async () => {
       const { data: allCourses } = await supabase
         .from("cursos")
-        .select(`id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, fecha_inicio, horarios, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
+        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, fecha_inicio, horarios, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
         .eq("publicado", true)
+        .eq("estado", "proximamente")
         .order("creado_en", { ascending: false });
 
       const { data: activeSubs } = await supabase
@@ -77,7 +80,17 @@ const StudentDashboard = () => {
         .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
-      return (allCourses || []).filter((c: any) => !enrolledIds.has(c.id));
+      // Si el mismo curso tiene varias ediciones (copias) "próximamente" a
+      // la vez, mostramos una sola por grupo — el alumno no necesita ver
+      // duplicados en el catálogo.
+      const gruposVistos = new Set<string>();
+      return (allCourses || []).filter((c: any) => {
+        if (enrolledIds.has(c.id)) return false;
+        const key = c.grupo_id || c.id;
+        if (gruposVistos.has(key)) return false;
+        gruposVistos.add(key);
+        return true;
+      });
     },
     enabled: !!user,
   });
@@ -273,7 +286,7 @@ const StudentDashboard = () => {
                             <div className="flex items-center gap-1.5 text-[11px] text-primary font-semibold">
                               <Calendar className="w-3 h-3 shrink-0" />
                               <span>
-                                Inicia el {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
+                                Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
                               </span>
                             </div>
                           )}

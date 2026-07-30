@@ -167,7 +167,7 @@ const Auth = () => {
       setAvatarPreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(error?.message || "No se pudo crear la cuenta. Intentá de nuevo.");
     } finally {
       setLoading(false);
     }

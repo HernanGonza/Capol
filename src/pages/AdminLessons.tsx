@@ -5,7 +5,8 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Plus, Calendar, LockOpen, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Calendar, LockOpen, ArrowLeft, Users, MessageSquare } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 
 // Clases viejas guardaban el contenido como texto plano/HTML, no como el JSON
@@ -29,6 +30,16 @@ const AdminLessons = () => {
   const [open, setOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<any>(null);
 
+  const { data: course } = useQuery({
+    queryKey: ["course-details-admin", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("cursos").select("titulo").eq("id", courseId!).single();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!courseId,
+  });
+
   const { data: lessons, isLoading } = useQuery({
     queryKey: ["lecciones", courseId],
     queryFn: async () => {
@@ -41,6 +52,30 @@ const AdminLessons = () => {
       return data;
     },
   });
+
+  // Alumnos inscriptos en este curso (cualquier estado, el admin necesita ver
+  // el panorama completo, no solo los al día). Admin bypasea la RLS de
+  // "perfiles", así que este join directo funciona sin necesitar la función
+  // perfiles_publicos que usan las pantallas de profesor/alumno.
+  const { data: alumnos } = useQuery({
+    queryKey: ["admin-course-students", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("usuario_id, estado, perfiles:usuario_id(nombre_completo, url_avatar)")
+        .eq("curso_id", courseId!)
+        .order("estado");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!courseId,
+  });
+
+  const estadoBadge: Record<string, string> = {
+    active: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
+    expired: "bg-muted text-muted-foreground border-border",
+    cancelled: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
+  };
 
   const openLessonForEdit = (lesson: any) => {
     setEditingLesson(lesson);
@@ -82,7 +117,7 @@ const AdminLessons = () => {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tighter">Gestión de Clases</h1>
+              <h1 className="text-2xl font-bold tracking-tighter">{course?.titulo || "Gestión de Clases"}</h1>
               <p className="text-muted-foreground text-sm">Arma tu clase usando bloques interactivos</p>
             </div>
           </div>
@@ -99,6 +134,41 @@ const AdminLessons = () => {
           nextOrder={lessons?.length || 0}
           onSaved={() => queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] })}
         />
+
+        {/* ALUMNOS INSCRIPTOS */}
+        <Card className="shadow-card overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-4 bg-muted/30 border-b flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              <span className="text-sm font-bold">Alumnos Inscriptos ({alumnos?.length || 0})</span>
+            </div>
+            <div className="divide-y">
+              {alumnos?.map((a: any) => (
+                <div key={a.usuario_id} className="flex items-center justify-between p-3 hover:bg-muted/10 gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {a.perfiles?.url_avatar ? (
+                      <img src={a.perfiles.url_avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
+                        {(a.perfiles?.nombre_completo || "?")[0].toUpperCase()}
+                      </div>
+                    )}
+                    <p className="font-medium truncate text-sm">{a.perfiles?.nombre_completo || "Sin nombre"}</p>
+                    <Badge variant="outline" className={`text-[10px] shrink-0 ${estadoBadge[a.estado || "expired"]}`}>
+                      {a.estado === "active" ? "AL DÍA" : (a.estado || "sin estado").toUpperCase()}
+                    </Badge>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => navigate(`/messages?with=${a.usuario_id}&curso=${courseId}`)}>
+                    <MessageSquare className="w-4 h-4 mr-1" /> Mensaje
+                  </Button>
+                </div>
+              ))}
+              {alumnos?.length === 0 && (
+                <p className="text-center text-sm text-muted-foreground py-6">Todavía no hay alumnos inscriptos en este curso.</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* LISTA DE CLASES CON LÓGICA DE FECHA DINÁMICA */}
         <div className="grid gap-4">

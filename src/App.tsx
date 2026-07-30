@@ -19,6 +19,7 @@ import AdminSubscriptions from "./pages/AdminSubscriptions";
 import AdminFinanzas from "./pages/AdminFinanzas";
 import AdminTeachers from "./pages/AdminTeachers";
 import AdminSolicitudes from "./pages/AdminSolicitudes";
+import AdminMetricas from "./pages/AdminMetricas";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import TeacherLessons from "./pages/TeacherLessons";
 import CourseView from "./pages/CourseView";
@@ -86,6 +87,7 @@ const App = () => (
             <Route path="/admin/subscriptions" element={<ProtectedRoute adminOnly><AdminSubscriptions /></ProtectedRoute>} />
             <Route path="/admin/finanzas" element={<ProtectedRoute adminOnly><AdminFinanzas /></ProtectedRoute>} />
             <Route path="/admin/solicitudes" element={<ProtectedRoute adminOnly><AdminSolicitudes /></ProtectedRoute>} />
+            <Route path="/admin/metricas" element={<ProtectedRoute adminOnly><AdminMetricas /></ProtectedRoute>} />
             <Route path="/admin/teachers" element={<ProtectedRoute adminOnly><AdminTeachers /></ProtectedRoute>} />
             
             {/* Rutas de Profesor */}
