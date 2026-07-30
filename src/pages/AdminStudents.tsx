@@ -61,7 +61,7 @@ const AdminStudents = () => {
   const { data: enrollments } = useQuery({
     queryKey: ["all-enrollments-with-subs"],
     queryFn: async () => {
-      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo), perfiles:usuario_id(nombre_completo)");
+      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo), perfiles:usuario_id(nombre_completo, email)");
       const { data: subs } = await supabase.from("suscripciones").select("*");
       return enr?.map(e => ({
         ...e,
@@ -77,6 +77,7 @@ const AdminStudents = () => {
     return enrollments
       .filter((e: any) => {
         const matchesSearch = (e.perfiles?.nombre_completo || "").toLowerCase().includes(search.toLowerCase()) ||
+                            (e.perfiles?.email || "").toLowerCase().includes(search.toLowerCase()) ||
                             (e.cursos?.titulo || "").toLowerCase().includes(search.toLowerCase());
 
         const subStatus = e.subscription?.estado || "none";
@@ -211,7 +212,7 @@ const AdminStudents = () => {
               <div className="space-y-4 pt-4">
                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>
-                  <SelectContent>{activeStudents.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo}</SelectItem>)}</SelectContent>
+                  <SelectContent>{activeStudents.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo} — {s.email}</SelectItem>)}</SelectContent>
                 </Select>
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
@@ -247,6 +248,7 @@ const AdminStudents = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold truncate">{s.nombre_completo || "Sin nombre"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{s.email}</p>
                       <p className="text-xs text-muted-foreground">{s.dni ? `DNI ${s.dni}` : "Sin DNI cargado"}</p>
                     </div>
                   </div>
@@ -380,6 +382,7 @@ const AdminStudents = () => {
                     </div>
                     <div>
                       <p className="font-bold">{e.perfiles?.nombre_completo}</p>
+                      <p className="text-xs text-muted-foreground">{e.perfiles?.email}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> {e.cursos?.titulo}</p>
                     </div>
                   </div>

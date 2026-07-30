@@ -25,28 +25,15 @@ const AdminSolicitudes = () => {
           *,
           perfiles:usuario_id (
             id, nombre_completo, url_avatar, telefono, biografia,
-            dni, direccion, localidad, provincia, pais
+            dni, direccion, localidad, provincia, pais, email
           ),
           cursos:curso_id (titulo, precio, tipo_precio, cantidad_cuotas, moneda)
         `)
         .order("creado_en", { ascending: false });
       if (error) throw error;
-
-      // Obtener emails desde auth.users para cada solicitud
       return data;
     },
   });
-
-  // Buscar email del alumno cuando abre el modal
-  const fetchEmail = async (usuarioId: string) => {
-    const { data } = await supabase
-      .from("perfiles")
-      .select("id")
-      .eq("id", usuarioId)
-      .single();
-    // El email está en auth.users, lo buscamos via RPC o simplemente mostramos lo que tenemos
-    return null;
-  };
 
   const resolverMutation = useMutation({
     mutationFn: async ({ id, estado, usuarioId, cursoId }: { id: string; estado: string; usuarioId: string; cursoId: string }) => {
@@ -157,6 +144,7 @@ const AdminSolicitudes = () => {
                           </div>
                           <div>
                             <p className="font-bold text-base">{s.perfiles?.nombre_completo || "Alumno"}</p>
+                            <p className="text-xs text-muted-foreground">{s.perfiles?.email}</p>
                             {s.perfiles?.telefono && (
                               <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 <Phone className="w-3 h-3" /> {s.perfiles.telefono}
@@ -214,6 +202,7 @@ const AdminSolicitudes = () => {
                           </div>
                           <div>
                             <p className="font-semibold text-sm">{s.perfiles?.nombre_completo}</p>
+                            <p className="text-xs text-muted-foreground">{s.perfiles?.email}</p>
                             <p className="text-xs text-muted-foreground">{s.cursos?.titulo} · {formatPrecio(s.cursos)}</p>
                           </div>
                         </div>
@@ -255,6 +244,7 @@ const AdminSolicitudes = () => {
                 </div>
                 <div>
                   <h2 className="text-xl font-black">{modalAlumno.perfiles?.nombre_completo}</h2>
+                  <p className="text-xs text-muted-foreground">{modalAlumno.perfiles?.email}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {estadoBadge(modalAlumno.estado)}
                     <span className="text-xs text-muted-foreground">
@@ -279,6 +269,7 @@ const AdminSolicitudes = () => {
               {/* Datos de contacto */}
               <div className="space-y-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Datos de contacto</p>
+                <InfoRow icon={Mail} label="Email" value={modalAlumno.perfiles?.email} />
                 <InfoRow icon={Phone} label="Teléfono" value={modalAlumno.perfiles?.telefono} />
                 <InfoRow icon={CreditCard} label="DNI" value={modalAlumno.perfiles?.dni} />
                 <InfoRow icon={MapPin} label="Dirección" value={[

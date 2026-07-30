@@ -634,6 +634,7 @@ export type Database = {
           creado_en: string | null
           direccion: string | null
           dni: string | null
+          email: string | null
           id: string
           localidad: string | null
           nombre_completo: string | null
@@ -649,6 +650,7 @@ export type Database = {
           creado_en?: string | null
           direccion?: string | null
           dni?: string | null
+          email?: string | null
           id: string
           localidad?: string | null
           nombre_completo?: string | null
@@ -664,6 +666,7 @@ export type Database = {
           creado_en?: string | null
           direccion?: string | null
           dni?: string | null
+          email?: string | null
           id?: string
           localidad?: string | null
           nombre_completo?: string | null

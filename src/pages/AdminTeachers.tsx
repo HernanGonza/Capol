@@ -33,7 +33,8 @@ const AdminTeachers = () => {
           perfiles!user_roles_user_id_fkey (
             id,
             nombre_completo,
-            url_avatar
+            url_avatar,
+            email
           )
         `)
         .eq("rol", "teacher");
@@ -160,9 +161,10 @@ const AdminTeachers = () => {
           id,
           nombre_completo,
           dni,
+          email,
           roles_usuario!user_roles_user_id_fkey (rol)
         `)
-        .or(`nombre_completo.ilike.%${searchEmail}%,dni.ilike.%${searchEmail}%`)
+        .or(`nombre_completo.ilike.%${searchEmail}%,dni.ilike.%${searchEmail}%,email.ilike.%${searchEmail}%`)
         .limit(10);
 
       if (error) throw error;
@@ -198,7 +200,7 @@ const AdminTeachers = () => {
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
-                      placeholder="Nombre o DNI del usuario..."
+                      placeholder="Nombre, DNI o email del usuario..."
                       value={searchEmail}
                       onChange={(e) => setSearchEmail(e.target.value)}
                       className="pl-9"
@@ -216,6 +218,7 @@ const AdminTeachers = () => {
                       >
                         <div>
                           <p className="font-semibold">{user.nombre_completo || "Sin nombre"}</p>
+                          <p className="text-xs text-muted-foreground">{user.email}</p>
                           <p className="text-xs text-muted-foreground">
                             DNI {user.dni || "no cargado"} · {user.roles_usuario?.[0]?.rol || "student"}
                           </p>
@@ -223,7 +226,7 @@ const AdminTeachers = () => {
                         <Button
                           size="sm"
                           onClick={() => {
-                            if (confirm(`¿Convertir a "${user.nombre_completo || "este usuario"}" (DNI ${user.dni || "no cargado"}) en profesor? Va a dejar de figurar como alumno.`)) {
+                            if (confirm(`¿Convertir a "${user.nombre_completo || "este usuario"}" (${user.email}, DNI ${user.dni || "no cargado"}) en profesor? Va a dejar de figurar como alumno.`)) {
                               createTeacherMutation.mutate(user.id);
                             }
                           }}
@@ -273,8 +276,9 @@ const AdminTeachers = () => {
                     </div>
                     <div>
                       <CardTitle className="text-lg font-bold">
-                        {teacher.perfiles?.nombre_completo || "Profesor"}
+                        {teacher.perfiles?.nombre_completo || "Sin nombre"}
                       </CardTitle>
+                      <p className="text-xs text-muted-foreground">{teacher.perfiles?.email}</p>
                       <Badge variant="secondary" className="mt-1">
                         <GraduationCap className="w-3 h-3 mr-1" />
                         Profesor
@@ -339,7 +343,7 @@ const AdminTeachers = () => {
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <p className="text-sm text-muted-foreground">
-                Asignando curso a <strong>{selectedTeacher?.perfiles?.nombre_completo}</strong>
+                Asignando curso a <strong>{selectedTeacher?.perfiles?.nombre_completo}</strong> ({selectedTeacher?.perfiles?.email})
               </p>
               
               <div className="space-y-2">

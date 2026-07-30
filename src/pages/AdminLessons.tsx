@@ -62,7 +62,7 @@ const AdminLessons = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("usuario_id, estado, perfiles:usuario_id(nombre_completo, url_avatar)")
+        .select("usuario_id, estado, perfiles:usuario_id(nombre_completo, url_avatar, email)")
         .eq("curso_id", courseId!)
         .order("estado");
       if (error) throw error;
@@ -153,7 +153,10 @@ const AdminLessons = () => {
                         {(a.perfiles?.nombre_completo || "?")[0].toUpperCase()}
                       </div>
                     )}
-                    <p className="font-medium truncate text-sm">{a.perfiles?.nombre_completo || "Sin nombre"}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate text-sm">{a.perfiles?.nombre_completo || "Sin nombre"}</p>
+                      <p className="text-xs text-muted-foreground truncate">{a.perfiles?.email}</p>
+                    </div>
                     <Badge variant="outline" className={`text-[10px] shrink-0 ${estadoBadge[a.estado || "expired"]}`}>
                       {a.estado === "active" ? "AL DÍA" : (a.estado || "sin estado").toUpperCase()}
                     </Badge>

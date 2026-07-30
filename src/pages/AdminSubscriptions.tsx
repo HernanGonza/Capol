@@ -114,7 +114,7 @@ const AdminSubscriptions = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("*, perfiles:usuario_id(nombre_completo), cursos:curso_id(titulo)")
+        .select("*, perfiles:usuario_id(nombre_completo, email), cursos:curso_id(titulo)")
         .order("creado_en", { ascending: false });
       
       if (error) throw error;
@@ -129,10 +129,11 @@ const AdminSubscriptions = () => {
     
     return subscriptions.filter((sub: any) => {
       const fullName = (sub.perfiles?.nombre_completo || "").toLowerCase();
+      const email = (sub.perfiles?.email || "").toLowerCase();
       const courseTitle = (sub.cursos?.titulo || "").toLowerCase();
       const searchTerm = search.toLowerCase();
-      
-      const matchesSearch = fullName.includes(searchTerm) || courseTitle.includes(searchTerm);
+
+      const matchesSearch = fullName.includes(searchTerm) || email.includes(searchTerm) || courseTitle.includes(searchTerm);
       const matchesStatus = statusFilter === "all" || sub.estado === statusFilter;
       
       return matchesSearch && matchesStatus;
@@ -284,7 +285,7 @@ const AdminSubscriptions = () => {
                     <Select value={form.usuario_id} onValueChange={(v) => setForm({ ...form, usuario_id: v })} disabled={!!editingId}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>
                       <SelectContent>
-                        {students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo || s.id}</SelectItem>)}
+                        {students?.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo || "Sin nombre"} — {s.email}</SelectItem>)}
                       </SelectContent>
                     </Select>
                   </div>
@@ -340,7 +341,7 @@ const AdminSubscriptions = () => {
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input 
-                placeholder="Buscar por alumno o curso..." 
+                placeholder="Buscar por alumno, email o curso..."
                 className="pl-9 bg-background" 
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -374,6 +375,7 @@ const AdminSubscriptions = () => {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-1">
                       <h3 className="font-bold text-lg">{(sub.perfiles as any)?.nombre_completo}</h3>
+                      <span className="text-sm text-muted-foreground">{(sub.perfiles as any)?.email}</span>
                       <Badge variant="outline" className={statusColor[sub.estado || "expired"]}>
                         {sub.estado === 'active' ? 'AL DÍA' : (sub.estado || "sin estado").toUpperCase()}
                       </Badge>
