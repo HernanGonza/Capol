@@ -1,4 +1,4 @@
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -17,13 +17,14 @@ import {
   UserCircle,
   MessageSquare,
 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const { user, role, profile, signOut } = useAuth();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const isAdmin = role === "admin";
@@ -53,8 +54,58 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       return count || 0;
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
+
+  // Actividad nueva en los foros de curso: no hay "leido" por mensaje (no
+  // tiene sentido en uno grupal), así que se compara contra la marca de
+  // "hasta cuándo leí este foro" de cada curso (foro_ultima_lectura).
+  const { data: foroNoLeidos } = useQuery({
+    queryKey: ["foro-no-leidos-count", user?.id],
+    queryFn: async () => {
+      const [{ data: ultimaLectura }, { data: mensajesForo }] = await Promise.all([
+        supabase.from("foro_ultima_lectura").select("curso_id, leido_hasta").eq("usuario_id", user!.id),
+        supabase
+          .from("mensajes")
+          .select("curso_id, creado_en")
+          .is("destinatario_id", null)
+          .neq("remitente_id", user!.id)
+          .eq("eliminado", false),
+      ]);
+      const map = new Map((ultimaLectura || []).map((r) => [r.curso_id, r.leido_hasta]));
+      let count = 0;
+      for (const m of mensajesForo || []) {
+        const last = m.curso_id ? map.get(m.curso_id) : null;
+        if (!last || new Date(m.creado_en) > new Date(last)) count++;
+      }
+      return count;
+    },
+    enabled: !!user,
+    refetchInterval: 60000,
+  });
+
+  // Una sola conexión Realtime por sesión logueada, escuchando cambios en
+  // "mensajes". Supabase Realtime respeta la RLS de la tabla: cada cliente
+  // solo recibe los eventos de filas que ya podría ver por su propia policy
+  // de SELECT, así que no hace falta duplicar acá ningún filtro de permisos.
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel(`mensajes-realtime-${user.id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "mensajes" }, () => {
+        queryClient.invalidateQueries({ queryKey: ["mensajes-no-leidos-count", user.id] });
+        queryClient.invalidateQueries({ queryKey: ["foro-no-leidos-count", user.id] });
+        queryClient.invalidateQueries({ queryKey: ["mensajes", user.id] });
+        queryClient.invalidateQueries({ queryKey: ["foro-curso"] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id, queryClient]);
+
+  const mensajesBadge = (mensajesNoLeidos || 0) + (foroNoLeidos || 0);
 
   // Definición de rutas según el rol
   const roleNavItems = isAdmin
@@ -69,17 +120,17 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         // (docentes_cursos) — necesita el mismo acceso que un profesor a sus
         // clases en vivo, no solo la gestión administrativa.
         { to: "/teacher", label: "Mis Clases (Profesor)", icon: GraduationCap },
-        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesNoLeidos },
+        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesBadge },
       ]
     : isTeacher
     ? [
         { to: "/teacher", label: "Mi Panel", icon: LayoutDashboard },
-        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesNoLeidos },
+        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesBadge },
       ]
     : [
         { to: "/dashboard", label: "Mis Cursos", icon: BookOpen },
         { to: "/student/subscriptions", label: "Mis Suscripciones", icon: CreditCard },
-        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesNoLeidos },
+        { to: "/messages", label: "Mensajes", icon: MessageSquare, badge: mensajesBadge },
       ];
 
   // "Mi Perfil" se agrega al final para cualquier rol — no forma parte de la

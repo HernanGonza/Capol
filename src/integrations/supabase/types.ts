@@ -222,6 +222,39 @@ export type Database = {
           },
         ]
       }
+      foro_ultima_lectura: {
+        Row: {
+          curso_id: string
+          leido_hasta: string
+          usuario_id: string
+        }
+        Insert: {
+          curso_id: string
+          leido_hasta?: string
+          usuario_id: string
+        }
+        Update: {
+          curso_id?: string
+          leido_hasta?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "foro_ultima_lectura_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "foro_ultima_lectura_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inscripciones: {
         Row: {
           completado_en: string | null
@@ -317,30 +350,78 @@ export type Database = {
           },
         ]
       }
+      mensajeria_bloqueados: {
+        Row: {
+          bloqueado_por: string | null
+          creado_en: string
+          motivo: string | null
+          usuario_id: string
+        }
+        Insert: {
+          bloqueado_por?: string | null
+          creado_en?: string
+          motivo?: string | null
+          usuario_id: string
+        }
+        Update: {
+          bloqueado_por?: string | null
+          creado_en?: string
+          motivo?: string | null
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensajeria_bloqueados_bloqueado_por_fkey"
+            columns: ["bloqueado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensajeria_bloqueados_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: true
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       mensajes: {
         Row: {
+          adjunto_nombre: string | null
+          adjunto_path: string | null
           contenido: string
           creado_en: string
           curso_id: string | null
-          destinatario_id: string
+          destinatario_id: string | null
+          eliminado: boolean
+          fijado: boolean
           id: string
           leido: boolean
           remitente_id: string
         }
         Insert: {
+          adjunto_nombre?: string | null
+          adjunto_path?: string | null
           contenido: string
           creado_en?: string
           curso_id?: string | null
-          destinatario_id: string
+          destinatario_id?: string | null
+          eliminado?: boolean
+          fijado?: boolean
           id?: string
           leido?: boolean
           remitente_id: string
         }
         Update: {
+          adjunto_nombre?: string | null
+          adjunto_path?: string | null
           contenido?: string
           creado_en?: string
           curso_id?: string | null
-          destinatario_id?: string
+          destinatario_id?: string | null
+          eliminado?: boolean
+          fijado?: boolean
           id?: string
           leido?: boolean
           remitente_id?: string
@@ -395,6 +476,48 @@ export type Database = {
           nombre?: string
         }
         Relationships: []
+      }
+      mensajes_reportados: {
+        Row: {
+          creado_en: string
+          id: string
+          mensaje_id: string
+          motivo: string | null
+          reportado_por: string
+          resuelto: boolean
+        }
+        Insert: {
+          creado_en?: string
+          id?: string
+          mensaje_id: string
+          motivo?: string | null
+          reportado_por: string
+          resuelto?: boolean
+        }
+        Update: {
+          creado_en?: string
+          id?: string
+          mensaje_id?: string
+          motivo?: string | null
+          reportado_por?: string
+          resuelto?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mensajes_reportados_mensaje_id_fkey"
+            columns: ["mensaje_id"]
+            isOneToOne: false
+            referencedRelation: "mensajes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mensajes_reportados_reportado_por_fkey"
+            columns: ["reportado_por"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       perfiles: {
         Row: {
@@ -647,12 +770,36 @@ export type Database = {
           curso_id: string
         }[]
       }
+      dentro_de_cooldown_mensajes: {
+        Args: { p_remitente: string }
+        Returns: boolean
+      }
+      eliminar_mensaje_propio: {
+        Args: { p_mensaje_id: string }
+        Returns: undefined
+      }
+      existe_hilo_mensajes: {
+        Args: { user_a: string; user_b: string }
+        Returns: boolean
+      }
+      fijar_mensaje_foro: {
+        Args: { p_fijar: boolean; p_mensaje_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           role_to_check: Database["public"]["Enums"]["app_role"]
           user_id: string
         }
         Returns: boolean
+      }
+      perfiles_publicos: {
+        Args: { p_ids: string[] }
+        Returns: {
+          id: string
+          nombre_completo: string
+          url_avatar: string
+        }[]
       }
     }
     Enums: {

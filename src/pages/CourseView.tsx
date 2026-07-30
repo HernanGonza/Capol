@@ -5,16 +5,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare } from "lucide-react";
+import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare, Users } from "lucide-react";
 import { useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
+import CourseForumDialog from "@/components/CourseForumDialog";
 
 const CourseView = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const { user, role, profile } = useAuth();
   const navigate = useNavigate();
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
+  const [forumOpen, setForumOpen] = useState(false);
 
   // 1. Verificar Suscripción Activa
   const { data: subscription, isLoading: isLoadingSub } = useQuery({
@@ -210,6 +212,9 @@ const CourseView = () => {
             <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <Button variant="outline" onClick={() => setForumOpen(true)}>
+              <Users className="w-4 h-4 mr-2" /> Foro del Curso
+            </Button>
             {!isStaffPreview && !!courseTeachers?.length && (
               <Button
                 variant="outline"
@@ -307,6 +312,13 @@ const CourseView = () => {
           )}
         </div>
       </div>
+
+      <CourseForumDialog
+        open={forumOpen}
+        onOpenChange={setForumOpen}
+        courseId={courseId!}
+        courseTitle={course?.titulo}
+      />
     </AppLayout>
   );
 };

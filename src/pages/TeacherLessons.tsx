@@ -47,6 +47,7 @@ import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 import RevisarEntregasDialog from "@/components/RevisarEntregasDialog";
+import CourseForumDialog from "@/components/CourseForumDialog";
 
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -59,6 +60,7 @@ const TeacherLessons = () => {
   const [blockEditorOpen, setBlockEditorOpen] = useState(false);
   const [blockEditorLesson, setBlockEditorLesson] = useState<any>(null);
   const [reviewLesson, setReviewLesson] = useState<any>(null);
+  const [forumOpen, setForumOpen] = useState(false);
   const [showJitsi, setShowJitsi] = useState(false);
   const [activeRoom, setActiveRoom] = useState<string>("");
   const [activeLesson, setActiveLesson] = useState<any>(null);
@@ -112,7 +114,7 @@ const TeacherLessons = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("usuario_id, perfiles:usuario_id(nombre_completo, url_avatar)")
+        .select("usuario_id")
         .eq("curso_id", courseId!)
         .eq("estado", "active");
       if (error) throw error;
@@ -120,6 +122,22 @@ const TeacherLessons = () => {
     },
     enabled: !!courseId && hasAccess,
   });
+
+  // "perfiles" solo deja ver la fila propia (o todas si sos admin) — para
+  // mostrar nombre/avatar de los alumnos hay que resolverlos aparte con una
+  // función que expone esos dos datos no sensibles de cualquier usuario.
+  const { data: studentProfiles } = useQuery({
+    queryKey: ["perfiles-publicos", (studentsInCourse || []).map((s) => s.usuario_id)],
+    queryFn: async () => {
+      const ids = (studentsInCourse || []).map((s) => s.usuario_id).filter(Boolean) as string[];
+      const { data, error } = await supabase.rpc("perfiles_publicos", { p_ids: ids });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!studentsInCourse?.length,
+  });
+
+  const studentProfileMap = new Map((studentProfiles || []).map((p) => [p.id, p]));
 
   // Obtener lecciones
   const { data: lessons, isLoading } = useQuery({
@@ -406,6 +424,10 @@ const TeacherLessons = () => {
             </div>
           </div>
           
+          <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setForumOpen(true)}>
+            <Users className="w-4 h-4 mr-2" /> Foro del Curso
+          </Button>
           <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm(); }}>
             <DialogTrigger asChild>
               <Button className="gradient-primary text-primary-foreground font-semibold px-6 shadow-lg shadow-primary/20">
@@ -491,6 +513,7 @@ const TeacherLessons = () => {
               </form>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Alumnos inscriptos: acceso rápido para mandarles un mensaje */}
@@ -503,17 +526,19 @@ const TeacherLessons = () => {
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {studentsInCourse?.map((s: any) => (
+              {studentsInCourse?.map((s: any) => {
+                const perfil = studentProfileMap.get(s.usuario_id);
+                return (
                 <div key={s.usuario_id} className="flex items-center justify-between p-3 hover:bg-muted/10 gap-3">
                   <div className="flex items-center gap-3 min-w-0">
-                    {s.perfiles?.url_avatar ? (
-                      <img src={s.perfiles.url_avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
+                    {perfil?.url_avatar ? (
+                      <img src={perfil.url_avatar} alt="" className="w-8 h-8 rounded-full object-cover shrink-0" />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm shrink-0">
-                        {(s.perfiles?.nombre_completo || "?")[0].toUpperCase()}
+                        {(perfil?.nombre_completo || "?")[0].toUpperCase()}
                       </div>
                     )}
-                    <p className="font-medium truncate text-sm">{s.perfiles?.nombre_completo || "Sin nombre"}</p>
+                    <p className="font-medium truncate text-sm">{perfil?.nombre_completo || "Sin nombre"}</p>
                   </div>
                   <Button
                     variant="outline"
@@ -523,7 +548,8 @@ const TeacherLessons = () => {
                     <MessageSquare className="w-4 h-4 mr-1" /> Mensaje
                   </Button>
                 </div>
-              ))}
+                );
+              })}
               {studentsInCourse?.length === 0 && (
                 <p className="text-center text-sm text-muted-foreground py-6">Todavía no hay alumnos inscriptos en este curso.</p>
               )}
@@ -728,6 +754,12 @@ const TeacherLessons = () => {
         open={!!reviewLesson}
         onOpenChange={(o) => !o && setReviewLesson(null)}
         lesson={reviewLesson}
+      />
+      <CourseForumDialog
+        open={forumOpen}
+        onOpenChange={setForumOpen}
+        courseId={courseId!}
+        courseTitle={course?.titulo}
       />
       {endClassDialog}
     </AppLayout>

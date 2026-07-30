@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare } from "lucide-react";
+import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck } from "lucide-react";
 
 const AdminStudents = () => {
   const queryClient = useQueryClient();
@@ -39,6 +39,16 @@ const AdminStudents = () => {
   });
 
   const activeStudents = useMemo(() => students?.filter((s) => s.activo) || [], [students]);
+
+  // Usuarios con la mensajería bloqueada (no pueden mandar mensajes directos ni postear en foros)
+  const { data: bloqueados } = useQuery({
+    queryKey: ["mensajeria-bloqueados"],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("mensajeria_bloqueados").select("usuario_id");
+      if (error) throw error;
+      return new Set((data || []).map((b) => b.usuario_id));
+    },
+  });
 
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
@@ -165,6 +175,25 @@ const AdminStudents = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  // Banear/desbanear de mensajería: le impide mandar mensajes directos o
+  // postear en foros sin tocar su cuenta ni sus suscripciones.
+  const toggleBanMutation = useMutation({
+    mutationFn: async ({ userId, bloqueado }: { userId: string; bloqueado: boolean }) => {
+      if (bloqueado) {
+        const { error } = await supabase.from("mensajeria_bloqueados").delete().eq("usuario_id", userId);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("mensajeria_bloqueados").insert({ usuario_id: userId });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ["mensajeria-bloqueados"] });
+      toast.success(vars.bloqueado ? "Mensajería desbloqueada" : "Mensajería bloqueada: ya no puede mandar mensajes ni postear en foros");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -233,6 +262,29 @@ const AdminStudents = () => {
                       onClick={() => navigate(`/messages?with=${s.id}`)}
                     >
                       <MessageSquare className="w-4 h-4 mr-1" /> Mensaje
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className={
+                        bloqueados?.has(s.id)
+                          ? "text-emerald-700 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                          : "text-destructive hover:bg-destructive/10"
+                      }
+                      disabled={toggleBanMutation.isPending}
+                      onClick={() => {
+                        const bloqueado = !!bloqueados?.has(s.id);
+                        const msg = bloqueado
+                          ? `¿Desbloquear la mensajería de ${s.nombre_completo}? Va a poder volver a mandar mensajes.`
+                          : `¿Banear la mensajería de ${s.nombre_completo}? No va a poder mandar mensajes directos ni postear en foros. Su cuenta y suscripciones no se ven afectadas.`;
+                        if (confirm(msg)) toggleBanMutation.mutate({ userId: s.id, bloqueado });
+                      }}
+                    >
+                      {bloqueados?.has(s.id) ? (
+                        <><ShieldCheck className="w-4 h-4 mr-1" /> Desbanear</>
+                      ) : (
+                        <><Ban className="w-4 h-4 mr-1" /> Banear</>
+                      )}
                     </Button>
                     {s.activo && (
                       <Button

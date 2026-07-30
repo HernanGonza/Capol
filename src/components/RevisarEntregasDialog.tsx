@@ -24,7 +24,7 @@ const RevisarEntregasDialog = ({ open, onOpenChange, lesson }: RevisarEntregasDi
     queryFn: async () => {
       const { data, error } = await supabase
         .from("entregas_trabajo_final")
-        .select("*, perfiles:usuario_id(nombre_completo, url_avatar)")
+        .select("*")
         .eq("leccion_id", lesson!.id)
         .order("creado_en", { ascending: true });
       if (error) throw error;
@@ -41,6 +41,22 @@ const RevisarEntregasDialog = ({ open, onOpenChange, lesson }: RevisarEntregasDi
     },
     enabled: open && !!lesson,
   });
+
+  // "perfiles" solo deja ver la fila propia (o todas si sos admin) — para
+  // mostrar el nombre del alumno que entregó hace falta resolverlo aparte con
+  // una función que expone nombre/avatar de cualquier usuario.
+  const { data: perfilesPublicos } = useQuery({
+    queryKey: ["perfiles-publicos", (entregas || []).map((e: any) => e.usuario_id)],
+    queryFn: async () => {
+      const ids = Array.from(new Set((entregas || []).map((e: any) => e.usuario_id)));
+      const { data, error } = await supabase.rpc("perfiles_publicos", { p_ids: ids });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!entregas?.length,
+  });
+
+  const profileMap = new Map((perfilesPublicos || []).map((p) => [p.id, p]));
 
   // Los archivos están en un bucket privado — para poder abrirlos hace falta
   // una URL firmada (con expiración), armada al vuelo para cada entrega.
@@ -94,7 +110,7 @@ const RevisarEntregasDialog = ({ open, onOpenChange, lesson }: RevisarEntregasDi
                   <User className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-bold truncate">{entrega.perfiles?.nombre_completo || "Alumno"}</p>
+                  <p className="font-bold truncate">{profileMap.get(entrega.usuario_id)?.nombre_completo || "Alumno"}</p>
                   <a
                     href={entrega.tipo === "link" ? entrega.url : (signedUrls[entrega.id] || "#")}
                     target="_blank"
