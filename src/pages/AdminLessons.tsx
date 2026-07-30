@@ -8,6 +8,19 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Calendar, LockOpen, ArrowLeft } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 
+// Clases viejas guardaban el contenido como texto plano/HTML, no como el JSON
+// de bloques actual (ver el mismo caso ya contemplado en LessonBlocks.tsx) —
+// sin este try/catch, abrir el listado de una de esas clases rompía toda la
+// página.
+const contarBloques = (content: string | null) => {
+  try {
+    const parsed = JSON.parse(content || "[]");
+    return Array.isArray(parsed) ? parsed.length : 1;
+  } catch {
+    return content ? 1 : 0;
+  }
+};
+
 const AdminLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -100,7 +113,7 @@ const AdminLessons = () => {
                     <div>
                       <h3 className="font-bold text-foreground text-lg">{lesson.titulo}</h3>
                       <div className="flex items-center gap-3">
-                        <p className="text-xs text-muted-foreground">{JSON.parse(lesson.content || "[]").length} bloque(s)</p>
+                        <p className="text-xs text-muted-foreground">{contarBloques(lesson.content)} bloque(s)</p>
 
                         {lesson.fecha_desbloqueo && (
                           unlocked ? (

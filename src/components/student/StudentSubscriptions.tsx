@@ -60,10 +60,16 @@ const StudentSubscriptions = () => {
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                           <CreditCard className="w-4 h-4" />
-                          ${sub.price} {sub.moneda || "ARS"} / mes
-                          <span className="text-muted-foreground/70">
-                            (≈ USD {toUsd(sub.price || 0, sub.moneda || "ARS").toLocaleString("es-AR", { maximumFractionDigits: 2 })})
-                          </span>
+                          {sub.price != null ? (
+                            <>
+                              ${sub.price} {sub.moneda || "ARS"} / mes
+                              <span className="text-muted-foreground/70">
+                                (≈ USD {toUsd(sub.price, sub.moneda || "ARS").toLocaleString("es-AR", { maximumFractionDigits: 2 })})
+                              </span>
+                            </>
+                          ) : (
+                            "Monto no cargado"
+                          )}
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-4 h-4" />

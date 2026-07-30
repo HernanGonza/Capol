@@ -226,7 +226,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         {/* Navegación Principal */}
         <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {navItems.map((item) => {
-            const active = location.pathname === item.to || (item.to !== "/dashboard" && item.to !== "/teacher" && location.pathname.startsWith(item.to));
+            const active = location.pathname === item.to || (item.to !== "/dashboard" && location.pathname.startsWith(item.to));
             return (
               <Link
                 key={item.to}

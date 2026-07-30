@@ -360,7 +360,10 @@ const Messages = () => {
       const { error } = await supabase.rpc("fijar_mensaje_foro", { p_mensaje_id: mensajeId, p_fijar: fijar });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["foro-curso"] });
+    },
     onError: (e: any) => toast.error(e.message || "No se pudo fijar el mensaje"),
   });
 
@@ -369,7 +372,10 @@ const Messages = () => {
       const { error } = await supabase.rpc("eliminar_mensaje_propio", { p_mensaje_id: mensajeId });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["foro-curso"] });
+    },
     onError: (e: any) => toast.error(e.message || "No se pudo borrar el mensaje"),
   });
 
@@ -397,6 +403,7 @@ const Messages = () => {
   const handleClose = (open: boolean) => {
     if (!open) {
       setSelectedKey(null);
+      setReply("");
       setFile(null);
       if (withParam) {
         const next = new URLSearchParams(searchParams);

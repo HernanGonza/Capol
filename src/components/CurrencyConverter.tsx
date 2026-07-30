@@ -98,7 +98,7 @@ const CurrencyConverter = ({ className, compact }: CurrencyConverterProps) => {
             <Input
               type="number"
               className="bg-background"
-              value={local ? local.toFixed(2) : ""}
+              value={usd !== "" ? local.toFixed(2) : ""}
               onChange={(e) => handleLocalChange(e.target.value)}
               placeholder="0.00"
             />

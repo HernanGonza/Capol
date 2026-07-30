@@ -51,7 +51,7 @@ const AdminSubscriptions = () => {
     monto: number;
   }) => {
     const { data: config } = await supabase.from("configuracion_financiera").select("*").single();
-    await supabase.from("pagos").insert({
+    const { error } = await supabase.from("pagos").insert({
       usuario_id,
       curso_id,
       suscripcion_id,
@@ -59,6 +59,7 @@ const AdminSubscriptions = () => {
       costo_publicidad_ars: config?.costo_publicidad_ars ?? 5000,
       costo_plataforma_ars: config?.costo_plataforma_ars ?? 4500,
     });
+    if (error) throw error;
     queryClient.invalidateQueries({ queryKey: ["pagos"] });
   };
 
@@ -217,12 +218,16 @@ const AdminSubscriptions = () => {
       return;
     }
 
-    await registrarPago({
-      usuario_id: sub.usuario_id,
-      curso_id: sub.curso_id,
-      suscripcion_id: sub.id,
-      monto: sub.price,
-    });
+    try {
+      await registrarPago({
+        usuario_id: sub.usuario_id,
+        curso_id: sub.curso_id,
+        suscripcion_id: sub.id,
+        monto: sub.price || 0,
+      });
+    } catch (e: any) {
+      toast.error("La suscripción se renovó, pero no se pudo registrar el pago en Finanzas: " + e.message);
+    }
 
     queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
     queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
@@ -369,8 +374,8 @@ const AdminSubscriptions = () => {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-1">
                       <h3 className="font-bold text-lg">{(sub.perfiles as any)?.nombre_completo}</h3>
-                      <Badge variant="outline" className={statusColor[sub.estado]}>
-                        {sub.estado === 'active' ? 'AL DÍA' : sub.estado.toUpperCase()}
+                      <Badge variant="outline" className={statusColor[sub.estado || "expired"]}>
+                        {sub.estado === 'active' ? 'AL DÍA' : (sub.estado || "sin estado").toUpperCase()}
                       </Badge>
                       {isNearExp && (
                         <Badge className="bg-amber-500 text-white border-none animate-pulse">

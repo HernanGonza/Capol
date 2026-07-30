@@ -291,11 +291,11 @@ const AdminCourses = () => {
                         <option value="clase">Por clase</option>
                       </select>
                       {form.tipo_precio === "cuotas" && (
-                        <Input type="number" min="2" max="36" placeholder="Cant. cuotas"
+                        <Input required type="number" min="2" max="36" placeholder="Cant. cuotas"
                           value={form.cantidad_cuotas} onChange={(e) => setForm({ ...form, cantidad_cuotas: e.target.value })} />
                       )}
                       {form.tipo_precio === "clase" && (
-                        <Input type="number" min="1" max="200" placeholder="Cant. clases"
+                        <Input required type="number" min="1" max="200" placeholder="Cant. clases"
                           value={form.cantidad_cuotas} onChange={(e) => setForm({ ...form, cantidad_cuotas: e.target.value })} />
                       )}
                     </div>

@@ -155,6 +155,16 @@ const Auth = () => {
 
       toast.success("¡Cuenta creada! Revisá tu email para confirmar.");
       setIsLogin(true);
+      // Si vuelve a "Crear Cuenta" para registrar a otra persona en la misma
+      // sesión del navegador, no puede quedar arrastrando los datos (y la
+      // foto) de la cuenta que se acaba de crear.
+      setForm({
+        nombre_completo: "", email: "", password: "", confirmar_password: "",
+        telefono: "", dni: "", direccion: "", localidad: "", provincia: "", pais: "Argentina",
+      });
+      setAvatarFile(null);
+      setAvatarPreview(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: any) {
       toast.error(error.message);
     } finally {

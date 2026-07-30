@@ -95,6 +95,7 @@ const StudentDashboard = () => {
   // Prefijo para "cuotas"/"clase" (ej: "3x", "8 clases x"); el monto en sí
   // se muestra con PriceTag, que lo convierte a la moneda del alumno.
   const precioPrefijo = (course: any) => {
+    if (!course.cantidad_cuotas) return "";
     if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x `;
     if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x `;
     return "";

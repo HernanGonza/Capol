@@ -108,7 +108,10 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
       const { error } = await supabase.rpc("fijar_mensaje_foro", { p_mensaje_id: mensajeId, p_fijar: fijar });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["foro-curso", courseId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foro-curso", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+    },
     onError: (e: any) => toast.error(e.message || "No se pudo fijar el mensaje"),
   });
 
@@ -117,7 +120,10 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
       const { error } = await supabase.rpc("eliminar_mensaje_propio", { p_mensaje_id: mensajeId });
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["foro-curso", courseId] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["foro-curso", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+    },
     onError: (e: any) => toast.error(e.message || "No se pudo borrar el mensaje"),
   });
 
