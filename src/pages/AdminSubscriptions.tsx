@@ -235,7 +235,7 @@ const AdminSubscriptions = () => {
       usuario_id: sub.usuario_id,
       curso_id: sub.curso_id,
       nombre_plan: sub.nombre_plan,
-      price: sub.price.toString(),
+      price: sub.price != null ? sub.price.toString() : "",
       estado: sub.estado,
       inicio_en: sub.inicio_en ? format(parseISO(sub.inicio_en), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       proxima_fecha_pago: sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "yyyy-MM-dd") : "",
@@ -379,8 +379,10 @@ const AdminSubscriptions = () => {
                       )}
                     </div>
                     <p className="text-sm text-muted-foreground flex items-center gap-2">
-                      <BookOpen className="w-4 h-4" /> {(sub.cursos as any)?.title} 
-                      <span className="text-foreground font-bold ml-2">${sub.price}</span>
+                      <BookOpen className="w-4 h-4" /> {(sub.cursos as any)?.titulo || "Curso eliminado"}
+                      <span className="text-foreground font-bold ml-2">
+                        {sub.price != null ? `$${sub.price}` : "Sin monto cargado"}
+                      </span>
                     </p>
                   </div>
 
