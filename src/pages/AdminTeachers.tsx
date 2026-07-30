@@ -71,22 +71,6 @@ const AdminTeachers = () => {
     },
   });
 
-  // Buscar usuario por email
-  const searchMutation = useMutation({
-    mutationFn: async (email: string) => {
-      const { data: authUser } = await supabase.auth.admin.listUsers();
-      // En producción, necesitarías un edge function para esto
-      // Por ahora buscaremos en profiles
-      const { data, error } = await supabase
-        .from("perfiles")
-        .select("id, nombre_completo")
-        .ilike("nombre_completo", `%${email}%`);
-      
-      if (error) throw error;
-      return data;
-    },
-  });
-
   // Crear profesor (cambiar rol de un usuario existente)
   const createTeacherMutation = useMutation({
     mutationFn: async (userId: string) => {
@@ -161,24 +145,28 @@ const AdminTeachers = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
-  // Obtener usuarios que podrían ser profesores (estudiantes)
+  // Obtener usuarios que podrían ser profesores (estudiantes). Busca por
+  // nombre O por DNI — el nombre solo no alcanza para distinguir entre
+  // personas con nombres iguales o parecidos, y fue justamente lo que
+  // permitió convertir en profesor a la persona equivocada por accidente.
   const { data: potentialTeachers } = useQuery({
     queryKey: ["potential-teachers", searchEmail],
     queryFn: async () => {
       if (!searchEmail || searchEmail.length < 2) return [];
-      
+
       const { data, error } = await supabase
         .from("perfiles")
         .select(`
           id,
           nombre_completo,
+          dni,
           roles_usuario!user_roles_user_id_fkey (rol)
         `)
-        .ilike("nombre_completo", `%${searchEmail}%`)
+        .or(`nombre_completo.ilike.%${searchEmail}%,dni.ilike.%${searchEmail}%`)
         .limit(10);
 
       if (error) throw error;
-      
+
       // Filtrar los que ya son profesores
       return data.filter(p => !p.roles_usuario?.some((r: any) => r.rol === "teacher"));
     },
@@ -209,8 +197,8 @@ const AdminTeachers = () => {
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Buscar Usuario</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input 
-                      placeholder="Nombre del usuario..." 
+                    <Input
+                      placeholder="Nombre o DNI del usuario..."
                       value={searchEmail}
                       onChange={(e) => setSearchEmail(e.target.value)}
                       className="pl-9"
@@ -222,19 +210,23 @@ const AdminTeachers = () => {
                 {potentialTeachers && potentialTeachers.length > 0 && (
                   <div className="space-y-2 max-h-60 overflow-y-auto">
                     {potentialTeachers.map((user) => (
-                      <div 
+                      <div
                         key={user.id}
                         className="flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 transition-colors"
                       >
                         <div>
                           <p className="font-semibold">{user.nombre_completo || "Sin nombre"}</p>
                           <p className="text-xs text-muted-foreground">
-                            {user.roles_usuario?.[0]?.rol || "student"}
+                            DNI {user.dni || "no cargado"} · {user.roles_usuario?.[0]?.rol || "student"}
                           </p>
                         </div>
-                        <Button 
-                          size="sm" 
-                          onClick={() => createTeacherMutation.mutate(user.id)}
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (confirm(`¿Convertir a "${user.nombre_completo || "este usuario"}" (DNI ${user.dni || "no cargado"}) en profesor? Va a dejar de figurar como alumno.`)) {
+                              createTeacherMutation.mutate(user.id);
+                            }
+                          }}
                           disabled={createTeacherMutation.isPending}
                         >
                           <Plus className="w-4 h-4 mr-1" /> Hacer Profesor

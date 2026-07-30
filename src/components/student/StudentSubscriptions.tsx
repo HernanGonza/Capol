@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
 
 const StudentSubscriptions = () => {
   const { user } = useAuth();
+  const { toUsd } = useCurrencyConversion();
 
   const { data: subscriptions, isLoading } = useQuery({
     queryKey: ["student-billing", user?.id],
@@ -57,8 +59,11 @@ const StudentSubscriptions = () => {
                       </div>
                       <div className="flex items-center gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4" /> 
-                          ${sub.price} / mes
+                          <CreditCard className="w-4 h-4" />
+                          ${sub.price} {sub.moneda || "ARS"} / mes
+                          <span className="text-muted-foreground/70">
+                            (≈ USD {toUsd(sub.price || 0, sub.moneda || "ARS").toLocaleString("es-AR", { maximumFractionDigits: 2 })})
+                          </span>
                         </span>
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-4 h-4" />

@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openCertificate } from "@/lib/certificate";
+import PriceTag from "@/components/PriceTag";
 
 const StudentDashboard = () => {
   const { user, profile } = useAuth();
@@ -91,14 +92,12 @@ const StudentDashboard = () => {
     },
   });
 
-  const formatPrecio = (course: any) => {
-    if (!course?.precio) return null;
-    const s = course.moneda === "USD" ? "U$S" : course.moneda === "EUR" ? "€" : "$";
-    const m = new Intl.NumberFormat("es-AR").format(course.precio);
-    if (course.tipo_precio === "mensual") return `${s} ${m}/mes`;
-    if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x ${s} ${m}`;
-    if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x ${s} ${m}`;
-    return `${s} ${m}`;
+  // Prefijo para "cuotas"/"clase" (ej: "3x", "8 clases x"); el monto en sí
+  // se muestra con PriceTag, que lo convierte a la moneda del alumno.
+  const precioPrefijo = (course: any) => {
+    if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x `;
+    if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x `;
+    return "";
   };
 
   const handleSolicitar = async () => {
@@ -286,9 +285,15 @@ const StudentDashboard = () => {
                         </div>
                       )}
                       <div className="flex items-center justify-between">
-                        {formatPrecio(course)
-                          ? <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full"><DollarSign className="w-3 h-3" />{formatPrecio(course)}</span>
-                          : <span className="text-xs text-muted-foreground">Consultar precio</span>}
+                        {course.precio ? (
+                          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
+                            <DollarSign className="w-3 h-3" />
+                            {precioPrefijo(course)}
+                            <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} />
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">Consultar precio</span>
+                        )}
                         <button
                           onClick={() => setModalCourse(course)}
                           className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-3 py-1.5 rounded-lg flex items-center gap-1"
@@ -331,7 +336,14 @@ const StudentDashboard = () => {
                   </div>
                   <div>
                     <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wide">Precio del curso</p>
-                    <p className="font-black text-xl text-emerald-800 dark:text-emerald-300">{formatPrecio(modalCourse)}</p>
+                    <p className="font-black text-xl text-emerald-800 dark:text-emerald-300">
+                      {precioPrefijo(modalCourse)}
+                      <PriceTag
+                        usdAmount={modalCourse.precio}
+                        suffix={modalCourse.tipo_precio === "mensual" ? "/mes" : ""}
+                        showUsdReference
+                      />
+                    </p>
                   </div>
                 </div>
               ) : (

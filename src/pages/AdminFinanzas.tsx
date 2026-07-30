@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Wallet, Megaphone, Server, Building2, GraduationCap, AlertTriangle, Settings, TrendingUp } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import CurrencyConverter from "@/components/CurrencyConverter";
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
 
@@ -226,6 +227,8 @@ const AdminFinanzas = () => {
           <h1 className="text-2xl font-bold">Panel Financiero</h1>
           <p className="text-muted-foreground">Reparto por alumno: precio - publicidad - plataforma = resto (50% academia / 50% profesor)</p>
         </div>
+
+        <CurrencyConverter className="shadow-card" />
 
         {/* Configuración de la fórmula */}
         <Card className="shadow-card">

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import PriceTag from "@/components/PriceTag";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import Tilt from "react-parallax-tilt";
 import ScrollReveal from "scrollreveal";
@@ -38,6 +39,10 @@ interface Course {
   estado: "proximamente" | "activo";
   fecha_inicio: string | null;
   horarios: string | null;
+  precio: number | null;
+  moneda: string | null;
+  tipo_precio: string | null;
+  cantidad_cuotas: number | null;
   lecciones: { count: number }[];
   inscripciones: { count: number }[];
 }
@@ -104,6 +109,10 @@ const Landing = () => {
           estado,
           fecha_inicio,
           horarios,
+          precio,
+          moneda,
+          tipo_precio,
+          cantidad_cuotas,
           lecciones (count),
           inscripciones (count)
         `,
@@ -529,7 +538,24 @@ const Landing = () => {
                       )}
                     </div>
 
-                    <div className="flex items-center justify-end pt-4 border-t border-white/10">
+                    <div className="flex items-center justify-between pt-4 border-t border-white/10">
+                      {course.precio ? (
+                        <div className="flex items-baseline gap-1">
+                          {course.tipo_precio === "cuotas" && (
+                            <span className="text-white/50 text-xs font-semibold">{course.cantidad_cuotas}x</span>
+                          )}
+                          {course.tipo_precio === "clase" && (
+                            <span className="text-white/50 text-xs font-semibold">{course.cantidad_cuotas} clases x</span>
+                          )}
+                          <PriceTag
+                            usdAmount={course.precio}
+                            suffix={course.tipo_precio === "mensual" ? "/mes" : ""}
+                            className="text-white font-bold text-lg"
+                          />
+                        </div>
+                      ) : (
+                        <span />
+                      )}
                       <Link to="/auth?registro=1">
                         <Button
                           size="sm"

@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle, MessageSquare } from "lucide-react";
 import { format, isBefore, parseISO, addDays } from "date-fns";
+import CurrencyConverter from "@/components/CurrencyConverter";
 
 const AdminSubscriptions = () => {
   const queryClient = useQueryClient();
@@ -319,6 +320,7 @@ const AdminSubscriptions = () => {
                     </Select>
                   </div>
                 </div>
+                <CurrencyConverter compact className="border-none shadow-none bg-muted/30" />
                 <Button type="submit" className="w-full gradient-primary text-primary-foreground" disabled={upsertMutation.isPending}>
                   {editingId ? "Actualizar Registro" : "Guardar Pago"}
                 </Button>

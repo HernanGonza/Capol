@@ -14,8 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
-
-const MONEDAS = ["ARS", "USD", "EUR", "UYU", "BRL", "CLP"];
+import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
 
 const formatPrecio = (course: any) => {
   if (!course.precio) return null;
@@ -37,8 +36,9 @@ const AdminCourses = () => {
     titulo: "", descripcion: "", url_imagen: "", url_flyer: "",
     tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo",
     fecha_inicio: "", horarios: "",
-    precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS",
+    precio: "", tipo_precio: "curso", cantidad_cuotas: "",
   });
+  const { currency: adminCurrency, usdToLocal, formatMoney } = useCurrencyConversion();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewType, setPreviewType] = useState<"image" | "video">("image");
@@ -132,7 +132,9 @@ const AdminCourses = () => {
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
         cantidad_cuotas: (form.tipo_precio === "cuotas" || form.tipo_precio === "clase") && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
-        moneda: form.moneda,
+        // Los cursos se cargan siempre en USD; la conversión a la moneda del
+        // alumno se hace al vuelo con la cotización del día, no se guarda.
+        moneda: "USD",
       };
       if (editingCourse) {
         const { error } = await supabase.from("cursos").update(courseData).eq("id", editingCourse.id);
@@ -151,7 +153,7 @@ const AdminCourses = () => {
   });
 
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", fecha_inicio: "", horarios: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "", moneda: "ARS" });
+    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", fecha_inicio: "", horarios: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "" });
     setEditingCourse(null); setPreviewUrl(null); setPreviewType("image");
   };
 
@@ -166,7 +168,6 @@ const AdminCourses = () => {
       precio: course.precio?.toString() || "",
       tipo_precio: course.tipo_precio || "curso",
       cantidad_cuotas: course.cantidad_cuotas?.toString() || "",
-      moneda: course.moneda || "ARS",
     });
     setPreviewUrl(course.url_flyer || null);
     setPreviewType(flyerType as "image" | "video");
@@ -268,16 +269,20 @@ const AdminCourses = () => {
                     <Textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} rows={3} />
                   </div>
 
-                  {/* Precio */}
+                  {/* Precio (siempre en USD; se convierte a la moneda del alumno al mostrarlo) */}
                   <div className="space-y-2">
-                    <Label className={labelCls}>Precio</Label>
+                    <Label className={labelCls}>Precio (USD)</Label>
                     <div className="grid grid-cols-3 gap-2">
-                      <select value={form.moneda} onChange={(e) => setForm({ ...form, moneda: e.target.value })} className={selectCls}>
-                        {MONEDAS.map(m => <option key={m} value={m}>{m}</option>)}
-                      </select>
+                      <div className={`${selectCls} flex items-center justify-center font-bold text-muted-foreground bg-muted`}>USD</div>
                       <Input className="col-span-2" type="number" min="0" step="0.01" placeholder="0.00 (dejar vacío = gratis)"
                         value={form.precio} onChange={(e) => setForm({ ...form, precio: e.target.value })} />
                     </div>
+                    {!!form.precio && parseFloat(form.precio) > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        ≈ {formatMoney(usdToLocal(parseFloat(form.precio)), adminCurrency)}
+                        {adminCurrency !== "USD" ? ` (según tu ubicación, cotización del día)` : ""}
+                      </p>
+                    )}
                     <div className="grid grid-cols-2 gap-2">
                       <select value={form.tipo_precio} onChange={(e) => setForm({ ...form, tipo_precio: e.target.value })} className={selectCls}>
                         <option value="curso">Pago único por curso</option>
