@@ -259,6 +259,7 @@ const Auth = () => {
                         <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                         <Input type="email" placeholder="tu@email.com" value={forgotEmail}
                           onChange={(e) => setForgotEmail(e.target.value)}
+                          name="email" autoComplete="email"
                           className={`pl-9 ${inputClass}`} required />
                       </div>
                     </div>
@@ -276,6 +277,7 @@ const Auth = () => {
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                     <Input type="email" placeholder="tu@email.com" value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
+                      name="username" autoComplete="username"
                       className={`pl-9 ${inputClass}`} required />
                   </div>
                 </div>
@@ -285,6 +287,7 @@ const Auth = () => {
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                     <Input type={showPassword ? "text" : "password"} placeholder="••••••••" value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
+                      name="current-password" autoComplete="current-password"
                       className={`pl-9 pr-10 ${inputClass}`} required />
                     <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -428,6 +431,7 @@ const Auth = () => {
                       <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input type="email" placeholder="tu@email.com" value={form.email}
                         onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        name="new-email" autoComplete="off"
                         className={`pl-9 ${inputClass}`} required />
                     </div>
                   </div>
@@ -437,6 +441,7 @@ const Auth = () => {
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input type={showPassword ? "text" : "password"} placeholder="••••••••" value={form.password}
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        name="new-password" autoComplete="new-password"
                         className={`pl-9 pr-10 ${inputClass}`} required />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -466,6 +471,7 @@ const Auth = () => {
                       <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400 dark:text-white/30" />
                       <Input type={showConfirm ? "text" : "password"} placeholder="••••••••" value={form.confirmar_password}
                         onChange={(e) => setForm({ ...form, confirmar_password: e.target.value })}
+                        name="confirm-new-password" autoComplete="new-password"
                         className={`pl-9 pr-10 ${inputClass} ${form.confirmar_password && form.password !== form.confirmar_password ? "border-red-500/50" : form.confirmar_password && form.password === form.confirmar_password ? "border-emerald-500/50" : ""}`}
                         required />
                       <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
