@@ -25,6 +25,15 @@ import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell, { type ForoActividadCurso } from "@/components/NotificationBell";
 
+// Cada página envuelve su propio contenido en <AppLayout>, así que este
+// componente (y con él, el <nav> del sidebar) se remonta en cada cambio de
+// ruta. Sin esto, el <nav> nace como un DOM nuevo con scrollTop en 0, y en un
+// sidebar largo (como el del admin) cada click a un item de más abajo "salta"
+// visualmente para arriba. Se guarda afuera del componente para que
+// sobreviva al remount (se resetea solo con un refresh de página, que es lo
+// esperable).
+let sidebarScrollTop = 0;
+
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const { user, role, profile, signOut } = useAuth();
   const location = useLocation();
@@ -32,8 +41,13 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const navRef = useRef<HTMLElement>(null);
   const isAdmin = role === "admin";
   const isTeacher = role === "teacher";
+
+  useEffect(() => {
+    if (navRef.current) navRef.current.scrollTop = sidebarScrollTop;
+  }, []);
 
   const { data: solicitudesPendientes } = useQuery({
     queryKey: ["solicitudes-pendientes-count"],
@@ -295,7 +309,11 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         </div>
 
         {/* Navegación Principal */}
-        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
+        <nav
+          ref={navRef}
+          onScroll={(e) => { sidebarScrollTop = e.currentTarget.scrollTop; }}
+          className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1"
+        >
           {navItems.map((item) => {
             const active = location.pathname === item.to || (item.to !== "/dashboard" && location.pathname.startsWith(item.to));
             return (
