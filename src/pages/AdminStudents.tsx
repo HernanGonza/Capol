@@ -96,13 +96,13 @@ const AdminStudents = () => {
   });
 
   // Para inscribir en un curso: el admin también tiene que poder anotar a un
-  // profesor como alumno de cualquier curso, no solo a cuentas con rol
-  // "student" (la RLS de suscripciones/inscripciones ya lo permite, esto es
-  // solo ampliar qué aparece en el selector).
+  // profesor, a otro admin, o a sí mismo como alumno de cualquier curso, no
+  // solo a cuentas con rol "student" (la RLS de suscripciones/inscripciones
+  // ya lo permite, esto es solo ampliar qué aparece en el selector).
   const { data: enrollableUsers } = useQuery({
     queryKey: ["enrollable-users"],
     queryFn: async () => {
-      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id, rol").in("rol", ["student", "teacher"]);
+      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id, rol").in("rol", ["student", "teacher", "admin"]);
       if (!roles?.length) return [];
       const { data: profiles } = await supabase
         .from("perfiles")
@@ -290,7 +290,7 @@ const AdminStudents = () => {
                   <SelectContent>
                     {enrollableUsers?.map((s) => (
                       <SelectItem key={s.id} value={s.id}>
-                        {s.nombre_completo} — {s.email}{s.rol === "teacher" ? " (Profesor)" : ""}
+                        {s.nombre_completo} — {s.email}{s.rol === "teacher" ? " (Profesor)" : s.rol === "admin" ? " (Admin)" : ""}
                       </SelectItem>
                     ))}
                   </SelectContent>

@@ -52,7 +52,7 @@ import CourseForumDialog from "@/components/CourseForumDialog";
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
   const queryClient = useQueryClient();
   
   const [open, setOpen] = useState(false);
@@ -77,17 +77,20 @@ const TeacherLessons = () => {
     sala_jitsi: "",
   });
 
-  // Verificar que el profesor tiene acceso a este curso
+  // Verificar que el profesor tiene acceso a este curso — el admin entra a
+  // cualquier curso aunque no esté asignado como docente ahí.
   const { data: hasAccess, isLoading: checkingAccess } = useQuery({
-    queryKey: ["teacher-course-access", courseId, user?.id],
+    queryKey: ["teacher-course-access", courseId, user?.id, role],
     queryFn: async () => {
+      if (role === "admin") return true;
+
       const { data, error } = await supabase
         .from("docentes_cursos")
         .select("id")
         .eq("curso_id", courseId!)
         .eq("docente_id", user!.id)
         .maybeSingle();
-      
+
       if (error) throw error;
       return !!data;
     },
