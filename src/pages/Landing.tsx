@@ -479,10 +479,9 @@ const Landing = () => {
                 >
                   {/* Flyer/Imagen/Video: sin proporción fija — la tarjeta toma
                       la altura que le da el propio archivo (w-full h-auto),
-                      así cualquier tamaño de imagen/video ocupa todo el
-                      ancho sin recortarse y sin dejar espacio vacío. Solo el
-                      estado "sin imagen" necesita una proporción fija propia,
-                      porque no hay contenido que le dé alto al contenedor. */}
+                      así se ve completa, a todo el ancho, sin recortarse y
+                      sin dejar espacio vacío. Solo el estado "sin imagen"
+                      necesita una proporción fija propia. */}
                   <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
                     {course.url_flyer || course.url_imagen ? (
                       course.tipo_flyer === "video" ||
