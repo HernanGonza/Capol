@@ -477,20 +477,25 @@ const Landing = () => {
                   className="group bg-transparent border-slate-200 dark:border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
-                  {/* Flyer/Imagen/Video */}
-                  <div className="relative aspect-[4/3] overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
+                  {/* Flyer/Imagen/Video: sin proporción fija — la tarjeta toma
+                      la altura que le da el propio archivo (w-full h-auto),
+                      así cualquier tamaño de imagen/video ocupa todo el
+                      ancho sin recortarse y sin dejar espacio vacío. Solo el
+                      estado "sin imagen" necesita una proporción fija propia,
+                      porque no hay contenido que le dé alto al contenedor. */}
+                  <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
                     {course.url_flyer || course.url_imagen ? (
                       course.tipo_flyer === "video" ||
                       course.url_flyer?.endsWith(".mp4") ? (
                         <button
                           type="button"
                           onClick={() => openMediaModal(course)}
-                          className="relative w-full h-full block cursor-pointer"
+                          className="relative w-full block cursor-pointer"
                           aria-label="Ver video del curso en grande"
                         >
                           <video
                             src={course.url_flyer || ""}
-                            className="w-full h-full object-contain bg-black"
+                            className="w-full h-auto block"
                             muted
                             loop
                             autoPlay
@@ -506,13 +511,13 @@ const Landing = () => {
                         <button
                           type="button"
                           onClick={() => openMediaModal(course)}
-                          className="relative w-full h-full block cursor-pointer"
+                          className="relative w-full block cursor-pointer"
                           aria-label="Ver imagen del curso en grande"
                         >
                           <img
                             src={course.url_flyer || course.url_imagen || ""}
                             alt={course.titulo}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                            className="w-full h-auto block group-hover:scale-105 transition-transform duration-700"
                           />
                           <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
                             <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
@@ -522,7 +527,7 @@ const Landing = () => {
                         </button>
                       )
                     ) : (
-                      <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="aspect-[4/3] flex items-center justify-center">
                         <GraduationCap className="w-20 h-20 text-slate-400 dark:text-white/20" />
                       </div>
                     )}
