@@ -24,7 +24,7 @@ import { toast } from "sonner";
 import { Plus, GraduationCap, BookOpen, Trash2, UserPlus, Search, Shield } from "lucide-react";
 
 const AdminTeachers = () => {
-  const { user, profile } = useAuth();
+  const { user } = useAuth();
   const queryClient = useQueryClient();
   const [openCreate, setOpenCreate] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
@@ -72,32 +72,47 @@ const AdminTeachers = () => {
     },
   });
 
-  // El admin también se puede asignar a sí mismo como docente de un curso
+  // Los admins también se pueden asignar cursos entre sí como docentes
   // (docentes_cursos no exige que docente_id tenga rol "teacher" — la RLS
-  // solo exige que quien inserta sea admin). No aparece en "teachers" porque
-  // su rol es "admin", así que se maneja como una tarjeta aparte que reusa
-  // las mismas mutations de asignar/quitar.
-  const { data: selfAssignments } = useQuery({
-    queryKey: ["admin-self-courses", user?.id],
+  // solo exige que quien inserta sea admin). No aparecen en "teachers"
+  // porque su rol es "admin", así que se traen aparte con la misma forma
+  // para reusar el resto del flujo (asignar/quitar curso) sin duplicarlo.
+  const { data: admins, isLoading: isLoadingAdmins } = useQuery({
+    queryKey: ["admin-admins"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("docentes_cursos")
-        .select("curso_id, cursos (id, titulo)")
-        .eq("docente_id", user!.id);
-      if (error) throw error;
-      return data.map((a) => a.cursos);
-    },
-    enabled: !!user,
-  });
+        .from("roles_usuario")
+        .select(`
+          id,
+          usuario_id,
+          rol,
+          perfiles!user_roles_user_id_fkey (
+            id,
+            nombre_completo,
+            url_avatar,
+            email
+          )
+        `)
+        .eq("rol", "admin");
 
-  const selfAsTeacher = user
-    ? {
-        id: "self",
-        usuario_id: user.id,
-        perfiles: profile,
-        cursos: selfAssignments || [],
-      }
-    : null;
+      if (error) throw error;
+
+      const adminIds = data.map((a) => a.usuario_id);
+      const { data: assignments } = await supabase
+        .from("docentes_cursos")
+        .select(`
+          docente_id,
+          curso_id,
+          cursos (id, titulo)
+        `)
+        .in("docente_id", adminIds);
+
+      return data.map((admin) => ({
+        ...admin,
+        cursos: assignments?.filter((a) => a.docente_id === admin.usuario_id).map((a) => a.cursos) || [],
+      }));
+    },
+  });
 
   // Obtener todos los cursos para asignar
   const { data: courses } = useQuery({
@@ -156,7 +171,7 @@ const AdminTeachers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-teachers"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-self-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
       toast.success("Curso asignado correctamente");
       setOpenAssign(false);
       setSelectedCourse("");
@@ -182,7 +197,7 @@ const AdminTeachers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-teachers"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-self-courses"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-admins"] });
       toast.success("Asignación removida");
     },
     onError: (e: any) => toast.error(e.message),
@@ -287,63 +302,82 @@ const AdminTeachers = () => {
           </Dialog>
         </div>
 
-        {/* El admin también se puede asignar cursos a sí mismo como docente */}
-        {selfAsTeacher && (
-          <Card className="border-none shadow-card bg-card border-l-4 border-l-indigo-500">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
-                  {selfAsTeacher.perfiles?.nombre_completo?.charAt(0).toUpperCase() || "A"}
-                </div>
-                <div>
-                  <CardTitle className="text-lg font-bold">
-                    {selfAsTeacher.perfiles?.nombre_completo || "Vos"} (Admin)
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground">{selfAsTeacher.perfiles?.email}</p>
-                  <Badge variant="secondary" className="mt-1">
-                    <Shield className="w-3 h-3 mr-1" />
-                    Vos, como docente
-                  </Badge>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Cursos Asignados</p>
-                {selfAsTeacher.cursos.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Sin cursos asignados</p>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {selfAsTeacher.cursos.map((course: any) => (
-                      <Badge key={course.id} variant="outline" className="pr-1 flex items-center gap-1">
-                        <BookOpen className="w-3 h-3" />
-                        {course.titulo}
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-5 w-5 ml-1 hover:bg-destructive/20 hover:text-destructive"
-                          onClick={() => removeAssignmentMutation.mutate({ teacherId: selfAsTeacher.usuario_id, courseId: course.id })}
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <Button
-                variant="outline"
-                className="w-full"
-                onClick={() => {
-                  setSelectedTeacher(selfAsTeacher);
-                  setOpenAssign(true);
-                }}
-              >
-                <Plus className="w-4 h-4 mr-2" /> Asignarme un Curso
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        {/* Administradores: también se pueden asignar cursos entre sí como
+            docentes (para dar clases ellos mismos), igual que un profesor. */}
+        <div>
+          <h2 className="text-sm font-bold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+            <Shield className="w-4 h-4" /> Administradores
+          </h2>
+          {isLoadingAdmins ? (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2].map((i) => <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />)}
+            </div>
+          ) : (
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {admins?.map((admin) => (
+                <Card key={admin.id} className="border-none shadow-card bg-card">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                        {admin.perfiles?.nombre_completo?.charAt(0).toUpperCase() || "A"}
+                      </div>
+                      <div>
+                        <CardTitle className="text-lg font-bold">
+                          {admin.perfiles?.nombre_completo || "Sin nombre"}
+                          {admin.usuario_id === user?.id && " (Vos)"}
+                        </CardTitle>
+                        <p className="text-xs text-muted-foreground">{admin.perfiles?.email}</p>
+                        <Badge variant="secondary" className="mt-1">
+                          <Shield className="w-3 h-3 mr-1" />
+                          Admin
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div>
+                      <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Cursos Asignados</p>
+                      {admin.cursos.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">Sin cursos asignados</p>
+                      ) : (
+                        <div className="flex flex-wrap gap-2">
+                          {admin.cursos.map((course: any) => (
+                            <Badge key={course.id} variant="outline" className="pr-1 flex items-center gap-1">
+                              <BookOpen className="w-3 h-3" />
+                              {course.titulo}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-5 w-5 ml-1 hover:bg-destructive/20 hover:text-destructive"
+                                onClick={() => removeAssignmentMutation.mutate({ teacherId: admin.usuario_id, courseId: course.id })}
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        setSelectedTeacher(admin);
+                        setOpenAssign(true);
+                      }}
+                    >
+                      <Plus className="w-4 h-4 mr-2" /> Asignar Curso
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <h2 className="text-sm font-bold uppercase text-muted-foreground mb-3 flex items-center gap-2">
+          <GraduationCap className="w-4 h-4" /> Profesores
+        </h2>
 
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
