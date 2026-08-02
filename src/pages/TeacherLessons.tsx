@@ -67,6 +67,7 @@ const TeacherLessons = () => {
   const [recordingLinkLesson, setRecordingLinkLesson] = useState<any>(null);
   const [recordingLinkValue, setRecordingLinkValue] = useState("");
   const [endClassConfirmLesson, setEndClassConfirmLesson] = useState<any>(null);
+  const [deleteLessonConfirm, setDeleteLessonConfirm] = useState<any>(null);
   const [savingRecordingLink, setSavingRecordingLink] = useState(false);
   const [form, setForm] = useState({
     titulo: "",
@@ -281,6 +282,32 @@ const TeacherLessons = () => {
     </AlertDialog>
   );
 
+  const deleteLessonDialog = (
+    <AlertDialog open={!!deleteLessonConfirm} onOpenChange={(o) => !o && setDeleteLessonConfirm(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar esta clase?</AlertDialogTitle>
+          <AlertDialogDescription>
+            {deleteLessonConfirm?.titulo ? `"${deleteLessonConfirm.titulo}" se va a eliminar. ` : ""}Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            disabled={deleteMutation.isPending}
+            onClick={() => {
+              if (deleteLessonConfirm) deleteMutation.mutate(deleteLessonConfirm.id);
+              setDeleteLessonConfirm(null);
+            }}
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   const resetForm = () => {
     setForm({ titulo: "", descripcion: "", fecha_desbloqueo: "", fecha_fin_clase: "", sala_jitsi: "" });
     setEditingLesson(null);
@@ -372,6 +399,7 @@ const TeacherLessons = () => {
           </div>
         </div>
         {endClassDialog}
+        {deleteLessonDialog}
       </div>
     );
   }
@@ -698,11 +726,7 @@ const TeacherLessons = () => {
                         variant="outline" 
                         size="icon" 
                         className="text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          if (confirm("¿Estás seguro de eliminar esta clase?")) {
-                            deleteMutation.mutate(lesson.id);
-                          }
-                        }}
+                        onClick={() => setDeleteLessonConfirm(lesson)}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>

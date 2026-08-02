@@ -7,10 +7,66 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck } from "lucide-react";
+
+type ConfirmAction =
+  | { type: "toggle-ban"; student: any; bloqueado: boolean }
+  | { type: "promote"; student: any }
+  | { type: "deactivate"; student: any }
+  | { type: "unenroll"; enrollment: any };
+
+const confirmActionCopy = (action: ConfirmAction): { title: string; description: string; confirmLabel: string; destructive: boolean } => {
+  switch (action.type) {
+    case "toggle-ban":
+      return action.bloqueado
+        ? {
+            title: "¿Desbloquear la mensajería?",
+            description: `${action.student.nombre_completo} va a poder volver a mandar mensajes.`,
+            confirmLabel: "Desbloquear",
+            destructive: false,
+          }
+        : {
+            title: "¿Banear la mensajería?",
+            description: `${action.student.nombre_completo} no va a poder mandar mensajes directos ni postear en foros. Su cuenta y suscripciones no se ven afectadas.`,
+            confirmLabel: "Banear",
+            destructive: true,
+          };
+    case "promote":
+      return {
+        title: "¿Convertir en profesor?",
+        description: `${action.student.nombre_completo} va a dejar de figurar como alumno y vas a poder asignarle cursos desde "Profesores".`,
+        confirmLabel: "Hacer Profesor",
+        destructive: false,
+      };
+    case "deactivate":
+      return {
+        title: "¿Dar de baja a este alumno?",
+        description: `Se vencerán todas las suscripciones activas de ${action.student.nombre_completo}. Podés reactivarlo cuando quieras.`,
+        confirmLabel: "Dar de baja",
+        destructive: true,
+      };
+    case "unenroll":
+      return {
+        title: "¿Quitar del curso?",
+        description: `${action.enrollment.perfiles?.nombre_completo} se va a quitar de "${action.enrollment.cursos?.titulo}". Se vence su suscripción a este curso.`,
+        confirmLabel: "Quitar",
+        destructive: true,
+      };
+  }
+};
 
 const AdminStudents = () => {
   const queryClient = useQueryClient();
@@ -18,6 +74,7 @@ const AdminStudents = () => {
   const [open, setOpen] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   // Estados para filtros
   const [search, setSearch] = useState("");
@@ -274,13 +331,7 @@ const AdminStudents = () => {
                           : "text-destructive hover:bg-destructive/10"
                       }
                       disabled={toggleBanMutation.isPending}
-                      onClick={() => {
-                        const bloqueado = !!bloqueados?.has(s.id);
-                        const msg = bloqueado
-                          ? `¿Desbloquear la mensajería de ${s.nombre_completo}? Va a poder volver a mandar mensajes.`
-                          : `¿Banear la mensajería de ${s.nombre_completo}? No va a poder mandar mensajes directos ni postear en foros. Su cuenta y suscripciones no se ven afectadas.`;
-                        if (confirm(msg)) toggleBanMutation.mutate({ userId: s.id, bloqueado });
-                      }}
+                      onClick={() => setConfirmAction({ type: "toggle-ban", student: s, bloqueado: !!bloqueados?.has(s.id) })}
                     >
                       {bloqueados?.has(s.id) ? (
                         <><ShieldCheck className="w-4 h-4 mr-1" /> Desbanear</>
@@ -294,11 +345,7 @@ const AdminStudents = () => {
                         size="sm"
                         className="text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
                         disabled={promoteToTeacherMutation.isPending}
-                        onClick={() => {
-                          if (confirm(`¿Convertir a ${s.nombre_completo} en profesor? Va a dejar de figurar como alumno y vas a poder asignarle cursos desde "Profesores".`)) {
-                            promoteToTeacherMutation.mutate(s.id);
-                          }
-                        }}
+                        onClick={() => setConfirmAction({ type: "promote", student: s })}
                       >
                         <GraduationCap className="w-4 h-4 mr-1" /> Hacer Profesor
                       </Button>
@@ -308,11 +355,7 @@ const AdminStudents = () => {
                         variant="outline"
                         size="sm"
                         className="text-destructive hover:bg-destructive/10"
-                        onClick={() => {
-                          if (confirm(`¿Dar de baja a ${s.nombre_completo}? Se vencerán todas sus suscripciones activas. Podés reactivarlo cuando quieras.`)) {
-                            toggleActivoMutation.mutate({ id: s.id, activo: false });
-                          }
-                        }}
+                        onClick={() => setConfirmAction({ type: "deactivate", student: s })}
                       >
                         <UserX className="w-4 h-4 mr-1" /> Dar de baja
                       </Button>
@@ -411,11 +454,7 @@ const AdminStudents = () => {
                       size="icon"
                       className="text-destructive"
                       title="Quitar de este curso"
-                      onClick={() => {
-                        if (confirm(`¿Quitar a ${e.perfiles?.nombre_completo} de "${e.cursos?.titulo}"? Se vence su suscripción a este curso.`)) {
-                          unenrollMutation.mutate(e);
-                        }
-                      }}
+                      onClick={() => setConfirmAction({ type: "unenroll", enrollment: e })}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -429,6 +468,39 @@ const AdminStudents = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(o) => { if (!o) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          {confirmAction && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{confirmActionCopy(confirmAction).title}</AlertDialogTitle>
+                <AlertDialogDescription>{confirmActionCopy(confirmAction).description}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className={confirmActionCopy(confirmAction).destructive ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
+                  onClick={() => {
+                    if (confirmAction.type === "toggle-ban") {
+                      toggleBanMutation.mutate({ userId: confirmAction.student.id, bloqueado: confirmAction.bloqueado });
+                    } else if (confirmAction.type === "promote") {
+                      promoteToTeacherMutation.mutate(confirmAction.student.id);
+                    } else if (confirmAction.type === "deactivate") {
+                      toggleActivoMutation.mutate({ id: confirmAction.student.id, activo: false });
+                    } else if (confirmAction.type === "unenroll") {
+                      unenrollMutation.mutate(confirmAction.enrollment);
+                    }
+                    setConfirmAction(null);
+                  }}
+                >
+                  {confirmActionCopy(confirmAction).confirmLabel}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

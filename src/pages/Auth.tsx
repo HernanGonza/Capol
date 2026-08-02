@@ -447,23 +447,32 @@ const Auth = () => {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    {form.password && (
-                      <div className="space-y-2 pt-1">
-                        <div className="flex gap-1">
-                          {[0,1,2,3].map((i) => (
-                            <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < passwordStrength ? strengthColor : "bg-slate-200 dark:bg-white/10"}`} />
-                          ))}
-                        </div>
-                        <div className="grid grid-cols-2 gap-1">
-                          {checks.map((c) => (
-                            <div key={c.label} className={`flex items-center gap-1 text-[11px] ${c.ok ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-white/30"}`}>
-                              {c.ok ? <CheckCircle className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
-                              {c.label}
-                            </div>
-                          ))}
-                        </div>
+                    {/* Se deja siempre montado (nunca entra/sale del DOM) y se
+                        esconde con CSS: si el bloque aparece y desaparece con
+                        cada tecla justo al lado del input de contraseña,
+                        choca con el ícono que los gestores de contraseñas del
+                        navegador (Bitwarden, LastPass, 1Password) inyectan
+                        ahí mismo, y React termina tirando un error de
+                        insertBefore al reconciliar contra un DOM que la
+                        extensión ya modificó por su cuenta. */}
+                    <div className={`space-y-2 overflow-hidden transition-all ${form.password ? "max-h-24 opacity-100 pt-1" : "max-h-0 opacity-0"}`}>
+                      <div className="flex gap-1">
+                        {[0,1,2,3].map((i) => (
+                          <div key={i} className={`h-1 flex-1 rounded-full transition-all ${i < passwordStrength ? strengthColor : "bg-slate-200 dark:bg-white/10"}`} />
+                        ))}
                       </div>
-                    )}
+                      <div className="grid grid-cols-2 gap-1">
+                        {checks.map((c) => (
+                          <div key={c.label} className={`flex items-center gap-1 text-[11px] ${c.ok ? "text-emerald-500 dark:text-emerald-400" : "text-slate-400 dark:text-white/30"}`}>
+                            <span className="relative inline-block w-3 h-3 shrink-0">
+                              <CheckCircle className={`w-3 h-3 absolute inset-0 transition-opacity ${c.ok ? "opacity-100" : "opacity-0"}`} />
+                              <XCircle className={`w-3 h-3 absolute inset-0 transition-opacity ${c.ok ? "opacity-0" : "opacity-100"}`} />
+                            </span>
+                            {c.label}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <Label className={labelClass}>Repetir contraseña *</Label>
@@ -478,12 +487,24 @@ const Auth = () => {
                         {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    {form.confirmar_password && form.password !== form.confirmar_password && (
-                      <p className="text-xs text-red-400 flex items-center gap-1"><XCircle className="w-3 h-3" /> Las contraseñas no coinciden</p>
-                    )}
-                    {form.confirmar_password && form.password === form.confirmar_password && (
-                      <p className="text-xs text-emerald-400 flex items-center gap-1"><CheckCircle className="w-3 h-3" /> Las contraseñas coinciden</p>
-                    )}
+                    {/* Mismo criterio que el medidor de arriba: un solo nodo
+                        siempre presente, visibilidad y texto por CSS/estado,
+                        nunca se agrega/saca del DOM mientras se escribe. */}
+                    <p
+                      className={`text-xs flex items-center gap-1 overflow-hidden transition-all ${
+                        !form.confirmar_password
+                          ? "max-h-0 opacity-0"
+                          : form.password === form.confirmar_password
+                          ? "max-h-5 opacity-100 text-emerald-400"
+                          : "max-h-5 opacity-100 text-red-400"
+                      }`}
+                    >
+                      <span className="relative inline-block w-3 h-3 shrink-0">
+                        <CheckCircle className={`w-3 h-3 absolute inset-0 transition-opacity ${form.confirmar_password && form.password === form.confirmar_password ? "opacity-100" : "opacity-0"}`} />
+                        <XCircle className={`w-3 h-3 absolute inset-0 transition-opacity ${form.confirmar_password && form.password !== form.confirmar_password ? "opacity-100" : "opacity-0"}`} />
+                      </span>
+                      {form.confirmar_password && form.password === form.confirmar_password ? "Las contraseñas coinciden" : "Las contraseñas no coinciden"}
+                    </p>
                   </div>
                 </div>
 

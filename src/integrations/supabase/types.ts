@@ -259,6 +259,47 @@ export type Database = {
           },
         ]
       }
+      errores_cliente: {
+        Row: {
+          component_stack: string | null
+          creado_en: string
+          id: string
+          mensaje: string
+          stack: string | null
+          url: string | null
+          user_agent: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          component_stack?: string | null
+          creado_en?: string
+          id?: string
+          mensaje: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          component_stack?: string | null
+          creado_en?: string
+          id?: string
+          mensaje?: string
+          stack?: string | null
+          url?: string | null
+          user_agent?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "errores_cliente_usuario_id_fkey"
+            columns: ["usuario_id"]
+            isOneToOne: false
+            referencedRelation: "perfiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       foro_ultima_lectura: {
         Row: {
           curso_id: string
@@ -446,6 +487,7 @@ export type Database = {
           creado_en: string
           curso_id: string | null
           destinatario_id: string | null
+          editado: boolean
           eliminado: boolean
           fijado: boolean
           id: string
@@ -459,6 +501,7 @@ export type Database = {
           creado_en?: string
           curso_id?: string | null
           destinatario_id?: string | null
+          editado?: boolean
           eliminado?: boolean
           fijado?: boolean
           id?: string
@@ -472,6 +515,7 @@ export type Database = {
           creado_en?: string
           curso_id?: string | null
           destinatario_id?: string | null
+          editado?: boolean
           eliminado?: boolean
           fijado?: boolean
           id?: string
@@ -884,6 +928,10 @@ export type Database = {
       dentro_de_cooldown_mensajes: {
         Args: { p_remitente: string }
         Returns: boolean
+      }
+      editar_mensaje_propio: {
+        Args: { p_contenido: string; p_mensaje_id: string }
+        Returns: undefined
       }
       eliminar_mensaje_propio: {
         Args: { p_mensaje_id: string }

@@ -5,9 +5,21 @@ import { useAuth } from "@/contexts/AuthContext";
 import MessageComposer from "@/components/MessageComposer";
 import MessageAttachmentChip from "@/components/MessageAttachmentChip";
 import { uploadMessageAttachment } from "@/lib/messageAttachments";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
-import { Pin, PinOff, Trash2, Flag } from "lucide-react";
+import { Pin, PinOff, Trash2, Flag, Pencil } from "lucide-react";
 
 // Hilo grupal de un curso: cualquier mensaje con destinatario_id null y
 // curso_id = courseId. La RLS ya restringe quién puede ver/publicar (admin,
@@ -18,6 +30,9 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
   const queryClient = useQueryClient();
   const [text, setText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const { data: mensajes } = useQuery({
     queryKey: ["foro-curso", courseId],
@@ -127,6 +142,20 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
     onError: (e: any) => toast.error(e.message || "No se pudo borrar el mensaje"),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async ({ mensajeId, contenido }: { mensajeId: string; contenido: string }) => {
+      const { error } = await supabase.rpc("editar_mensaje_propio", { p_mensaje_id: mensajeId, p_contenido: contenido });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingId(null);
+      setEditText("");
+      queryClient.invalidateQueries({ queryKey: ["foro-curso", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+    },
+    onError: (e: any) => toast.error(e.message || "No se pudo editar el mensaje"),
+  });
+
   const reportMutation = useMutation({
     mutationFn: async ({ mensajeId, motivo }: { mensajeId: string; motivo: string | null }) => {
       const { error } = await supabase.from("mensajes_reportados").insert({ mensaje_id: mensajeId, reportado_por: user!.id, motivo });
@@ -143,6 +172,7 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
       <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-2 pr-1">
         {orderedMensajes.map((m: any) => {
           const mine = m.remitente_id === user?.id;
+          const canEdit = mine && !m.eliminado && Date.now() - new Date(m.creado_en).getTime() < 15 * 60 * 1000;
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
               <div
@@ -160,6 +190,36 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
                 )}
                 {m.eliminado ? (
                   <p className={`italic ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>Mensaje eliminado</p>
+                ) : editingId === m.id ? (
+                  <div className="space-y-1.5">
+                    <Textarea
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      autoFocus
+                      rows={2}
+                      className={`resize-none text-sm ${mine ? "bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/50" : "bg-background"}`}
+                    />
+                    <div className="flex justify-end gap-1.5">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="ghost"
+                        className={`h-7 px-2 text-xs ${mine ? "text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10" : ""}`}
+                        onClick={() => setEditingId(null)}
+                      >
+                        Cancelar
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        className="h-7 px-2 text-xs"
+                        disabled={editMutation.isPending || !editText.trim()}
+                        onClick={() => editMutation.mutate({ mensajeId: m.id, contenido: editText })}
+                      >
+                        Guardar
+                      </Button>
+                    </div>
+                  </div>
                 ) : (
                   <>
                     {m.contenido && <p className="whitespace-pre-wrap break-words">{m.contenido}</p>}
@@ -170,9 +230,10 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
                 )}
                 <p className={`text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                   {format(parseISO(m.creado_en), "dd/MM/yyyy HH:mm")}
+                  {m.editado && !m.eliminado && <span className="italic"> (editado)</span>}
                 </p>
 
-                {!m.eliminado && (
+                {!m.eliminado && editingId !== m.id && (
                   <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} hidden group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
                     {puedeFijar && (
                       <button
@@ -184,14 +245,22 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
                         {m.fijado ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
                       </button>
                     )}
+                    {canEdit && (
+                      <button
+                        type="button"
+                        title="Editar mensaje"
+                        className="p-1.5 text-muted-foreground hover:text-primary"
+                        onClick={() => { setEditingId(m.id); setEditText(m.contenido); }}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     {mine ? (
                       <button
                         type="button"
                         title="Borrar mensaje"
                         className="p-1.5 text-muted-foreground hover:text-destructive"
-                        onClick={() => {
-                          if (confirm("¿Borrar este mensaje?")) deleteMutation.mutate(m.id);
-                        }}
+                        onClick={() => setDeleteConfirmId(m.id)}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -229,6 +298,28 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
         sending={sendMutation.isPending}
         placeholder="Escribí algo para todo el curso..."
       />
+
+      <AlertDialog open={!!deleteConfirmId} onOpenChange={(o) => !o && setDeleteConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Borrar este mensaje?</AlertDialogTitle>
+            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (deleteConfirmId) deleteMutation.mutate(deleteConfirmId);
+                setDeleteConfirmId(null);
+              }}
+            >
+              Borrar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

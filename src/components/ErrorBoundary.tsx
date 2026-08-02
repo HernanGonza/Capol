@@ -1,5 +1,6 @@
 import { Component, ErrorInfo, ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   children: ReactNode;
@@ -21,6 +22,21 @@ class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("Error no controlado:", error, info.componentStack);
+    // Best-effort: si este insert falla (sin red, RLS, etc.) no debe romper
+    // nada más — ya estamos en la pantalla de error, no hay nada que proteger.
+    supabase.auth
+      .getUser()
+      .then(({ data }) =>
+        supabase.from("errores_cliente").insert({
+          mensaje: error.message,
+          stack: error.stack || null,
+          component_stack: info.componentStack || null,
+          url: window.location.href,
+          user_agent: navigator.userAgent,
+          usuario_id: data.user?.id || null,
+        })
+      )
+      .catch(() => {});
   }
 
   handleReload = () => {

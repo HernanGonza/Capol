@@ -7,10 +7,21 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MessageSquare, Users, Ban, ShieldCheck, Pin, PinOff, Trash2, Flag, AlertTriangle } from "lucide-react";
+import { Search, MessageSquare, Users, Ban, ShieldCheck, Pin, PinOff, Trash2, Flag, AlertTriangle, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import MessageComposer from "@/components/MessageComposer";
@@ -26,6 +37,7 @@ type Mensaje = {
   leido: boolean;
   eliminado: boolean;
   fijado: boolean;
+  editado: boolean;
   creado_en: string;
   adjunto_path: string | null;
   adjunto_nombre: string | null;
@@ -59,6 +71,44 @@ type ConversationForo = {
 
 type Conversation = ConversationDirecta | ConversationForo;
 
+type ConfirmAction =
+  | { type: "ban-reported"; remitenteId: string; nombre: string }
+  | { type: "toggle-ban-chat"; otherId: string; nombre: string; bloqueado: boolean }
+  | { type: "delete-message"; mensajeId: string };
+
+const confirmActionCopy = (action: ConfirmAction): { title: string; description: string; confirmLabel: string; destructive: boolean } => {
+  switch (action.type) {
+    case "ban-reported":
+      return {
+        title: "¿Banear a este usuario?",
+        description: `${action.nombre} no va a poder mandar más mensajes.`,
+        confirmLabel: "Banear",
+        destructive: true,
+      };
+    case "toggle-ban-chat":
+      return action.bloqueado
+        ? {
+            title: "¿Desbloquear a este usuario?",
+            description: `${action.nombre} va a poder volver a mandar mensajes.`,
+            confirmLabel: "Desbloquear",
+            destructive: false,
+          }
+        : {
+            title: "¿Bloquear a este usuario?",
+            description: `${action.nombre} no va a poder mandar más mensajes directos ni postear en foros.`,
+            confirmLabel: "Bloquear",
+            destructive: true,
+          };
+    case "delete-message":
+      return {
+        title: "¿Borrar este mensaje?",
+        description: "Esta acción no se puede deshacer.",
+        confirmLabel: "Borrar",
+        destructive: true,
+      };
+  }
+};
+
 const Messages = () => {
   const { user, role } = useAuth();
   const queryClient = useQueryClient();
@@ -68,6 +118,9 @@ const Messages = () => {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
 
   const withParam = searchParams.get("with");
   const cursoParam = searchParams.get("curso");
@@ -258,6 +311,10 @@ const Messages = () => {
     if (withParam) setSelectedKey(`dm-${withParam}`);
   }, [withParam]);
 
+  useEffect(() => {
+    if (!withParam && cursoParam) setSelectedKey(`foro-${cursoParam}`);
+  }, [withParam, cursoParam]);
+
   // Estado de baneo de mensajería de la otra persona (solo le interesa al admin)
   const { data: banInfo } = useQuery({
     queryKey: ["mensajeria-bloqueo", selected?.tipo === "directo" ? selected.otherId : null],
@@ -379,6 +436,20 @@ const Messages = () => {
     onError: (e: any) => toast.error(e.message || "No se pudo borrar el mensaje"),
   });
 
+  const editMutation = useMutation({
+    mutationFn: async ({ mensajeId, contenido }: { mensajeId: string; contenido: string }) => {
+      const { error } = await supabase.rpc("editar_mensaje_propio", { p_mensaje_id: mensajeId, p_contenido: contenido });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      setEditingId(null);
+      setEditText("");
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["foro-curso"] });
+    },
+    onError: (e: any) => toast.error(e.message || "No se pudo editar el mensaje"),
+  });
+
   const reportMutation = useMutation({
     mutationFn: async ({ mensajeId, motivo }: { mensajeId: string; motivo: string | null }) => {
       const { error } = await supabase.from("mensajes_reportados").insert({ mensaje_id: mensajeId, reportado_por: user!.id, motivo });
@@ -405,7 +476,9 @@ const Messages = () => {
       setSelectedKey(null);
       setReply("");
       setFile(null);
-      if (withParam) {
+      setEditingId(null);
+      setEditText("");
+      if (withParam || cursoParam) {
         const next = new URLSearchParams(searchParams);
         next.delete("with");
         next.delete("curso");
@@ -455,11 +528,13 @@ const Messages = () => {
                           variant="outline"
                           size="sm"
                           className="text-destructive hover:bg-destructive/10"
-                          onClick={() => {
-                            if (confirm(`¿Banear a ${r.mensajes.remitente?.nombre_completo}? No va a poder mandar más mensajes.`)) {
-                              banUserMutation.mutate({ userId: r.mensajes.remitente_id, bloqueado: false });
-                            }
-                          }}
+                          onClick={() =>
+                            setConfirmAction({
+                              type: "ban-reported",
+                              remitenteId: r.mensajes.remitente_id,
+                              nombre: r.mensajes.remitente?.nombre_completo || "este usuario",
+                            })
+                          }
                         >
                           <Ban className="w-4 h-4 mr-1" /> Banear
                         </Button>
@@ -574,12 +649,9 @@ const Messages = () => {
                   size="sm"
                   className={banInfo ? "text-emerald-700 dark:text-emerald-400" : "text-destructive hover:bg-destructive/10"}
                   disabled={banUserMutation.isPending}
-                  onClick={() => {
-                    const msg = banInfo
-                      ? `¿Desbloquear a ${selected.nombre}? Va a poder volver a mandar mensajes.`
-                      : `¿Bloquear a ${selected.nombre}? No va a poder mandar más mensajes directos ni postear en foros.`;
-                    if (confirm(msg)) banUserMutation.mutate({ userId: selected.otherId, bloqueado: !!banInfo });
-                  }}
+                  onClick={() =>
+                    setConfirmAction({ type: "toggle-ban-chat", otherId: selected.otherId, nombre: selected.nombre, bloqueado: !!banInfo })
+                  }
                 >
                   {banInfo ? (
                     <><ShieldCheck className="w-4 h-4 mr-1" /> Desbloquear</>
@@ -594,6 +666,7 @@ const Messages = () => {
             {orderedMensajes.map((m) => {
               const mine = m.remitente_id === user?.id;
               const puedeFijar = selected?.tipo === "foro" && (role === "admin" || role === "teacher");
+              const canEdit = mine && !m.eliminado && Date.now() - new Date(m.creado_en).getTime() < 15 * 60 * 1000;
               return (
                 <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                   <div
@@ -611,6 +684,36 @@ const Messages = () => {
                     )}
                     {m.eliminado ? (
                       <p className={`italic ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>Mensaje eliminado</p>
+                    ) : editingId === m.id ? (
+                      <div className="space-y-1.5">
+                        <Textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          autoFocus
+                          rows={2}
+                          className={`resize-none text-sm ${mine ? "bg-primary-foreground/10 border-primary-foreground/30 text-primary-foreground placeholder:text-primary-foreground/50" : "bg-background"}`}
+                        />
+                        <div className="flex justify-end gap-1.5">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className={`h-7 px-2 text-xs ${mine ? "text-primary-foreground/80 hover:text-primary-foreground hover:bg-primary-foreground/10" : ""}`}
+                            onClick={() => setEditingId(null)}
+                          >
+                            Cancelar
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            disabled={editMutation.isPending || !editText.trim()}
+                            onClick={() => editMutation.mutate({ mensajeId: m.id, contenido: editText })}
+                          >
+                            Guardar
+                          </Button>
+                        </div>
+                      </div>
                     ) : (
                       <>
                         {m.contenido && <p className="whitespace-pre-wrap break-words">{m.contenido}</p>}
@@ -621,9 +724,10 @@ const Messages = () => {
                     )}
                     <p className={`text-[10px] ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                       {format(parseISO(m.creado_en), "dd/MM/yyyy HH:mm")}
+                      {m.editado && !m.eliminado && <span className="italic"> (editado)</span>}
                     </p>
 
-                    {!m.eliminado && (
+                    {!m.eliminado && editingId !== m.id && (
                       <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} hidden group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
                         {puedeFijar && (
                           <button
@@ -635,14 +739,22 @@ const Messages = () => {
                             {m.fijado ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
                           </button>
                         )}
+                        {canEdit && (
+                          <button
+                            type="button"
+                            title="Editar mensaje"
+                            className="p-1.5 text-muted-foreground hover:text-primary"
+                            onClick={() => { setEditingId(m.id); setEditText(m.contenido); }}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                        )}
                         {mine ? (
                           <button
                             type="button"
                             title="Borrar mensaje"
                             className="p-1.5 text-muted-foreground hover:text-destructive"
-                            onClick={() => {
-                              if (confirm("¿Borrar este mensaje?")) deleteMutation.mutate(m.id);
-                            }}
+                            onClick={() => setConfirmAction({ type: "delete-message", mensajeId: m.id })}
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -680,6 +792,37 @@ const Messages = () => {
           />
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!confirmAction} onOpenChange={(o) => { if (!o) setConfirmAction(null); }}>
+        <AlertDialogContent>
+          {confirmAction && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{confirmActionCopy(confirmAction).title}</AlertDialogTitle>
+                <AlertDialogDescription>{confirmActionCopy(confirmAction).description}</AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction
+                  className={confirmActionCopy(confirmAction).destructive ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
+                  onClick={() => {
+                    if (confirmAction.type === "ban-reported") {
+                      banUserMutation.mutate({ userId: confirmAction.remitenteId, bloqueado: false });
+                    } else if (confirmAction.type === "toggle-ban-chat") {
+                      banUserMutation.mutate({ userId: confirmAction.otherId, bloqueado: confirmAction.bloqueado });
+                    } else if (confirmAction.type === "delete-message") {
+                      deleteMutation.mutate(confirmAction.mensajeId);
+                    }
+                    setConfirmAction(null);
+                  }}
+                >
+                  {confirmActionCopy(confirmAction).confirmLabel}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

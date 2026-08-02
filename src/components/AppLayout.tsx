@@ -1,5 +1,5 @@
-import { ReactNode, useEffect, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import {
@@ -21,11 +21,14 @@ import {
 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
+import NotificationBell, { type ForoActividadCurso } from "@/components/NotificationBell";
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const { user, role, profile, signOut } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -62,29 +65,81 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   // Actividad nueva en los foros de curso: no hay "leido" por mensaje (no
   // tiene sentido en uno grupal), así que se compara contra la marca de
   // "hasta cuándo leí este foro" de cada curso (foro_ultima_lectura).
-  const { data: foroNoLeidos } = useQuery({
+  // Se desglosa por curso (no solo un total) para poder mostrar la
+  // campanita de notificaciones con el detalle de qué curso tiene novedades.
+  const { data: foroActividad } = useQuery({
     queryKey: ["foro-no-leidos-count", user?.id],
     queryFn: async () => {
       const [{ data: ultimaLectura }, { data: mensajesForo }] = await Promise.all([
         supabase.from("foro_ultima_lectura").select("curso_id, leido_hasta").eq("usuario_id", user!.id),
         supabase
           .from("mensajes")
-          .select("curso_id, creado_en")
+          .select("curso_id, creado_en, contenido, cursos:curso_id(titulo)")
           .is("destinatario_id", null)
           .neq("remitente_id", user!.id)
           .eq("eliminado", false),
       ]);
       const map = new Map((ultimaLectura || []).map((r) => [r.curso_id, r.leido_hasta]));
-      let count = 0;
-      for (const m of mensajesForo || []) {
+      const porCurso = new Map<string, ForoActividadCurso>();
+      let total = 0;
+      for (const m of (mensajesForo || []) as any[]) {
         const last = m.curso_id ? map.get(m.curso_id) : null;
-        if (!last || new Date(m.creado_en) > new Date(last)) count++;
+        if (!last || new Date(m.creado_en) > new Date(last)) {
+          total++;
+          if (!m.curso_id) continue;
+          const entry = porCurso.get(m.curso_id) || {
+            cursoId: m.curso_id as string,
+            cursoTitulo: m.cursos?.titulo || "Curso",
+            count: 0,
+            ultimoContenido: m.contenido as string | null,
+            ultimoCreadoEn: m.creado_en as string,
+          };
+          entry.count += 1;
+          if (new Date(m.creado_en) > new Date(entry.ultimoCreadoEn)) {
+            entry.ultimoContenido = m.contenido;
+            entry.ultimoCreadoEn = m.creado_en;
+          }
+          porCurso.set(m.curso_id, entry);
+        }
       }
-      return count;
+      return {
+        total,
+        porCurso: Array.from(porCurso.values()).sort(
+          (a, b) => new Date(b.ultimoCreadoEn).getTime() - new Date(a.ultimoCreadoEn).getTime()
+        ),
+      };
     },
     enabled: !!user,
     refetchInterval: 60000,
   });
+
+  const foroNoLeidos = foroActividad?.total || 0;
+  const foroPorCurso = foroActividad?.porCurso || [];
+
+  // Mapa id -> título de curso, solo para poder mostrar el nombre del curso
+  // en el toast de "nuevo mensaje en el foro" (el payload de Realtime no
+  // trae el join a "cursos"). RLS ya restringe esto a los cursos que el
+  // usuario puede ver.
+  const { data: misCursos } = useQuery({
+    queryKey: ["cursos-titulos", user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from("cursos").select("id, titulo");
+      return data || [];
+    },
+    enabled: !!user,
+    staleTime: 5 * 60 * 1000,
+  });
+  const cursoTituloMap = useMemo(() => new Map((misCursos || []).map((c) => [c.id, c.titulo])), [misCursos]);
+
+  // El efecto de Realtime de abajo se suscribe una sola vez por sesión (no
+  // vuelve a correr cuando cambia "misCursos"), así que si el callback
+  // capturara "cursoTituloMap" directo quedaría pegado para siempre con el
+  // mapa vacío que había al momento de suscribirse. Por eso se lee desde un
+  // ref actualizado en un efecto aparte.
+  const cursoTituloMapRef = useRef(cursoTituloMap);
+  useEffect(() => {
+    cursoTituloMapRef.current = cursoTituloMap;
+  }, [cursoTituloMap]);
 
   // Una sola conexión Realtime por sesión logueada, escuchando cambios en
   // "mensajes". Supabase Realtime respeta la RLS de la tabla: cada cliente
@@ -94,18 +149,32 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     if (!user) return;
     const channel = supabase
       .channel(`mensajes-realtime-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "mensajes" }, () => {
+      .on("postgres_changes", { event: "*", schema: "public", table: "mensajes" }, (payload: any) => {
         queryClient.invalidateQueries({ queryKey: ["mensajes-no-leidos-count", user.id] });
         queryClient.invalidateQueries({ queryKey: ["foro-no-leidos-count", user.id] });
         queryClient.invalidateQueries({ queryKey: ["mensajes", user.id] });
         queryClient.invalidateQueries({ queryKey: ["foro-curso"] });
+
+        if (
+          payload.eventType === "INSERT" &&
+          payload.new?.destinatario_id === null &&
+          payload.new?.curso_id &&
+          payload.new?.remitente_id !== user.id
+        ) {
+          const cursoId = payload.new.curso_id as string;
+          const titulo = cursoTituloMapRef.current.get(cursoId);
+          toast("Nuevo mensaje en el foro", {
+            description: titulo || "Un curso tiene actividad nueva",
+            action: { label: "Ver", onClick: () => navigate(`/messages?curso=${cursoId}`) },
+          });
+        }
       })
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id, queryClient]);
+  }, [user?.id, queryClient, navigate]);
 
   const mensajesBadge = (mensajesNoLeidos || 0) + (foroNoLeidos || 0);
 
@@ -277,7 +346,8 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
           )}
           
           {collapsed && renderAvatar("w-9 h-9", profile?.nombre_completo || "Usuario")}
-          
+
+          <NotificationBell porCurso={foroPorCurso} collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
           <ThemeToggle collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
 
           <Button
@@ -306,6 +376,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             <span className="font-bold text-lg tracking-tighter">CapOL</span>
           </div>
           <div className="flex items-center gap-1">
+            <NotificationBell porCurso={foroPorCurso} collapsed />
             <ThemeToggle collapsed />
             {renderAvatar("w-8 h-8")}
           </div>

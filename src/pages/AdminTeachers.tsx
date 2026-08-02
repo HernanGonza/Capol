@@ -7,6 +7,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
@@ -19,6 +29,7 @@ const AdminTeachers = () => {
   const [selectedTeacher, setSelectedTeacher] = useState<any>(null);
   const [searchEmail, setSearchEmail] = useState("");
   const [selectedCourse, setSelectedCourse] = useState("");
+  const [promoteConfirm, setPromoteConfirm] = useState<any>(null);
 
   // Obtener todos los profesores
   const { data: teachers, isLoading } = useQuery({
@@ -225,11 +236,7 @@ const AdminTeachers = () => {
                         </div>
                         <Button
                           size="sm"
-                          onClick={() => {
-                            if (confirm(`¿Convertir a "${user.nombre_completo || "este usuario"}" (${user.email}, DNI ${user.dni || "no cargado"}) en profesor? Va a dejar de figurar como alumno.`)) {
-                              createTeacherMutation.mutate(user.id);
-                            }
-                          }}
+                          onClick={() => setPromoteConfirm(user)}
                           disabled={createTeacherMutation.isPending}
                         >
                           <Plus className="w-4 h-4 mr-1" /> Hacer Profesor
@@ -382,6 +389,30 @@ const AdminTeachers = () => {
           </DialogContent>
         </Dialog>
       </div>
+
+      <AlertDialog open={!!promoteConfirm} onOpenChange={(o) => !o && setPromoteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Convertir en profesor?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {promoteConfirm &&
+                `"${promoteConfirm.nombre_completo || "este usuario"}" (${promoteConfirm.email}, DNI ${promoteConfirm.dni || "no cargado"}) va a dejar de figurar como alumno.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={createTeacherMutation.isPending}
+              onClick={() => {
+                if (promoteConfirm) createTeacherMutation.mutate(promoteConfirm.id);
+                setPromoteConfirm(null);
+              }}
+            >
+              Hacer Profesor
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
