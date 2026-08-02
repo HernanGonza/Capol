@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +21,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, GraduationCap, BookOpen, Trash2, UserPlus, Search } from "lucide-react";
+import { Plus, GraduationCap, BookOpen, Trash2, UserPlus, Search, Shield } from "lucide-react";
 
 const AdminTeachers = () => {
+  const { user, profile } = useAuth();
   const queryClient = useQueryClient();
   const [openCreate, setOpenCreate] = useState(false);
   const [openAssign, setOpenAssign] = useState(false);
@@ -69,6 +71,33 @@ const AdminTeachers = () => {
       }));
     },
   });
+
+  // El admin también se puede asignar a sí mismo como docente de un curso
+  // (docentes_cursos no exige que docente_id tenga rol "teacher" — la RLS
+  // solo exige que quien inserta sea admin). No aparece en "teachers" porque
+  // su rol es "admin", así que se maneja como una tarjeta aparte que reusa
+  // las mismas mutations de asignar/quitar.
+  const { data: selfAssignments } = useQuery({
+    queryKey: ["admin-self-courses", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("docentes_cursos")
+        .select("curso_id, cursos (id, titulo)")
+        .eq("docente_id", user!.id);
+      if (error) throw error;
+      return data.map((a) => a.cursos);
+    },
+    enabled: !!user,
+  });
+
+  const selfAsTeacher = user
+    ? {
+        id: "self",
+        usuario_id: user.id,
+        perfiles: profile,
+        cursos: selfAssignments || [],
+      }
+    : null;
 
   // Obtener todos los cursos para asignar
   const { data: courses } = useQuery({
@@ -127,6 +156,7 @@ const AdminTeachers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-self-courses"] });
       toast.success("Curso asignado correctamente");
       setOpenAssign(false);
       setSelectedCourse("");
@@ -152,6 +182,7 @@ const AdminTeachers = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-teachers"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-self-courses"] });
       toast.success("Asignación removida");
     },
     onError: (e: any) => toast.error(e.message),
@@ -255,6 +286,64 @@ const AdminTeachers = () => {
             </DialogContent>
           </Dialog>
         </div>
+
+        {/* El admin también se puede asignar cursos a sí mismo como docente */}
+        {selfAsTeacher && (
+          <Card className="border-none shadow-card bg-card border-l-4 border-l-indigo-500">
+            <CardHeader className="pb-3">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center text-white font-bold text-lg">
+                  {selfAsTeacher.perfiles?.nombre_completo?.charAt(0).toUpperCase() || "A"}
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-bold">
+                    {selfAsTeacher.perfiles?.nombre_completo || "Vos"} (Admin)
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground">{selfAsTeacher.perfiles?.email}</p>
+                  <Badge variant="secondary" className="mt-1">
+                    <Shield className="w-3 h-3 mr-1" />
+                    Vos, como docente
+                  </Badge>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="text-xs font-bold uppercase text-muted-foreground mb-2">Cursos Asignados</p>
+                {selfAsTeacher.cursos.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Sin cursos asignados</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {selfAsTeacher.cursos.map((course: any) => (
+                      <Badge key={course.id} variant="outline" className="pr-1 flex items-center gap-1">
+                        <BookOpen className="w-3 h-3" />
+                        {course.titulo}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-5 w-5 ml-1 hover:bg-destructive/20 hover:text-destructive"
+                          onClick={() => removeAssignmentMutation.mutate({ teacherId: selfAsTeacher.usuario_id, courseId: course.id })}
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setSelectedTeacher(selfAsTeacher);
+                  setOpenAssign(true);
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" /> Asignarme un Curso
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">

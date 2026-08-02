@@ -95,7 +95,25 @@ const AdminStudents = () => {
     },
   });
 
-  const activeStudents = useMemo(() => students?.filter((s) => s.activo) || [], [students]);
+  // Para inscribir en un curso: el admin también tiene que poder anotar a un
+  // profesor como alumno de cualquier curso, no solo a cuentas con rol
+  // "student" (la RLS de suscripciones/inscripciones ya lo permite, esto es
+  // solo ampliar qué aparece en el selector).
+  const { data: enrollableUsers } = useQuery({
+    queryKey: ["enrollable-users"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("roles_usuario").select("usuario_id, rol").in("rol", ["student", "teacher"]);
+      if (!roles?.length) return [];
+      const { data: profiles } = await supabase
+        .from("perfiles")
+        .select("*")
+        .in("id", roles.map((r) => r.usuario_id))
+        .eq("activo", true)
+        .order("nombre_completo");
+      const rolPorUsuario = new Map(roles.map((r) => [r.usuario_id, r.rol]));
+      return (profiles || []).map((p) => ({ ...p, rol: rolPorUsuario.get(p.id) }));
+    },
+  });
 
   // Usuarios con la mensajería bloqueada (no pueden mandar mensajes directos ni postear en foros)
   const { data: bloqueados } = useQuery({
@@ -269,7 +287,13 @@ const AdminStudents = () => {
               <div className="space-y-4 pt-4">
                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>
-                  <SelectContent>{activeStudents.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre_completo} — {s.email}</SelectItem>)}</SelectContent>
+                  <SelectContent>
+                    {enrollableUsers?.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>
+                        {s.nombre_completo} — {s.email}{s.rol === "teacher" ? " (Profesor)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
                 </Select>
                 <Select value={selectedCourse} onValueChange={setSelectedCourse}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>

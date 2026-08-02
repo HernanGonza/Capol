@@ -156,6 +156,12 @@ const Landing = () => {
           if (cursando) return cursando;
           return [...ediciones].sort((a, b) => (b.fecha_fin || "").localeCompare(a.fecha_fin || ""))[0];
         });
+        // Prioriza "Próximamente" (se pueden inscribir) y después "Activo"
+        // (cursando ahora); "Finalizado" queda al final. Es un sort estable,
+        // así que dentro de cada estado se mantiene el orden por creación
+        // que ya trae la query.
+        const prioridadEstado: Record<Course["estado"], number> = { proximamente: 0, activo: 1, finalizado: 2 };
+        deduplicados.sort((a, b) => prioridadEstado[a.estado] - prioridadEstado[b.estado]);
         setCourses(deduplicados);
       }
       setLoading(false);
