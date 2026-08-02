@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
 
 interface Course {
   id: string;
@@ -51,6 +52,7 @@ interface Course {
 }
 
 const Landing = () => {
+  useDocumentMeta("Plataforma CapOL | Escuela Virtual de Informática", "/");
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCourseMedia, setSelectedCourseMedia] = useState<{ url: string; type: "video" | "image"; titulo: string; descripcion: string | null } | null>(null);
@@ -299,6 +301,7 @@ const Landing = () => {
         </div>
       </nav>
 
+      <main>
       {/* HERO SECTION */}
       <section className="relative pt-36 pb-16 px-6">
         <div className="max-w-7xl mx-auto">
@@ -393,7 +396,7 @@ const Landing = () => {
               <div className="w-14 h-14 rounded-2xl bg-indigo-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <Monitor className="w-7 h-7 text-indigo-500 dark:text-indigo-400" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Clases en Vivo</h3>
+              <h2 className="text-xl font-bold mb-3">Clases en Vivo</h2>
               <p className="text-slate-600 dark:text-white/50 leading-relaxed">
                 Videoconferencias interactivas con tus profesores. Preguntá,
                 participá y aprendé en tiempo real.
@@ -404,7 +407,7 @@ const Landing = () => {
               <div className="w-14 h-14 rounded-2xl bg-purple-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <BookOpen className="w-7 h-7 text-purple-500 dark:text-purple-400" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Material Interactivo</h3>
+              <h2 className="text-xl font-bold mb-3">Material Interactivo</h2>
               <p className="text-slate-600 dark:text-white/50 leading-relaxed">
                 Videos, ejercicios prácticos, consola integrada y quizzes para
                 reforzar cada concepto.
@@ -415,7 +418,7 @@ const Landing = () => {
               <div className="w-14 h-14 rounded-2xl bg-pink-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
                 <Zap className="w-7 h-7 text-pink-500 dark:text-pink-400" />
               </div>
-              <h3 className="text-xl font-bold mb-3">A tu Ritmo</h3>
+              <h2 className="text-xl font-bold mb-3">A tu Ritmo</h2>
               <p className="text-slate-600 dark:text-white/50 leading-relaxed">
                 Accedé al contenido cuando quieras. Cuando el profesor graba la
                 clase, vas a poder repasarla las veces que necesites.
@@ -746,6 +749,7 @@ const Landing = () => {
           </div>
         </div>
       </section>
+      </main>
 
       {/* FOOTER */}
       <footer className="border-t border-slate-200 dark:border-white/5 py-12 px-6">
@@ -764,7 +768,7 @@ const Landing = () => {
             </div>
           </div>
 
-          <p className="text-slate-400 dark:text-white/30 text-sm text-center">
+          <p className="text-slate-500 dark:text-white/50 text-sm text-center">
             © {new Date().getFullYear()} CapOL. Todos los derechos reservados.
           </p>
 
@@ -804,7 +808,7 @@ const Landing = () => {
             href="https://www.paralelo.tech"
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 text-slate-400 dark:text-white/30 hover:text-slate-700 dark:hover:text-white/70 text-xs font-medium transition-colors"
+            className="flex items-center gap-2 text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/70 text-xs font-medium transition-colors"
           >
             <span>Desarrollado por</span>
             <img src="/paralelo-iso.png" alt="Paralelo Software Studio" className="h-4 w-4 rounded" />

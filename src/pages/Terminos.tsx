@@ -2,7 +2,7 @@ import LegalPageLayout from "@/components/LegalPageLayout";
 
 const Terminos = () => {
   return (
-    <LegalPageLayout title="Términos y Condiciones" actualizado="2 de agosto de 2026">
+    <LegalPageLayout title="Términos y Condiciones" actualizado="2 de agosto de 2026" path="/terminos">
       <section>
         <h2>1. Aceptación de los términos</h2>
         <p>

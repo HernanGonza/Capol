@@ -2,7 +2,7 @@ import LegalPageLayout from "@/components/LegalPageLayout";
 
 const Privacidad = () => {
   return (
-    <LegalPageLayout title="Política de Privacidad" actualizado="2 de agosto de 2026">
+    <LegalPageLayout title="Política de Privacidad" actualizado="2 de agosto de 2026" path="/privacidad">
       <section>
         <h2>1. Qué datos recopilamos</h2>
         <p>Cuando creás una cuenta y usás CapOL, recopilamos:</p>

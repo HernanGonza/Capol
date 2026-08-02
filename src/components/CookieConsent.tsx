@@ -26,7 +26,7 @@ const CookieConsent = () => {
   if (!visible) return null;
 
   return (
-    <div className="fixed bottom-0 inset-x-0 z-[100] p-4 sm:p-6">
+    <div role="region" aria-label="Aviso de cookies" className="fixed bottom-0 inset-x-0 z-[100] p-4 sm:p-6">
       <div className="max-w-3xl mx-auto bg-white dark:bg-[#12121a] border border-slate-200 dark:border-white/10 rounded-2xl shadow-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4">
         <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
           <Cookie className="w-5 h-5" />

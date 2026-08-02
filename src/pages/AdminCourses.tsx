@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap, Copy, FlagOff, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
+import { compressImageToWebP } from "@/lib/imageCompression";
 
 const formatPrecio = (course: any) => {
   if (!course.precio) return null;
@@ -116,11 +117,20 @@ const AdminCourses = () => {
     if (file.size > maxSize) { toast.error(`Máximo ${isVideo ? "100MB" : "10MB"}`); return; }
     setUploading(true);
     try {
-      setPreviewUrl(URL.createObjectURL(file));
+      // Los flyers de imagen se comprimen y convierten a WebP en el navegador
+      // antes de subirlos — bajan de varios MB (PNG sin comprimir) a unos
+      // cientos de KB, sin depender de que quien suba la imagen la optimice
+      // a mano. Los videos se suben tal cual.
+      const uploadFile = isImage ? await compressImageToWebP(file) : file;
+      setPreviewUrl(URL.createObjectURL(uploadFile));
       setPreviewType(isVideo ? "video" : "image");
-      const fileExt = file.name.split(".").pop();
+      const fileExt = uploadFile.name.split(".").pop();
       const filePath = `flyers/${crypto.randomUUID()}.${fileExt}`;
-      const { error } = await supabase.storage.from("course-flyers").upload(filePath, file, { cacheControl: "3600" });
+      // Cache largo: cada subida genera un path con UUID nuevo, así que el
+      // contenido de una URL de flyer nunca cambia — es seguro cachearlo por
+      // mucho tiempo (antes quedaba en 1 hora, desperdiciando ancho de banda
+      // en cada visita repetida).
+      const { error } = await supabase.storage.from("course-flyers").upload(filePath, uploadFile, { cacheControl: "31536000" });
       if (error) throw error;
       const { data: { publicUrl } } = supabase.storage.from("course-flyers").getPublicUrl(filePath);
       setForm({ ...form, url_flyer: publicUrl, tipo_flyer: isVideo ? "video" : "image" });

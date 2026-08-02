@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PROVINCIAS_AR, PAISES_MUNDO, CODIGO_TELEFONICO } from "@/lib/geo";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useDocumentMeta } from "@/hooks/use-document-meta";
 
 const passwordChecks = (pw: string) => [
   { label: "Al menos 8 caracteres", ok: pw.length >= 8 },
@@ -24,6 +25,10 @@ const passwordChecks = (pw: string) => [
 const Auth = () => {
   const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(searchParams.get("registro") !== "1");
+  useDocumentMeta(
+    isLogin ? "Iniciar Sesión | CapOL" : "Crear Cuenta | CapOL",
+    "/auth",
+  );
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -210,13 +215,13 @@ const Auth = () => {
         />
       </div>
 
-      <div className="w-full max-w-lg relative z-10">
+      <main className="w-full max-w-lg relative z-10">
         {/* Logo */}
         <div className="text-center mb-4">
           <div className="inline-flex items-center gap-3">
-            <img src="/logo-capol.webp" alt="CapOL" className="h-12 w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20" />
+            <img src="/logo-capol.webp" alt="" className="h-12 w-12 rounded-full object-cover shadow-lg shadow-indigo-500/20" />
             <div className="text-left">
-              <p className="font-black text-xl text-slate-900 dark:text-white tracking-tight">CapOL</p>
+              <h1 className="font-black text-xl text-slate-900 dark:text-white tracking-tight">CapOL</h1>
               <p className="text-[10px] text-indigo-600/80 dark:text-indigo-300/70 font-medium tracking-[0.2em] uppercase">Escuela Virtual</p>
             </div>
           </div>
@@ -296,7 +301,7 @@ const Auth = () => {
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       name="current-password" autoComplete="current-password"
                       className={`pl-9 pr-10 ${inputClass}`} required />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
@@ -450,7 +455,7 @@ const Auth = () => {
                         onChange={(e) => setForm({ ...form, password: e.target.value })}
                         name="new-password" autoComplete="new-password"
                         className={`pl-9 pr-10 ${inputClass}`} required />
-                      <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -490,7 +495,7 @@ const Auth = () => {
                         name="confirm-new-password" autoComplete="new-password"
                         className={`pl-9 pr-10 ${inputClass} ${form.confirmar_password && form.password !== form.confirmar_password ? "border-red-500/50" : form.confirmar_password && form.password === form.confirmar_password ? "border-emerald-500/50" : ""}`}
                         required />
-                      <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
+                      <button type="button" onClick={() => setShowConfirm(!showConfirm)} aria-label={showConfirm ? "Ocultar contraseña" : "Mostrar contraseña"} className="absolute right-3 top-3 text-slate-400 dark:text-white/30 hover:text-slate-600 dark:hover:text-white/60">
                         {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
@@ -547,11 +552,11 @@ const Auth = () => {
         </div>
 
         <div className="text-center mt-4">
-          <a href="/" className="text-slate-400 dark:text-white/30 hover:text-slate-700 dark:hover:text-white/60 text-sm flex items-center justify-center gap-2 transition-colors">
+          <a href="/" className="text-slate-500 dark:text-white/50 hover:text-slate-700 dark:hover:text-white/60 text-sm flex items-center justify-center gap-2 transition-colors">
             <ArrowLeft className="w-4 h-4" /> Volver al inicio
           </a>
         </div>
-      </div>
+      </main>
     </div>
     </>
   );
