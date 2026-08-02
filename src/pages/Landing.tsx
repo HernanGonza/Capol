@@ -768,7 +768,7 @@ const Landing = () => {
             © {new Date().getFullYear()} CapOL. Todos los derechos reservados.
           </p>
 
-          <div className="flex items-center gap-4 justify-center md:justify-end">
+          <div className="flex flex-wrap items-center gap-3 justify-center md:justify-end">
             <Link
               to="/auth"
               className="text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors"
@@ -776,8 +776,22 @@ const Landing = () => {
               Acceder
             </Link>
             <span className="text-slate-300 dark:text-white/20">|</span>
+            <Link
+              to="/terminos"
+              className="text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors"
+            >
+              Términos
+            </Link>
+            <span className="text-slate-300 dark:text-white/20">|</span>
+            <Link
+              to="/privacidad"
+              className="text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors"
+            >
+              Privacidad
+            </Link>
+            <span className="text-slate-300 dark:text-white/20">|</span>
             <a
-              href="mailto:contacto@capol.com"
+              href="mailto:capolescuela@gmail.com"
               className="text-slate-500 dark:text-white/50 hover:text-slate-900 dark:hover:text-white text-sm font-medium transition-colors"
             >
               Contacto

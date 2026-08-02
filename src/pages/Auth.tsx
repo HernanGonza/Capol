@@ -1,10 +1,11 @@
 import { useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   Mail, Lock, User, Phone, MapPin,
@@ -49,6 +50,7 @@ const Auth = () => {
     provincia: "",
     pais: paisInicial,
   });
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
 
   const checks = passwordChecks(form.password);
   const passwordStrength = checks.filter((c) => c.ok).length;
@@ -118,6 +120,10 @@ const Auth = () => {
       toast.error("La contraseña no es suficientemente segura");
       return;
     }
+    if (!aceptaTerminos) {
+      toast.error("Tenés que aceptar los Términos y Condiciones para crear una cuenta");
+      return;
+    }
     setLoading(true);
     try {
       // Primero subir avatar si hay, antes del signUp
@@ -166,6 +172,7 @@ const Auth = () => {
       });
       setAvatarFile(null);
       setAvatarPreview(null);
+      setAceptaTerminos(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: any) {
       toast.error(error?.message || "No se pudo crear la cuenta. Intentá de nuevo.");
@@ -508,7 +515,27 @@ const Auth = () => {
                   </div>
                 </div>
 
-                <Button type="submit" disabled={loading} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/25">
+                <div className="flex items-start gap-2">
+                  <Checkbox
+                    id="acepta-terminos"
+                    checked={aceptaTerminos}
+                    onCheckedChange={(v) => setAceptaTerminos(v === true)}
+                    className="mt-0.5"
+                  />
+                  <Label htmlFor="acepta-terminos" className="text-xs text-slate-500 dark:text-white/50 font-normal leading-snug cursor-pointer">
+                    Leí y acepto los{" "}
+                    <Link to="/terminos" target="_blank" className="text-indigo-600 dark:text-indigo-400 underline underline-offset-2">
+                      Términos y Condiciones
+                    </Link>{" "}
+                    y la{" "}
+                    <Link to="/privacidad" target="_blank" className="text-indigo-600 dark:text-indigo-400 underline underline-offset-2">
+                      Política de Privacidad
+                    </Link>
+                    .
+                  </Label>
+                </div>
+
+                <Button type="submit" disabled={loading || !aceptaTerminos} className="w-full bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold h-12 rounded-xl shadow-lg shadow-indigo-500/25">
                   {loading ? "Creando cuenta..." : "Crear Cuenta"}
                 </Button>
                 <p className="text-center text-[11px] text-slate-400 dark:text-white/25">
