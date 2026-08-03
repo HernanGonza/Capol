@@ -117,6 +117,7 @@ const Messages = () => {
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState<"todos" | "directos" | "foros">("todos");
   const [newMessageOpen, setNewMessageOpen] = useState(false);
+  const [contactSearch, setContactSearch] = useState("");
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -141,9 +142,9 @@ const Messages = () => {
     refetchInterval: 60000,
   });
 
-  // Compañeros de cursada + profesores de los cursos en los que el alumno
-  // está activo — para el picker de "Nuevo Mensaje". Solo se pide cuando se
-  // abre el diálogo, no en cada carga de la pantalla.
+  // Compañeros/profesores (alumno) o alumnos de sus cursos (profesor) — para
+  // el picker de "Nuevo Mensaje". Solo se pide cuando se abre el diálogo, no
+  // en cada carga de la pantalla.
   const { data: contactos } = useQuery({
     queryKey: ["mis-contactos-mensajeria", user?.id],
     queryFn: async () => {
@@ -151,7 +152,83 @@ const Messages = () => {
       if (error) throw error;
       return data || [];
     },
-    enabled: role === "student" && newMessageOpen,
+    enabled: (role === "student" || role === "teacher") && newMessageOpen,
+  });
+
+  // El admin no tiene "cursos en común" que valga como criterio — puede
+  // escribirle a cualquier usuario de la plataforma, así que en vez del RPC
+  // (pensado para relaciones de cursada) se trae directo la lista completa
+  // de perfiles (el admin no tiene restricción de RLS sobre "perfiles").
+  const { data: adminContactos } = useQuery({
+    queryKey: ["admin-todos-los-usuarios", user?.id],
+    queryFn: async () => {
+      const { data: roles, error } = await supabase
+        .from("roles_usuario")
+        .select("usuario_id, rol")
+        .in("rol", ["student", "teacher", "admin"]);
+      if (error) throw error;
+      const roleMap = new Map((roles || []).map((r: any) => [r.usuario_id, r.rol]));
+      const ids = Array.from(roleMap.keys()).filter((id) => id !== user!.id);
+      if (ids.length === 0) return [];
+      const { data: perfiles, error: perfError } = await supabase
+        .from("perfiles")
+        .select("id, nombre_completo, url_avatar")
+        .in("id", ids)
+        .order("nombre_completo");
+      if (perfError) throw perfError;
+      return (perfiles || []).map((p: any) => ({
+        id: p.id,
+        nombre_completo: p.nombre_completo,
+        url_avatar: p.url_avatar,
+        rol: roleMap.get(p.id) === "teacher" ? "profesor" : roleMap.get(p.id) === "admin" ? "admin" : "alumno",
+        curso_titulo: null as string | null,
+      }));
+    },
+    enabled: role === "admin" && newMessageOpen,
+  });
+
+  const contactosParaMostrar = role === "admin" ? adminContactos : contactos;
+
+  const contactosFiltrados = useMemo(() => {
+    if (!contactSearch.trim()) return contactosParaMostrar;
+    const q = contactSearch.trim().toLowerCase();
+    return (contactosParaMostrar || []).filter(
+      (c) => c.nombre_completo?.toLowerCase().includes(q) || c.curso_titulo?.toLowerCase().includes(q)
+    );
+  }, [contactosParaMostrar, contactSearch]);
+
+  // Cursos asignados al profesor — para que el foro aparezca en la lista de
+  // conversaciones desde el primer momento, aunque todavía no tenga ningún
+  // mensaje (mismo criterio que ya usa el admin con "allCourses").
+  const { data: teacherCourses } = useQuery({
+    queryKey: ["teacher-courses-list", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("docentes_cursos")
+        .select("cursos (id, titulo)")
+        .eq("docente_id", user!.id);
+      if (error) throw error;
+      return (data || []).map((d: any) => d.cursos).filter(Boolean);
+    },
+    enabled: role === "teacher",
+  });
+
+  // Cursos activos del alumno — mismo criterio que teacherCourses/allCourses:
+  // el foro tiene que aparecer (y ser buscable) desde el primer momento, sin
+  // depender de que ya exista algún mensaje ahí.
+  const { data: studentCourses } = useQuery({
+    queryKey: ["student-courses-list-messages", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("cursos (id, titulo)")
+        .eq("usuario_id", user!.id)
+        .eq("estado", "active")
+        .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
+      if (error) throw error;
+      return (data || []).map((d: any) => d.cursos).filter(Boolean);
+    },
+    enabled: role === "student",
   });
 
   // "perfiles" solo deja ver la fila propia (o todas si sos admin), así que
@@ -194,6 +271,20 @@ const Messages = () => {
     },
     enabled: role === "admin",
   });
+
+  // Cursos con foro disponible para el rol actual — usado tanto para
+  // sembrar la lista de conversaciones como para el picker de "Nuevo
+  // Mensaje" (así buscar por nombre de curso ahí también encuentra el foro).
+  const forosDisponibles = useMemo(() => {
+    const list = role === "admin" ? allCourses : role === "teacher" ? teacherCourses : role === "student" ? studentCourses : null;
+    return (list || []) as { id: string; titulo: string }[];
+  }, [role, allCourses, teacherCourses, studentCourses]);
+
+  const forosFiltrados = useMemo(() => {
+    if (!contactSearch.trim()) return forosDisponibles;
+    const q = contactSearch.trim().toLowerCase();
+    return forosDisponibles.filter((f) => f.titulo.toLowerCase().includes(q));
+  }, [forosDisponibles, contactSearch]);
 
   // Reportes de mensajes pendientes de revisar (solo admin)
   const { data: reportes } = useQuery({
@@ -279,20 +370,21 @@ const Messages = () => {
       });
     }
 
-    if (role === "admin" && allCourses) {
-      for (const c of allCourses) {
-        const key = `foro-${c.id}`;
-        if (!map.has(key)) {
-          map.set(key, {
-            key,
-            tipo: "foro",
-            cursoId: c.id,
-            nombre: `Foro: ${c.titulo}`,
-            cursoTitulo: c.titulo,
-            mensajes: [],
-            ultimo: null,
-          });
-        }
+    // El foro tiene que aparecer en la lista desde el primer momento, sin
+    // depender de que ya exista un mensaje ahí (sino no habría forma de
+    // "arrancarlo" ni de encontrarlo buscando por nombre de curso).
+    for (const c of forosDisponibles) {
+      const key = `foro-${c.id}`;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          tipo: "foro",
+          cursoId: c.id,
+          nombre: `Foro: ${c.titulo}`,
+          cursoTitulo: c.titulo,
+          mensajes: [],
+          ultimo: null,
+        });
       }
     }
 
@@ -301,7 +393,7 @@ const Messages = () => {
       const db = b.ultimo ? new Date(b.ultimo.creado_en).getTime() : -Infinity;
       return db - da;
     });
-  }, [mensajes, user, withParam, profileMap, cursoParam, role, allCourses]);
+  }, [mensajes, user, withParam, profileMap, cursoParam, forosDisponibles]);
 
   const filtered = useMemo(
     () =>
@@ -510,7 +602,7 @@ const Messages = () => {
             <h1 className="text-2xl font-bold">Mensajes</h1>
             <p className="text-muted-foreground">Conversaciones directas y foros de curso</p>
           </div>
-          {role === "student" && (
+          {!!role && (
             <Button onClick={() => setNewMessageOpen(true)} className="gap-2 shrink-0">
               <Plus className="w-4 h-4" /> Nuevo Mensaje
             </Button>
@@ -846,36 +938,86 @@ const Messages = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <Dialog open={newMessageOpen} onOpenChange={setNewMessageOpen}>
+      <Dialog open={newMessageOpen} onOpenChange={(o) => { setNewMessageOpen(o); if (!o) setContactSearch(""); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nuevo Mensaje</DialogTitle>
           </DialogHeader>
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-            {contactos?.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => { setNewMessageOpen(false); navigate(`/messages?with=${c.id}`); }}
-                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-left transition-colors"
-              >
-                {c.url_avatar ? (
-                  <img src={c.url_avatar} alt={c.nombre_completo || "Usuario"} className="w-9 h-9 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-9 h-9 rounded-full gradient-hero flex items-center justify-center text-white text-sm font-bold shrink-0">
-                    {(c.nombre_completo || "U")[0]?.toUpperCase()}
-                  </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Buscar por nombre o curso..."
+              className="pl-9"
+              value={contactSearch}
+              onChange={(e) => setContactSearch(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+            {!!forosFiltrados.length && (
+              <div className="space-y-1">
+                {!!contactosFiltrados?.length && (
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">Foros de curso</p>
                 )}
-                <div className="min-w-0">
-                  <p className="font-semibold truncate">{c.nombre_completo || "Usuario"}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {c.rol === "profesor" ? "Profesor" : "Compañero"} · {c.curso_titulo}
-                  </p>
-                </div>
-              </button>
-            ))}
-            {contactos?.length === 0 && (
+                {forosFiltrados.map((f) => (
+                  <button
+                    key={f.id}
+                    onClick={() => { setNewMessageOpen(false); navigate(`/messages?curso=${f.id}`); }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-left transition-colors"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                      <Users className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">Foro: {f.titulo}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!!contactosFiltrados?.length && (
+              <div className="space-y-1">
+                {!!forosFiltrados.length && (
+                  <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide px-1">Personas</p>
+                )}
+                {contactosFiltrados.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => { setNewMessageOpen(false); navigate(`/messages?with=${c.id}`); }}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-left transition-colors"
+                  >
+                    {c.url_avatar ? (
+                      <img src={c.url_avatar} alt={c.nombre_completo || "Usuario"} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                    ) : (
+                      <div className="w-9 h-9 rounded-full gradient-hero flex items-center justify-center text-white text-sm font-bold shrink-0">
+                        {(c.nombre_completo || "U")[0]?.toUpperCase()}
+                      </div>
+                    )}
+                    <div className="min-w-0">
+                      <p className="font-semibold truncate">{c.nombre_completo || "Usuario"}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {c.rol === "profesor" ? "Profesor" : c.rol === "alumno" ? "Alumno" : c.rol === "admin" ? "Administrador" : "Compañero"}
+                        {c.curso_titulo ? ` · ${c.curso_titulo}` : ""}
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {!forosDisponibles.length && !contactosParaMostrar?.length && (
               <p className="text-sm text-muted-foreground text-center py-8">
-                Todavía no tenés compañeros o profesores para contactar.
+                {role === "teacher"
+                  ? "Todavía no tenés alumnos inscriptos en tus cursos para contactar."
+                  : role === "admin"
+                  ? "No hay otros usuarios registrados todavía."
+                  : "Todavía no tenés compañeros o profesores para contactar."}
+              </p>
+            )}
+            {!!(forosDisponibles.length || contactosParaMostrar?.length) && !forosFiltrados.length && !contactosFiltrados?.length && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                No encontramos nada con "{contactSearch}".
               </p>
             )}
           </div>
