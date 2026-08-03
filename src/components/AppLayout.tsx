@@ -24,6 +24,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell, { type ForoActividadCurso } from "@/components/NotificationBell";
+import { startOnboardingTour } from "@/lib/onboardingTour";
 
 // Cada página envuelve su propio contenido en <AppLayout>, así que este
 // componente (y con él, el <nav> del sidebar) se remonta en cada cambio de
@@ -34,8 +35,16 @@ import NotificationBell, { type ForoActividadCurso } from "@/components/Notifica
 // esperable).
 let sidebarScrollTop = 0;
 
+// Evita que el tour se vuelva a disparar en cada remount de AppLayout (pasa
+// en cada cambio de ruta, ver comentario de "sidebarScrollTop") mientras
+// dure la sesión del mismo usuario. Se guarda por id de usuario (no un
+// simple booleano) para que, si en la misma pestaña cierra sesión y entra
+// OTRA cuenta sin recargar la página, el tour de esa cuenta nueva se pueda
+// disparar igual.
+let tourStartedForUserId: string | null = null;
+
 const AppLayout = ({ children }: { children: ReactNode }) => {
-  const { user, role, profile, signOut } = useAuth();
+  const { user, role, profile, signOut, refreshProfile } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -48,6 +57,52 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   useEffect(() => {
     if (navRef.current) navRef.current.scrollTop = sidebarScrollTop;
   }, []);
+
+  // Tour de bienvenida: se muestra una sola vez por usuario NUEVO (o hasta
+  // que llegue al final y toque "Finalizar Tour"). Apunta solo a elementos
+  // que están siempre en el sidebar (sin depender de navegar de página en
+  // página) — en mobile el sidebar arranca cerrado, así que si hace falta
+  // se abre solo para el tour y se vuelve a cerrar al terminar.
+  useEffect(() => {
+    if (!user || !role || !profile) return;
+    if (profile.tour_completado) return;
+    if (tourStartedForUserId === user.id) return;
+    tourStartedForUserId = user.id;
+
+    let cancelled = false;
+    let openedSidebarForTour = false;
+
+    const timer = setTimeout(async () => {
+      if (cancelled) return;
+      const isDesktop = window.matchMedia("(min-width: 1024px)").matches;
+      if (!isDesktop && !sidebarOpen) {
+        openedSidebarForTour = true;
+        setSidebarOpen(true);
+      }
+
+      // Esperar a que termine la transición de apertura del sidebar mobile
+      // (duration-300 en el <aside>) antes de que driver.js mida posiciones.
+      await new Promise((resolve) => setTimeout(resolve, openedSidebarForTour ? 350 : 50));
+      if (cancelled) return;
+
+      await startOnboardingTour({
+        role,
+        onFinish: async () => {
+          await supabase.from("perfiles").update({ tour_completado: true }).eq("id", user.id);
+          refreshProfile();
+        },
+        onEnd: () => {
+          if (openedSidebarForTour) setSidebarOpen(false);
+        },
+      });
+    }, 400);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id, role, profile?.tour_completado]);
 
   const { data: solicitudesPendientes } = useQuery({
     queryKey: ["solicitudes-pendientes-count"],
@@ -244,9 +299,10 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
   // Avatar del usuario: si subió una foto en "Mi Perfil" se muestra esa foto;
   // si no, cae al círculo con la inicial del nombre (comportamiento anterior).
-  const renderAvatar = (sizeClasses: string, title?: string) =>
+  const renderAvatar = (sizeClasses: string, title?: string, id?: string) =>
     profile?.url_avatar ? (
       <img
+        id={id}
         src={profile.url_avatar}
         alt={profile?.nombre_completo || "Usuario"}
         title={title}
@@ -254,6 +310,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       />
     ) : (
       <div
+        id={id}
         title={title}
         className={`${sizeClasses} rounded-full flex items-center justify-center text-sm font-bold text-white shadow-inner shrink-0 ${
           isTeacher ? "bg-gradient-to-br from-indigo-500 to-purple-500" : "gradient-hero"
@@ -310,6 +367,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
         {/* Navegación Principal */}
         <nav
+          id="tour-sidebar-nav"
           ref={navRef}
           onScroll={(e) => { sidebarScrollTop = e.currentTarget.scrollTop; }}
           className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1"
@@ -351,7 +409,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         <div className={`shrink-0 p-3 border-t border-sidebar-border/50 bg-sidebar-accent/30 ${collapsed ? "flex flex-col items-center gap-2" : ""}`}>
           {!collapsed && (
             <div className="flex items-center gap-3 px-2 py-2 mb-2 bg-white/50 rounded-xl border border-white/20">
-              {renderAvatar("w-9 h-9")}
+              {renderAvatar("w-9 h-9", undefined, "tour-profile-avatar")}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold truncate text-sidebar-foreground">
                   {profile?.nombre_completo || "Usuario"}
@@ -363,10 +421,10 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
             </div>
           )}
           
-          {collapsed && renderAvatar("w-9 h-9", profile?.nombre_completo || "Usuario")}
+          {collapsed && renderAvatar("w-9 h-9", profile?.nombre_completo || "Usuario", "tour-profile-avatar")}
 
-          <NotificationBell porCurso={foroPorCurso} collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
-          <ThemeToggle collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
+          <NotificationBell id="tour-notifications" porCurso={foroPorCurso} collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
+          <ThemeToggle id="tour-theme-toggle" collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
 
           <Button
             variant="ghost"

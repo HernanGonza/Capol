@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck } from "lucide-react";
+import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck, Download } from "lucide-react";
 
 type ConfirmAction =
   | { type: "toggle-ban"; student: any; bloqueado: boolean }
@@ -79,6 +79,7 @@ const AdminStudents = () => {
   // Estados para filtros
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [courseFilter, setCourseFilter] = useState("all");
 
   // Lista de alumnos (a nivel cuenta, con su estado activo/inactivo)
   const { data: students } = useQuery({
@@ -136,7 +137,7 @@ const AdminStudents = () => {
   const { data: enrollments } = useQuery({
     queryKey: ["all-enrollments-with-subs"],
     queryFn: async () => {
-      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo), perfiles:usuario_id(nombre_completo, email)");
+      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo), perfiles:usuario_id(nombre_completo, email, dni, telefono, edad, ocupacion)");
       const { data: subs } = await supabase.from("suscripciones").select("*");
       return enr?.map(e => ({
         ...e,
@@ -157,11 +158,41 @@ const AdminStudents = () => {
 
         const subStatus = e.subscription?.estado || "none";
         const matchesStatus = statusFilter === "all" || subStatus === statusFilter;
+        const matchesCourse = courseFilter === "all" || e.curso_id === courseFilter;
 
-        return matchesSearch && matchesStatus;
+        return matchesSearch && matchesStatus && matchesCourse;
       })
       .sort((a: any, b: any) => (a.perfiles?.nombre_completo || "").localeCompare(b.perfiles?.nombre_completo || ""));
-  }, [enrollments, search, statusFilter]);
+  }, [enrollments, search, statusFilter, courseFilter]);
+
+  // Exporta exactamente lo que se está viendo en "Inscripciones por Curso"
+  // (respeta los filtros de curso/estado/búsqueda ya aplicados) — así el
+  // admin elige el curso en el filtro y exporta solo esos alumnos.
+  const exportCsv = () => {
+    const headers = ["Nombre", "Email", "DNI", "Teléfono", "Edad", "Ocupación", "Curso", "Estado de suscripción", "Inscripto el"];
+    const rows = filteredEnrollments.map((e: any) => [
+      e.perfiles?.nombre_completo || "",
+      e.perfiles?.email || "",
+      e.perfiles?.dni || "",
+      e.perfiles?.telefono || "",
+      e.perfiles?.edad ?? "",
+      e.perfiles?.ocupacion || "",
+      e.cursos?.titulo || "",
+      e.subscription?.estado === "active" ? "Activa" : e.subscription?.estado === "expired" ? "Vencida" : "Pendiente",
+      e.inscripto_en ? new Date(e.inscripto_en).toLocaleDateString("es-AR") : "",
+    ]);
+    const escape = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
+    const csv = [headers, ...rows].map((row) => row.map(escape).join(",")).join("\r\n");
+    // BOM al inicio: sin esto Excel abre los acentos/ñ como caracteres raros.
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const cursoLabel = courseFilter !== "all" ? courses?.find((c) => c.id === courseFilter)?.titulo || "curso" : "todos-los-cursos";
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `alumnos-${cursoLabel}.csv`.toLowerCase().replace(/\s+/g, "-");
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const enrollMutation = useMutation({
     mutationFn: async () => {
@@ -417,6 +448,15 @@ const AdminStudents = () => {
             </div>
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-muted-foreground" />
+              <Select value={courseFilter} onValueChange={setCourseFilter}>
+                <SelectTrigger className="w-[200px] bg-background">
+                  <SelectValue placeholder="Curso" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos los cursos</SelectItem>
+                  {courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
                 <SelectTrigger className="w-[180px] bg-background">
                   <SelectValue placeholder="Estado de pago" />
@@ -433,11 +473,19 @@ const AdminStudents = () => {
         </Card>
 
         <Card className="shadow-card overflow-hidden">
-          <CardHeader className="bg-muted/30 border-b">
+          <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between gap-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
               Inscripciones por Curso ({filteredEnrollments.length})
             </CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={filteredEnrollments.length === 0}
+              onClick={exportCsv}
+            >
+              <Download className="w-4 h-4 mr-2" /> Exportar CSV
+            </Button>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">

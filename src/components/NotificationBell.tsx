@@ -17,12 +17,13 @@ interface NotificationBellProps {
   porCurso: ForoActividadCurso[];
   collapsed?: boolean;
   className?: string;
+  id?: string;
 }
 
 // Campanita de "actividad en foros": no depende de una tabla de
 // notificaciones propia, solo resume por curso lo que ya calcula AppLayout
 // a partir de foro_ultima_lectura + mensajes (ver ["foro-no-leidos-count"]).
-const NotificationBell = ({ porCurso, collapsed, className }: NotificationBellProps) => {
+const NotificationBell = ({ porCurso, collapsed, className, id }: NotificationBellProps) => {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
   const total = porCurso.reduce((acc, c) => acc + c.count, 0);
@@ -36,6 +37,7 @@ const NotificationBell = ({ porCurso, collapsed, className }: NotificationBellPr
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="ghost"
           size={collapsed ? "icon" : "sm"}
           title="Notificaciones de foros"

@@ -50,7 +50,8 @@ const Auth = () => {
     confirmar_password: "",
     telefono: `${CODIGO_TELEFONICO[paisInicial]} `,
     dni: "",
-    direccion: "",
+    edad: "",
+    ocupacion: "",
     localidad: "",
     provincia: "",
     pais: paisInicial,
@@ -155,7 +156,8 @@ const Auth = () => {
             nombre_completo: form.nombre_completo,
             telefono: form.telefono,
             dni: form.dni,
-            direccion: form.direccion,
+            edad: form.edad,
+            ocupacion: form.ocupacion,
             localidad: form.localidad,
             provincia: form.provincia,
             pais: form.pais,
@@ -173,7 +175,7 @@ const Auth = () => {
       // foto) de la cuenta que se acaba de crear.
       setForm({
         nombre_completo: "", email: "", password: "", confirmar_password: "",
-        telefono: `${CODIGO_TELEFONICO[paisInicial]} `, dni: "", direccion: "", localidad: "", provincia: "", pais: paisInicial,
+        telefono: `${CODIGO_TELEFONICO[paisInicial]} `, dni: "", edad: "", ocupacion: "", localidad: "", provincia: "", pais: paisInicial,
       });
       setAvatarFile(null);
       setAvatarPreview(null);
@@ -392,6 +394,20 @@ const Auth = () => {
                         className={`pl-9 ${inputClass}`} required />
                     </div>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className={labelClass}>Edad</Label>
+                      <Input type="number" min="1" max="120" placeholder="Ej: 28" value={form.edad}
+                        onChange={(e) => setForm({ ...form, edad: e.target.value })}
+                        className={inputClass} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className={labelClass}>Ocupación</Label>
+                      <Input placeholder="Ej: Diseñadora" value={form.ocupacion}
+                        onChange={(e) => setForm({ ...form, ocupacion: e.target.value })}
+                        className={inputClass} />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Ubicación */}
@@ -399,12 +415,6 @@ const Auth = () => {
                   <p className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest flex items-center gap-2">
                     <MapPin className="w-3 h-3" /> Ubicación
                   </p>
-                  <div className="space-y-1.5">
-                    <Label className={labelClass}>Dirección</Label>
-                    <Input placeholder="Calle 123" value={form.direccion}
-                      onChange={(e) => setForm({ ...form, direccion: e.target.value })}
-                      className={inputClass} />
-                  </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1.5">
                       <Label className={labelClass}>Localidad</Label>

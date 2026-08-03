@@ -1,0 +1,86 @@
+/* Reskin de driver.js (tour interactivo) para que use los mismos tokens de
+   color que el resto de la plataforma (src/index.css) — al ser variables
+   CSS, esto se adapta solo entre tema claro y oscuro, sin duplicar reglas. */
+
+.driver-popover {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border: 1px solid hsl(var(--border));
+  border-radius: calc(var(--radius) + 2px);
+  box-shadow: 0 20px 40px -12px hsl(220 25% 7% / 0.35);
+  padding: 18px 20px;
+  max-width: 320px;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+}
+
+.driver-popover-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: hsl(var(--card-foreground));
+}
+
+.driver-popover-description {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: hsl(var(--muted-foreground));
+  margin-top: 6px;
+}
+
+.driver-popover-close-btn {
+  color: hsl(var(--muted-foreground) / 0.6);
+}
+.driver-popover-close-btn:hover,
+.driver-popover-close-btn:focus {
+  color: hsl(var(--foreground));
+}
+
+.driver-popover-footer {
+  margin-top: 16px;
+}
+
+.driver-popover-progress-text {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.driver-popover-footer-btn {
+  border-radius: calc(var(--radius) - 4px);
+  padding: 6px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  border: 1px solid hsl(var(--border));
+  background-color: transparent;
+  color: hsl(var(--foreground));
+  transition: background-color 0.15s ease;
+}
+.driver-popover-footer-btn:hover,
+.driver-popover-footer-btn:focus {
+  background-color: hsl(var(--accent));
+}
+
+.driver-popover-next-btn,
+.driver-popover-done-btn {
+  background-color: hsl(var(--primary));
+  border-color: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+.driver-popover-next-btn:hover,
+.driver-popover-done-btn:hover,
+.driver-popover-next-btn:focus,
+.driver-popover-done-btn:focus {
+  background-color: hsl(var(--primary) / 0.9);
+}
+
+.driver-popover-arrow-side-left {
+  border-right-color: hsl(var(--card));
+}
+.driver-popover-arrow-side-right {
+  border-left-color: hsl(var(--card));
+}
+.driver-popover-arrow-side-top {
+  border-bottom-color: hsl(var(--card));
+}
+.driver-popover-arrow-side-bottom {
+  border-top-color: hsl(var(--card));
+}

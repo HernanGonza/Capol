@@ -687,14 +687,17 @@ export type Database = {
           creado_en: string | null
           direccion: string | null
           dni: string | null
+          edad: number | null
           email: string | null
           firma_url: string | null
           id: string
           localidad: string | null
           nombre_completo: string | null
+          ocupacion: string | null
           pais: string | null
           provincia: string | null
           telefono: string | null
+          tour_completado: boolean
           url_avatar: string | null
         }
         Insert: {
@@ -704,14 +707,17 @@ export type Database = {
           creado_en?: string | null
           direccion?: string | null
           dni?: string | null
+          edad?: number | null
           email?: string | null
           firma_url?: string | null
           id: string
           localidad?: string | null
           nombre_completo?: string | null
+          ocupacion?: string | null
           pais?: string | null
           provincia?: string | null
           telefono?: string | null
+          tour_completado?: boolean
           url_avatar?: string | null
         }
         Update: {
@@ -721,14 +727,17 @@ export type Database = {
           creado_en?: string | null
           direccion?: string | null
           dni?: string | null
+          edad?: number | null
           email?: string | null
           firma_url?: string | null
           id?: string
           localidad?: string | null
           nombre_completo?: string | null
+          ocupacion?: string | null
           pais?: string | null
           provincia?: string | null
           telefono?: string | null
+          tour_completado?: boolean
           url_avatar?: string | null
         }
         Relationships: []

@@ -6,14 +6,16 @@ import { cn } from "@/lib/utils";
 interface Props {
   className?: string;
   collapsed?: boolean;
+  id?: string;
 }
 
-const ThemeToggle = ({ className, collapsed }: Props) => {
+const ThemeToggle = ({ className, collapsed, id }: Props) => {
   const { theme, toggleTheme } = useTheme();
   const isDark = theme === "dark";
 
   return (
     <Button
+      id={id}
       variant="ghost"
       size={collapsed ? "icon" : "sm"}
       onClick={(e) => toggleTheme(e.clientX, e.clientY)}
