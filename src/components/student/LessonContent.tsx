@@ -212,22 +212,24 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
       
       {/* HEADER LIMPIO */}
       <div className="flex flex-col gap-5 border-b pb-8">
-        <div className="flex items-center gap-5">
-          <Button variant="outline" size="icon" onClick={onBack} className="rounded-2xl shadow-sm shrink-0 h-12 w-12">
-            <ArrowLeft className="w-6 h-6" />
-          </Button>
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-4xl font-black tracking-tighter text-foreground leading-tight">
-                {lesson.titulo}
-              </h1>
-              {isCompleted && (
-                <div className="flex items-center gap-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-bounce">
-                  <CheckCircle className="w-3 h-3" /> Completada
-                </div>
-              )}
+        <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+          <div className="flex items-center gap-5 min-w-0">
+            <Button variant="outline" size="icon" onClick={onBack} className="rounded-2xl shadow-sm shrink-0 h-12 w-12">
+              <ArrowLeft className="w-6 h-6" />
+            </Button>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-2xl sm:text-4xl font-black tracking-tighter text-foreground leading-tight">
+                  {lesson.titulo}
+                </h1>
+                {isCompleted && (
+                  <div className="flex items-center gap-1 bg-emerald-100 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400 px-3 py-1 rounded-full text-xs font-black uppercase tracking-widest animate-bounce">
+                    <CheckCircle className="w-3 h-3" /> Completada
+                  </div>
+                )}
+              </div>
+              <p className="text-muted-foreground font-medium text-lg mt-1">{lesson.descripcion || "Material de estudio"}</p>
             </div>
-            <p className="text-muted-foreground font-medium text-lg mt-1">{lesson.descripcion || "Material de estudio"}</p>
           </div>
           <Button
             variant="outline"

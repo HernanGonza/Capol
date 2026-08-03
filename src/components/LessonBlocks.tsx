@@ -176,7 +176,7 @@ const LessonBlocks = ({ content }: Props) => {
           {/* 8. SNIPPET */}
           {block.type === 'snippet' && (
             <div className="relative group">
-              <div className="absolute top-4 right-4 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="absolute top-4 right-4 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
                 <Button variant="secondary" size="sm" className="font-bold" onClick={() => {
                   navigator.clipboard.writeText(block.value);
                   toast.success("Copiado");

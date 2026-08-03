@@ -238,7 +238,7 @@ const CourseView = () => {
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
             <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button variant="outline" onClick={() => setForumOpen(true)}>
               <Users className="w-4 h-4 mr-2" /> Foro del Curso
             </Button>

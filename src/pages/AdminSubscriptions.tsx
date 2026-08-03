@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle, MessageSquare } from "lucide-react";
+import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle, MessageSquare, Wallet, ExternalLink } from "lucide-react";
 import { format, isBefore, parseISO, addDays } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
 
@@ -25,15 +25,16 @@ const AdminSubscriptions = () => {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   
-  const [form, setForm] = useState({ 
-    usuario_id: "", 
-    curso_id: "", 
-    nombre_plan: "Mensual", 
-    price: "", 
+  const [form, setForm] = useState({
+    usuario_id: "",
+    curso_id: "",
+    nombre_plan: "Mensual",
+    price: "",
     estado: "active",
     inicio_en: format(new Date(), "yyyy-MM-dd"),
     proxima_fecha_pago: "",
-    fin_en: ""
+    fin_en: "",
+    proveedor_pago: "",
   });
 
   // Registra un pago en el ledger histórico (tabla "pagos"), snapshoteando
@@ -109,6 +110,17 @@ const AdminSubscriptions = () => {
     },
   });
 
+  // Mismos medios de pago que el admin configura en Cursos ("Medios de
+  // Pago") — así el select queda consistente con lo que ya se le muestra al
+  // alumno, en vez de que cada admin tipee el nombre distinto cada vez.
+  const { data: mediosDePago } = useQuery({
+    queryKey: ["config-medios-pago"],
+    queryFn: async () => {
+      const { data } = await supabase.from("configuracion_global").select("valor").eq("clave", "medios_de_pago").single();
+      return (data?.valor as string[]) || [];
+    },
+  });
+
   const { data: subscriptions } = useQuery({
     queryKey: ["all-subscriptions"],
     queryFn: async () => {
@@ -151,6 +163,7 @@ const AdminSubscriptions = () => {
         inicio_en: new Date(form.inicio_en).toISOString(),
         proxima_fecha_pago: form.proxima_fecha_pago ? new Date(form.proxima_fecha_pago).toISOString() : null,
         fin_en: form.fin_en ? new Date(form.fin_en).toISOString() : null,
+        proveedor_pago: form.proveedor_pago.trim() || null,
       };
 
       // Si estamos creando una suscripción activa nueva, chequeamos antes que no
@@ -246,6 +259,7 @@ const AdminSubscriptions = () => {
       inicio_en: sub.inicio_en ? format(parseISO(sub.inicio_en), "yyyy-MM-dd") : format(new Date(), "yyyy-MM-dd"),
       proxima_fecha_pago: sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "yyyy-MM-dd") : "",
       fin_en: sub.fin_en ? format(parseISO(sub.fin_en), "yyyy-MM-dd") : "",
+      proveedor_pago: sub.proveedor_pago || "",
     });
     setOpen(true);
   };
@@ -253,7 +267,7 @@ const AdminSubscriptions = () => {
   const handleClose = () => {
     setOpen(false);
     setEditingId(null);
-    setForm({ usuario_id: "", curso_id: "", nombre_plan: "Mensual", price: "", estado: "active", inicio_en: format(new Date(), "yyyy-MM-dd"), proxima_fecha_pago: "", fin_en: "" });
+    setForm({ usuario_id: "", curso_id: "", nombre_plan: "Mensual", price: "", estado: "active", inicio_en: format(new Date(), "yyyy-MM-dd"), proxima_fecha_pago: "", fin_en: "", proveedor_pago: "" });
   };
 
   const statusColor: Record<string, string> = {
@@ -270,12 +284,18 @@ const AdminSubscriptions = () => {
             <h1 className="text-2xl font-bold">Panel de Suscripciones</h1>
             <p className="text-muted-foreground">Gestión manual de pagos y accesos</p>
           </div>
-          <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
-            <DialogTrigger asChild>
-              <Button className="gradient-primary text-primary-foreground">
-                <Plus className="w-4 h-4 mr-2" /> Cargar Pago Nuevo
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" asChild>
+              <a href="https://myaccount.payoneer.com/" target="_blank" rel="noopener noreferrer">
+                <Wallet className="w-4 h-4 mr-2" /> Payoneer <ExternalLink className="w-3.5 h-3.5 ml-2 opacity-60" />
+              </a>
+            </Button>
+            <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+              <DialogTrigger asChild>
+                <Button className="gradient-primary text-primary-foreground">
+                  <Plus className="w-4 h-4 mr-2" /> Cargar Pago Nuevo
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-md">
               <DialogHeader><DialogTitle>{editingId ? "Editar Registro" : "Registrar Pago"}</DialogTitle></DialogHeader>
               <form onSubmit={(e) => { e.preventDefault(); upsertMutation.mutate(); }} className="space-y-4 pt-4">
@@ -315,6 +335,20 @@ const AdminSubscriptions = () => {
                     <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
                   </div>
                   <div className="space-y-2 col-span-2">
+                    <Label>Medio de pago</Label>
+                    <Select value={form.proveedor_pago} onValueChange={(v) => setForm({ ...form, proveedor_pago: v })}>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar medio de pago" /></SelectTrigger>
+                      <SelectContent>
+                        {mediosDePago?.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
+                        {!mediosDePago?.length && (
+                          <p className="px-2 py-1.5 text-xs text-muted-foreground">
+                            No hay medios de pago configurados — cargalos en "Cursos → Medios de Pago".
+                          </p>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2 col-span-2">
                     <Label>Estado Manual</Label>
                     <Select value={form.estado} onValueChange={(v) => setForm({ ...form, estado: v })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
@@ -331,8 +365,9 @@ const AdminSubscriptions = () => {
                   {editingId ? "Actualizar Registro" : "Guardar Pago"}
                 </Button>
               </form>
-            </DialogContent>
-          </Dialog>
+              </DialogContent>
+            </Dialog>
+          </div>
         </div>
 
         {/* BARRA DE FILTROS */}
@@ -385,11 +420,16 @@ const AdminSubscriptions = () => {
                         </Badge>
                       )}
                     </div>
-                    <p className="text-sm text-muted-foreground flex items-center gap-2">
+                    <p className="text-sm text-muted-foreground flex items-center gap-2 flex-wrap">
                       <BookOpen className="w-4 h-4" /> {(sub.cursos as any)?.titulo || "Curso eliminado"}
                       <span className="text-foreground font-bold ml-2">
                         {sub.price != null ? `$${sub.price}` : "Sin monto cargado"}
                       </span>
+                      {sub.proveedor_pago && (
+                        <Badge variant="outline" className="gap-1 font-normal text-muted-foreground">
+                          <Wallet className="w-3 h-3" /> {sub.proveedor_pago}
+                        </Badge>
+                      )}
                     </p>
                   </div>
 

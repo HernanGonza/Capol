@@ -50,7 +50,7 @@ const AdminCourses = () => {
     tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo" | "finalizado",
     modalidad: "en_vivo" as "en_vivo" | "grabado",
     fecha_inicio: "", fecha_fin: "", horarios: "", duracion: "", carga_horaria: "",
-    precio: "", tipo_precio: "curso", cantidad_cuotas: "",
+    precio: "", tipo_precio: "curso", cantidad_cuotas: "", cotizacion_ars: "",
   });
   const { currency: adminCurrency, usdToLocal, formatMoney } = useCurrencyConversion();
   const [uploading, setUploading] = useState(false);
@@ -159,8 +159,12 @@ const AdminCourses = () => {
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
         cantidad_cuotas: (form.tipo_precio === "cuotas" || form.tipo_precio === "clase") && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
-        // Los cursos se cargan siempre en USD; la conversión a la moneda del
-        // alumno se hace al vuelo con la cotización del día, no se guarda.
+        // Cotización ARS propia del curso (opcional) — si queda vacía, el
+        // precio que ve un visitante de Argentina cae al valor fijo global.
+        cotizacion_ars: form.cotizacion_ars ? parseFloat(form.cotizacion_ars) : null,
+        // Los cursos se cargan siempre en USD; la conversión a pesos para el
+        // alumno de Argentina usa "cotizacion_ars" (o el fallback fijo si no
+        // está cargada) — no depende de ninguna cotización del día.
         moneda: "USD",
       };
       if (editingCourse) {
@@ -191,6 +195,7 @@ const AdminCourses = () => {
           titulo: course.titulo,
           descripcion: course.descripcion,
           precio: course.precio,
+          cotizacion_ars: course.cotizacion_ars,
           moneda: "USD",
           tipo_precio: course.tipo_precio,
           cantidad_cuotas: course.cantidad_cuotas,
@@ -309,7 +314,7 @@ const AdminCourses = () => {
   };
 
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", modalidad: "en_vivo", fecha_inicio: "", fecha_fin: "", horarios: "", duracion: "", carga_horaria: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "" });
+    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", modalidad: "en_vivo", fecha_inicio: "", fecha_fin: "", horarios: "", duracion: "", carga_horaria: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "", cotizacion_ars: "" });
     setEditingCourse(null); setPreviewUrl(null); setPreviewType("image");
   };
 
@@ -323,6 +328,7 @@ const AdminCourses = () => {
       modalidad: course.modalidad || "en_vivo",
       fecha_inicio: course.fecha_inicio || "", fecha_fin: course.fecha_fin || "", horarios: course.horarios || "", duracion: course.duracion || "", carga_horaria: course.carga_horaria?.toString() || "",
       precio: course.precio?.toString() || "",
+      cotizacion_ars: course.cotizacion_ars?.toString() || "",
       tipo_precio: course.tipo_precio || "curso",
       cantidad_cuotas: course.cantidad_cuotas?.toString() || "",
     });
@@ -344,7 +350,7 @@ const AdminCourses = () => {
             <h1 className="text-2xl font-bold tracking-tight">Cursos</h1>
             <p className="text-muted-foreground font-medium">Gestiona tu catálogo de contenidos</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {/* Botón configuración medios de pago */}
             <Dialog open={openConfig} onOpenChange={setOpenConfig}>
               <DialogTrigger asChild>
@@ -440,6 +446,14 @@ const AdminCourses = () => {
                         {adminCurrency !== "USD" ? ` (según tu ubicación, cotización del día)` : ""}
                       </p>
                     )}
+                    <div className="space-y-1">
+                      <Label className={labelCls}>Cotización ARS para este curso (opcional)</Label>
+                      <Input type="number" min="0" step="1" placeholder={`Ej: 1500 (por defecto si se deja vacío)`}
+                        value={form.cotizacion_ars} onChange={(e) => setForm({ ...form, cotizacion_ars: e.target.value })} />
+                      <p className="text-xs text-muted-foreground">
+                        Es lo que ve un alumno de Argentina: precio en USD × esta cotización. No se actualiza sola, la cargás vos.
+                      </p>
+                    </div>
                     <div className="grid grid-cols-2 gap-2">
                       <select value={form.tipo_precio} onChange={(e) => setForm({ ...form, tipo_precio: e.target.value })} className={selectCls}>
                         <option value="curso">Pago único por curso</option>
@@ -682,7 +696,7 @@ const AdminCourses = () => {
                         <p className="font-bold text-lg text-blue-700 dark:text-blue-400">{course.total_lessons}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Link to={`/admin/courses/${course.id}/lessons`} className="flex-1">
                         <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" size="sm">
                           <Layers className="w-3.5 h-3.5 mr-2" /> Clases

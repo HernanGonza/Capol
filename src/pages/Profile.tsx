@@ -252,7 +252,7 @@ const Profile = () => {
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Nombre completo</Label>
                 <Input value={form.nombre_completo} onChange={(e) => setForm({ ...form, nombre_completo: e.target.value })} required />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">DNI / Número de identificación</Label>
                   <div className="relative">
@@ -268,7 +268,7 @@ const Profile = () => {
                   </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Edad</Label>
                   <Input type="number" min="1" max="120" value={form.edad} onChange={(e) => setForm({ ...form, edad: e.target.value })} />
@@ -293,8 +293,8 @@ const Profile = () => {
               </CardHeader>
               <CardContent>
                 {profile?.firma_url && !editingSignature ? (
-                  <div className="flex items-center gap-4">
-                    <img src={profile.firma_url} alt="Tu firma" className="h-16 bg-white rounded-lg border px-3" />
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <img src={profile.firma_url} alt="Tu firma" className="h-16 max-w-[160px] sm:max-w-[220px] object-contain bg-white rounded-lg border px-3" />
                     <Button type="button" variant="outline" size="sm" onClick={() => setEditingSignature(true)}>Volver a firmar</Button>
                   </div>
                 ) : (
@@ -312,8 +312,8 @@ const Profile = () => {
               </CardHeader>
               <CardContent>
                 {directorSignatureUrl && !editingDirectorSignature ? (
-                  <div className="flex items-center gap-4">
-                    <img src={directorSignatureUrl} alt="Firma de dirección" className="h-16 bg-white rounded-lg border px-3" />
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <img src={directorSignatureUrl} alt="Firma de dirección" className="h-16 max-w-[160px] sm:max-w-[220px] object-contain bg-white rounded-lg border px-3" />
                     <Button type="button" variant="outline" size="sm" onClick={() => setEditingDirectorSignature(true)}>Volver a firmar</Button>
                   </div>
                 ) : (
@@ -332,7 +332,7 @@ const Profile = () => {
                 <Label className="text-xs font-bold uppercase text-muted-foreground">Dirección</Label>
                 <Input value={form.direccion} onChange={(e) => setForm({ ...form, direccion: e.target.value })} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Localidad</Label>
                   <Input value={form.localidad} onChange={(e) => setForm({ ...form, localidad: e.target.value })} />
@@ -404,7 +404,7 @@ const Profile = () => {
                   </button>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <Label className="text-xs font-bold uppercase text-muted-foreground">Contraseña nueva</Label>
                   <Input

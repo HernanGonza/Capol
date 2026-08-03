@@ -9,7 +9,15 @@
 const RATES_CACHE_KEY = "capol_exchange_rates_v1";
 const RATES_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 const GEO_CACHE_KEY = "capol_user_currency_v1";
+const GEO_COUNTRY_CACHE_KEY = "capol_user_country_v1";
 const GEO_TTL_MS = 24 * 60 * 60 * 1000; // 1 día (la ubicación no cambia seguido)
+
+// Cotización fija para el precio automático que ve un visitante de
+// Argentina (landing, catálogo de cursos): a propósito NO es la cotización
+// de mercado en vivo — así el precio en pesos no cambia todos los días. El
+// conversor de divisas manual (CurrencyConverter, uso administrativo) sigue
+// usando la tasa real vía getExchangeRates() para cualquier otro país.
+export const ARS_FIXED_RATE = 1500;
 
 // Código de país (ISO 3166-1 alpha-2) -> moneda (ISO 4217). Cubre los
 // países más habituales entre los alumnos de la academia; lo que no está
@@ -82,6 +90,26 @@ export async function detectUserCurrency(): Promise<string | null> {
     return currency;
   } catch {
     return cached?.currency ?? null;
+  }
+}
+
+// País del visitante según su IP (código crudo, sin mapear a moneda) — lo
+// único que le importa al precio automático es si es "AR" o no. Reusa la
+// misma llamada a ipwho.is que detectUserCurrency, pero con su propia
+// entrada de caché para no interferir con esa.
+export async function detectCountryCode(): Promise<string | null> {
+  const cached = readCache<{ countryCode: string | null; fetchedAt: number }>(GEO_COUNTRY_CACHE_KEY);
+  if (cached && Date.now() - cached.fetchedAt < GEO_TTL_MS) return cached.countryCode;
+
+  try {
+    const res = await fetch("https://ipwho.is/");
+    if (!res.ok) throw new Error("No se pudo geolocalizar");
+    const data = await res.json();
+    if (!data.success || !data.country_code) throw new Error("Respuesta inválida de geolocalización");
+    writeCache(GEO_COUNTRY_CACHE_KEY, { countryCode: data.country_code, fetchedAt: Date.now() });
+    return data.country_code as string;
+  } catch {
+    return cached?.countryCode ?? null;
   }
 }
 

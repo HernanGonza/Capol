@@ -61,6 +61,7 @@ export type Database = {
           actualizado_en: string | null
           cantidad_cuotas: number | null
           carga_horaria: number | null
+          cotizacion_ars: number | null
           creado_en: string | null
           creado_por: string | null
           descripcion: string | null
@@ -85,6 +86,7 @@ export type Database = {
           actualizado_en?: string | null
           cantidad_cuotas?: number | null
           carga_horaria?: number | null
+          cotizacion_ars?: number | null
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
@@ -109,6 +111,7 @@ export type Database = {
           actualizado_en?: string | null
           cantidad_cuotas?: number | null
           carga_horaria?: number | null
+          cotizacion_ars?: number | null
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null

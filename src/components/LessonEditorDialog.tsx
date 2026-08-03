@@ -515,7 +515,7 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
                       )}
 
                       {block.type === "diff" && (
-                        <div className="grid grid-cols-2 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                           <div className="space-y-1"><Label className="text-[10px] font-bold">ANTES</Label><Textarea value={block.oldValue} onChange={(e) => updateBlock(block.id, block.value, { oldValue: e.target.value })} className="font-mono text-xs bg-red-50/30 dark:bg-red-950/20" /></div>
                           <div className="space-y-1"><Label className="text-[10px] font-bold">DESPUÉS</Label><Textarea value={block.newValue} onChange={(e) => updateBlock(block.id, block.value, { newValue: e.target.value })} className="font-mono text-xs bg-emerald-50/30 dark:bg-emerald-950/20" /></div>
                         </div>

@@ -50,6 +50,7 @@ interface Course {
   duracion: string | null;
   precio: number | null;
   moneda: string | null;
+  cotizacion_ars: number | null;
   tipo_precio: string | null;
   cantidad_cuotas: number | null;
   lecciones: { count: number }[];
@@ -133,6 +134,7 @@ const Landing = () => {
           duracion,
           precio,
           moneda,
+          cotizacion_ars,
           tipo_precio,
           cantidad_cuotas,
           lecciones (count),
@@ -293,15 +295,15 @@ const Landing = () => {
             <Link to="/auth">
               <Button
                 variant="ghost"
-                className="text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 font-semibold px-2 sm:px-4 text-sm sm:text-base"
+                className="text-slate-600 dark:text-white/70 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-white/5 font-semibold px-1.5 sm:px-4 text-xs sm:text-base"
               >
                 Iniciar Sesión
               </Button>
             </Link>
             <Link to="/auth?registro=1">
-              <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold px-3 sm:px-6 text-sm sm:text-base shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
+              <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold px-2 sm:px-6 text-xs sm:text-base shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
                 Registrarse
-                <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
+                <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4 ml-1 sm:ml-2" />
               </Button>
             </Link>
           </div>
@@ -623,6 +625,7 @@ const Landing = () => {
                             usdAmount={course.precio}
                             suffix={course.tipo_precio === "mensual" ? "/mes" : ""}
                             className="text-slate-900 dark:text-white font-bold text-lg"
+                            arsRate={course.cotizacion_ars}
                           />
                         </div>
                       ) : (

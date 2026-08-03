@@ -353,7 +353,7 @@ const AdminStudents = () => {
           <CardContent className="p-0">
             <div className="divide-y">
               {students?.map((s) => (
-                <div key={s.id} className="flex items-center justify-between p-4 hover:bg-muted/10 gap-4">
+                <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/10 gap-4">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${s.activo ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
                       {(s.nombre_completo || "?")[0].toUpperCase()}
@@ -364,7 +364,7 @@ const AdminStudents = () => {
                       <p className="text-xs text-muted-foreground">{s.dni ? `DNI ${s.dni}` : "Sin DNI cargado"}</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-3 flex-wrap">
                     {s.activo ? (
                       <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">Activo</Badge>
                     ) : (
@@ -446,10 +446,10 @@ const AdminStudents = () => {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
+            <div className="flex items-center gap-2 flex-wrap">
+              <Filter className="w-4 h-4 text-muted-foreground shrink-0" />
               <Select value={courseFilter} onValueChange={setCourseFilter}>
-                <SelectTrigger className="w-[200px] bg-background">
+                <SelectTrigger className="w-full sm:w-[200px] bg-background">
                   <SelectValue placeholder="Curso" />
                 </SelectTrigger>
                 <SelectContent>
@@ -458,7 +458,7 @@ const AdminStudents = () => {
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="w-[180px] bg-background">
+                <SelectTrigger className="w-full sm:w-[180px] bg-background">
                   <SelectValue placeholder="Estado de pago" />
                 </SelectTrigger>
                 <SelectContent>
@@ -473,7 +473,7 @@ const AdminStudents = () => {
         </Card>
 
         <Card className="shadow-card overflow-hidden">
-          <CardHeader className="bg-muted/30 border-b flex flex-row items-center justify-between gap-3">
+          <CardHeader className="bg-muted/30 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <BookOpen className="w-5 h-5 text-primary" />
               Inscripciones por Curso ({filteredEnrollments.length})
@@ -491,14 +491,14 @@ const AdminStudents = () => {
             <div className="divide-y">
               {filteredEnrollments.map((e: any) => (
                 <div key={e.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 hover:bg-muted/10 gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold shrink-0">
                       {(e.perfiles?.nombre_completo || "?")[0].toUpperCase()}
                     </div>
-                    <div>
-                      <p className="font-bold">{e.perfiles?.nombre_completo}</p>
-                      <p className="text-xs text-muted-foreground">{e.perfiles?.email}</p>
-                      <p className="text-sm text-muted-foreground flex items-center gap-1"><BookOpen className="w-3.5 h-3.5" /> {e.cursos?.titulo}</p>
+                    <div className="min-w-0">
+                      <p className="font-bold truncate">{e.perfiles?.nombre_completo}</p>
+                      <p className="text-xs text-muted-foreground truncate">{e.perfiles?.email}</p>
+                      <p className="text-sm text-muted-foreground flex items-center gap-1 truncate"><BookOpen className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{e.cursos?.titulo}</span></p>
                     </div>
                   </div>
 

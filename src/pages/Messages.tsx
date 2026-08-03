@@ -631,7 +631,7 @@ const Messages = () => {
                       </p>
                       {r.motivo && <p className="text-xs text-muted-foreground mt-1">Motivo: {r.motivo}</p>}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {r.mensajes?.destinatario_id === null && r.mensajes?.curso_id && (
                         <Button variant="outline" size="sm" onClick={() => setSelectedKey(`foro-${r.mensajes.curso_id}`)}>
                           Ver Foro
@@ -748,8 +748,8 @@ const Messages = () => {
         <DialogContent className="max-w-lg flex flex-col max-h-[90vh]">
           <DialogHeader>
             <div className="flex items-center justify-between gap-2 pr-6">
-              <div>
-                <DialogTitle>{selected?.tipo === "foro" ? "Foro del Curso" : selected?.nombre}</DialogTitle>
+              <div className="min-w-0">
+                <DialogTitle className="truncate">{selected?.tipo === "foro" ? "Foro del Curso" : selected?.nombre}</DialogTitle>
                 {selected?.tipo === "foro" && (
                   <p className="text-xs text-muted-foreground">{selected.cursoTitulo}</p>
                 )}
@@ -761,7 +761,7 @@ const Messages = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className={banInfo ? "text-emerald-700 dark:text-emerald-400" : "text-destructive hover:bg-destructive/10"}
+                  className={`shrink-0 ${banInfo ? "text-emerald-700 dark:text-emerald-400" : "text-destructive hover:bg-destructive/10"}`}
                   disabled={banUserMutation.isPending}
                   onClick={() =>
                     setConfirmAction({ type: "toggle-ban-chat", otherId: selected.otherId, nombre: selected.nombre, bloqueado: !!banInfo })
@@ -842,7 +842,7 @@ const Messages = () => {
                     </p>
 
                     {!m.eliminado && editingId !== m.id && (
-                      <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} hidden group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
+                      <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} flex md:hidden md:group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
                         {puedeFijar && (
                           <button
                             type="button"

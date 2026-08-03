@@ -57,9 +57,9 @@ const StudentSubscriptions = () => {
                           {sub.estado === 'active' ? 'Activa' : 'Vencida'}
                         </Badge>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4" />
+                          <CreditCard className="w-4 h-4 shrink-0" />
                           {sub.price != null ? (
                             <>
                               ${sub.price} {sub.moneda || "ARS"} / mes
@@ -72,7 +72,7 @@ const StudentSubscriptions = () => {
                           )}
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <Calendar className="w-4 h-4" />
+                          <Calendar className="w-4 h-4 shrink-0" />
                           Próximo vencimiento: {sub.fin_en ? format(new Date(sub.fin_en), "PPP", { locale: es }) : 'N/A'}
                         </span>
                       </div>

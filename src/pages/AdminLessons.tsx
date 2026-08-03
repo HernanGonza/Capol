@@ -111,17 +111,17 @@ const AdminLessons = () => {
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-6 animate-fade-in">
-        <div className="flex justify-between items-center">
-          <div className="flex items-center gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-4 min-w-0">
             <Button variant="outline" size="icon" onClick={() => navigate(-1)} className="shrink-0">
               <ArrowLeft className="w-4 h-4" />
             </Button>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tighter">{course?.titulo || "Gestión de Clases"}</h1>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-bold tracking-tighter truncate">{course?.titulo || "Gestión de Clases"}</h1>
               <p className="text-muted-foreground text-sm">Arma tu clase usando bloques interactivos</p>
             </div>
           </div>
-          <Button onClick={() => { setEditingLesson(null); setOpen(true); }} className="gradient-primary text-white font-bold">
+          <Button onClick={() => { setEditingLesson(null); setOpen(true); }} className="gradient-primary text-white font-bold shrink-0">
             <Plus className="w-4 h-4 mr-2" /> Nueva Clase
           </Button>
         </div>
@@ -202,7 +202,7 @@ const AdminLessons = () => {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" className="opacity-0 group-hover:opacity-100 font-bold">EDITAR</Button>
+                  <Button variant="ghost" size="sm" className="shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 font-bold">EDITAR</Button>
                 </CardContent>
               </Card>
             );

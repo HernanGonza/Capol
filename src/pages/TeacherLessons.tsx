@@ -362,8 +362,9 @@ const TeacherLessons = () => {
               className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg"
               disabled={endClassMutation.isPending}
               onClick={() => setEndClassConfirmLesson(activeLesson)}
+              title="Terminar Clase"
             >
-              <Square className="w-4 h-4 mr-2" /> Terminar Clase
+              <Square className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Terminar Clase</span>
             </Button>
             <Button
               variant="destructive"
@@ -374,8 +375,9 @@ const TeacherLessons = () => {
                 setActiveLesson(null);
               }}
               className="shadow-lg"
+              title="Cerrar Clase"
             >
-              <X className="w-4 h-4 mr-2" /> Cerrar Clase
+              <X className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Cerrar Clase</span>
             </Button>
           </div>
         </div>
@@ -455,7 +457,7 @@ const TeacherLessons = () => {
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
           <Button variant="outline" onClick={() => setForumOpen(true)}>
             <Users className="w-4 h-4 mr-2" /> Foro del Curso
           </Button>
@@ -617,7 +619,7 @@ const TeacherLessons = () => {
                     !unlocked ? "opacity-70" : ""
                   }`}
                 >
-                  <CardContent className="p-4 flex items-center gap-4">
+                  <CardContent className="p-4 flex flex-col sm:flex-row sm:items-center gap-4">
                     {/* Número de orden */}
                     <div className="flex items-center gap-2">
                       <GripVertical className="w-5 h-5 text-muted-foreground/50 cursor-grab" />
@@ -679,7 +681,7 @@ const TeacherLessons = () => {
                     </div>
 
                     {/* Acciones */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       {isClassOver(lesson) ? (
                         <Button
                           size="sm"

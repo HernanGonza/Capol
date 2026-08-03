@@ -234,7 +234,7 @@ const CourseForumThread = ({ courseId }: { courseId: string }) => {
                 </p>
 
                 {!m.eliminado && editingId !== m.id && (
-                  <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} hidden group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
+                  <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} flex md:hidden md:group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
                     {puedeFijar && (
                       <button
                         type="button"

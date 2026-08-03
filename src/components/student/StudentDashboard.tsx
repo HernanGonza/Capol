@@ -104,7 +104,7 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
           <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
             <DollarSign className="w-3 h-3" />
             {precioPrefijo(course)}
-            <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} />
+            <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} arsRate={course.cotizacion_ars} />
           </span>
         ) : (
           <span className="text-xs text-muted-foreground">Consultar precio</span>
@@ -183,7 +183,7 @@ const StudentDashboard = () => {
     queryFn: async () => {
       const { data: allCourses } = await supabase
         .from("cursos")
-        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, modalidad, fecha_inicio, fecha_fin, horarios, duracion, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
+        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, modalidad, fecha_inicio, fecha_fin, horarios, duracion, precio, tipo_precio, cantidad_cuotas, moneda, cotizacion_ars, lecciones (count), inscripciones (count)`)
         .eq("publicado", true)
         .order("creado_en", { ascending: false });
 
@@ -418,6 +418,7 @@ const StudentDashboard = () => {
                         usdAmount={modalCourse.precio}
                         suffix={modalCourse.tipo_precio === "mensual" ? "/mes" : ""}
                         showUsdReference
+                        arsRate={modalCourse.cotizacion_ars}
                       />
                     </p>
                   </div>
