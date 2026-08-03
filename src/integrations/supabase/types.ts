@@ -60,15 +60,18 @@ export type Database = {
         Row: {
           actualizado_en: string | null
           cantidad_cuotas: number | null
+          carga_horaria: number | null
           creado_en: string | null
           creado_por: string | null
           descripcion: string | null
+          duracion: string | null
           estado: Database["public"]["Enums"]["curso_estado"]
           fecha_fin: string | null
           fecha_inicio: string | null
           grupo_id: string | null
           horarios: string | null
           id: string
+          modalidad: Database["public"]["Enums"]["curso_modalidad"]
           moneda: string | null
           precio: number | null
           publicado: boolean | null
@@ -81,15 +84,18 @@ export type Database = {
         Insert: {
           actualizado_en?: string | null
           cantidad_cuotas?: number | null
+          carga_horaria?: number | null
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
+          duracion?: string | null
           estado?: Database["public"]["Enums"]["curso_estado"]
           fecha_fin?: string | null
           fecha_inicio?: string | null
           grupo_id?: string | null
           horarios?: string | null
           id?: string
+          modalidad?: Database["public"]["Enums"]["curso_modalidad"]
           moneda?: string | null
           precio?: number | null
           publicado?: boolean | null
@@ -102,15 +108,18 @@ export type Database = {
         Update: {
           actualizado_en?: string | null
           cantidad_cuotas?: number | null
+          carga_horaria?: number | null
           creado_en?: string | null
           creado_por?: string | null
           descripcion?: string | null
+          duracion?: string | null
           estado?: Database["public"]["Enums"]["curso_estado"]
           fecha_fin?: string | null
           fecha_inicio?: string | null
           grupo_id?: string | null
           horarios?: string | null
           id?: string
+          modalidad?: Database["public"]["Enums"]["curso_modalidad"]
           moneda?: string | null
           precio?: number | null
           publicado?: boolean | null
@@ -679,6 +688,7 @@ export type Database = {
           direccion: string | null
           dni: string | null
           email: string | null
+          firma_url: string | null
           id: string
           localidad: string | null
           nombre_completo: string | null
@@ -695,6 +705,7 @@ export type Database = {
           direccion?: string | null
           dni?: string | null
           email?: string | null
+          firma_url?: string | null
           id: string
           localidad?: string | null
           nombre_completo?: string | null
@@ -711,6 +722,7 @@ export type Database = {
           direccion?: string | null
           dni?: string | null
           email?: string | null
+          firma_url?: string | null
           id?: string
           localidad?: string | null
           nombre_completo?: string | null
@@ -952,9 +964,20 @@ export type Database = {
         }
         Returns: boolean
       }
+      mis_contactos_mensajeria: {
+        Args: never
+        Returns: {
+          curso_titulo: string
+          id: string
+          nombre_completo: string
+          rol: string
+          url_avatar: string
+        }[]
+      }
       perfiles_publicos: {
         Args: { p_ids: string[] }
         Returns: {
+          firma_url: string
           id: string
           nombre_completo: string
           url_avatar: string
@@ -964,6 +987,7 @@ export type Database = {
     Enums: {
       app_role: "admin" | "student" | "teacher"
       curso_estado: "proximamente" | "activo" | "finalizado"
+      curso_modalidad: "en_vivo" | "grabado"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1093,6 +1117,7 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "student", "teacher"],
       curso_estado: ["proximamente", "activo", "finalizado"],
+      curso_modalidad: ["en_vivo", "grabado"],
     },
   },
 } as const

@@ -10,6 +10,7 @@ import { useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
 import CourseForumDialog from "@/components/CourseForumDialog";
+import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 
 const CourseView = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -54,6 +55,11 @@ const CourseView = () => {
   });
 
   const isStaffPreview = role === "admin" || !!isAssignedTeacher;
+
+  // Firmas para el certificado (profesor del curso + dirección) — se traen
+  // una sola vez acá y se usan tanto en el certificado real como en el de
+  // prueba para el staff.
+  const certSignatures = useCertificateSignatures(courseId, !!courseId);
 
   // Profesor(es) de este curso — para que el alumno le pueda mandar un mensaje
   const { data: courseTeachers } = useQuery({
@@ -117,6 +123,9 @@ const CourseView = () => {
 
   const isLessonUnlocked = (lesson: any) => {
     if (isStaffPreview) return true;
+    // Los cursos grabados son de acceso libre: el alumno entra cuando
+    // quiere, así que no tiene sentido escalonar el desbloqueo por fecha.
+    if (course?.modalidad === "grabado") return true;
     if (!lesson.fecha_desbloqueo) return true;
     return new Date(lesson.fecha_desbloqueo) <= new Date();
   };
@@ -189,6 +198,7 @@ const CourseView = () => {
           }}
           userId={user!.id}
           courseTitle={course?.titulo}
+          courseCargaHoraria={course?.carga_horaria}
           isPreview={isStaffPreview}
           isLastLesson={!!lessons && lessons.length > 0 && lessons[lessons.length - 1].id === selectedLesson.id}
         />
@@ -201,9 +211,26 @@ const CourseView = () => {
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
         {isStaffPreview && (
-          <div className="flex items-center gap-2 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400 text-sm font-semibold rounded-xl px-4 py-3">
-            <Video className="w-4 h-4 shrink-0" />
-            Estás viendo este curso en modo vista previa, como lo ve un alumno.
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400 text-sm font-semibold rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Video className="w-4 h-4 shrink-0" />
+              Estás viendo este curso en modo vista previa, como lo ve un alumno.
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 bg-white dark:bg-transparent"
+              onClick={() => openCertificate({
+                studentName: "Alumno de Prueba",
+                courseTitle: course?.titulo || "",
+                completionDate: new Date().toISOString(),
+                cargaHoraria: course?.carga_horaria,
+                ...certSignatures,
+              })}
+            >
+              <Award className="w-4 h-4 mr-2" /> Certificado de prueba
+            </Button>
           </div>
         )}
         <header className="border-b pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
@@ -229,6 +256,8 @@ const CourseView = () => {
                   studentName: profile?.nombre_completo || "Alumno",
                   courseTitle: course?.titulo || "",
                   completionDate: courseCompletedAt,
+                  cargaHoraria: course?.carga_horaria,
+                  ...certSignatures,
                 })}
                 className="gradient-primary text-primary-foreground font-bold"
               >

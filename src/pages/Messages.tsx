@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MessageSquare, Users, Ban, ShieldCheck, Pin, PinOff, Trash2, Flag, AlertTriangle, Pencil } from "lucide-react";
+import { Search, MessageSquare, Users, Ban, ShieldCheck, Pin, PinOff, Trash2, Flag, AlertTriangle, Pencil, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import MessageComposer from "@/components/MessageComposer";
@@ -112,9 +112,11 @@ const confirmActionCopy = (action: ConfirmAction): { title: string; description:
 const Messages = () => {
   const { user, role } = useAuth();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [search, setSearch] = useState("");
   const [tipoFilter, setTipoFilter] = useState<"todos" | "directos" | "foros">("todos");
+  const [newMessageOpen, setNewMessageOpen] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [reply, setReply] = useState("");
   const [file, setFile] = useState<File | null>(null);
@@ -137,6 +139,19 @@ const Messages = () => {
     },
     enabled: !!user,
     refetchInterval: 60000,
+  });
+
+  // Compañeros de cursada + profesores de los cursos en los que el alumno
+  // está activo — para el picker de "Nuevo Mensaje". Solo se pide cuando se
+  // abre el diálogo, no en cada carga de la pantalla.
+  const { data: contactos } = useQuery({
+    queryKey: ["mis-contactos-mensajeria", user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("mis_contactos_mensajeria");
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: role === "student" && newMessageOpen,
   });
 
   // "perfiles" solo deja ver la fila propia (o todas si sos admin), así que
@@ -490,9 +505,16 @@ const Messages = () => {
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
-        <div>
-          <h1 className="text-2xl font-bold">Mensajes</h1>
-          <p className="text-muted-foreground">Conversaciones directas y foros de curso</p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">Mensajes</h1>
+            <p className="text-muted-foreground">Conversaciones directas y foros de curso</p>
+          </div>
+          {role === "student" && (
+            <Button onClick={() => setNewMessageOpen(true)} className="gap-2 shrink-0">
+              <Plus className="w-4 h-4" /> Nuevo Mensaje
+            </Button>
+          )}
         </div>
 
         {role === "admin" && !!reportes?.length && (
@@ -823,6 +845,42 @@ const Messages = () => {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={newMessageOpen} onOpenChange={setNewMessageOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo Mensaje</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+            {contactos?.map((c) => (
+              <button
+                key={c.id}
+                onClick={() => { setNewMessageOpen(false); navigate(`/messages?with=${c.id}`); }}
+                className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted text-left transition-colors"
+              >
+                {c.url_avatar ? (
+                  <img src={c.url_avatar} alt={c.nombre_completo || "Usuario"} className="w-9 h-9 rounded-full object-cover shrink-0" />
+                ) : (
+                  <div className="w-9 h-9 rounded-full gradient-hero flex items-center justify-center text-white text-sm font-bold shrink-0">
+                    {(c.nombre_completo || "U")[0]?.toUpperCase()}
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="font-semibold truncate">{c.nombre_completo || "Usuario"}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {c.rol === "profesor" ? "Profesor" : "Compañero"} · {c.curso_titulo}
+                  </p>
+                </div>
+              </button>
+            ))}
+            {contactos?.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-8">
+                Todavía no tenés compañeros o profesores para contactar.
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 };

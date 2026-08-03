@@ -25,8 +25,10 @@ import {
   GitCompare,
   Calendar,
   Eye,
+  Upload,
 } from "lucide-react";
 import LessonBlocks from "@/components/LessonBlocks";
+import { compressImageToWebP } from "@/lib/imageCompression";
 
 const BLOCK_TYPES = [
   { id: "text", label: "Texto (Markdown)", icon: Type },
@@ -82,6 +84,7 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
   const [classEndDate, setClassEndDate] = useState("");
   const [salaJitsi, setSalaJitsi] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
+  const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -145,6 +148,55 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
 
   const updateBlock = (id: string, value: string, extraData = {}) => {
     setBlocks(blocks.map((b) => (b.id === id ? { ...b, value, ...extraData } : b)));
+  };
+
+  // Adjuntar un archivo real (PDF, ZIP, etc.) a un bloque "Recurso", en vez
+  // de depender de que alguien pegue un link externo. Precarga el nombre a
+  // mostrar con el nombre del archivo si todavía no se escribió uno.
+  const handleResourceUpload = async (e: React.ChangeEvent<HTMLInputElement>, blockId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 20 * 1024 * 1024) { toast.error("Máximo 20MB"); return; }
+    setUploadingBlockId(blockId);
+    try {
+      const ext = file.name.split(".").pop() || "bin";
+      const path = `${courseId}/${crypto.randomUUID()}.${ext}`;
+      const { error } = await supabase.storage.from("lesson-resources").upload(path, file);
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("lesson-resources").getPublicUrl(path);
+      const current = blocks.find((b) => b.id === blockId);
+      updateBlock(blockId, publicUrl, { label: current?.label || file.name });
+      toast.success("Archivo subido");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUploadingBlockId(null);
+      e.target.value = "";
+    }
+  };
+
+  // Igual que arriba pero para el bloque "Imagen" — se comprime a WebP antes
+  // de subir, mismo criterio que ya se usa para los flyers de curso.
+  const handleImageBlockUpload = async (e: React.ChangeEvent<HTMLInputElement>, blockId: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Solo imágenes"); return; }
+    if (file.size > 10 * 1024 * 1024) { toast.error("Máximo 10MB"); return; }
+    setUploadingBlockId(blockId);
+    try {
+      const compressed = await compressImageToWebP(file);
+      const path = `${courseId}/${crypto.randomUUID()}.webp`;
+      const { error } = await supabase.storage.from("lesson-resources").upload(path, compressed, { cacheControl: "31536000" });
+      if (error) throw error;
+      const { data: { publicUrl } } = supabase.storage.from("lesson-resources").getPublicUrl(path);
+      updateBlock(blockId, publicUrl);
+      toast.success("Imagen subida");
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setUploadingBlockId(null);
+      e.target.value = "";
+    }
   };
 
   // Helper genérico para los bloques con estructura interna más compleja (quiz, checklist)
@@ -307,8 +359,64 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
                         </div>
                       )}
 
-                      {(block.type === "video" || block.type === "image" || block.type === "download") && (
-                        <Input value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Pega la URL del recurso aquí..." />
+                      {block.type === "video" && (
+                        <Input value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Pega la URL del video aquí..." />
+                      )}
+
+                      {block.type === "image" && (
+                        <div className="space-y-2">
+                          <Input value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Pegá la URL de una imagen o subí un archivo abajo..." />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id={`img-upload-${block.id}`}
+                              accept="image/*"
+                              className="hidden"
+                              onChange={(e) => handleImageBlockUpload(e, block.id)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={uploadingBlockId === block.id}
+                              onClick={() => document.getElementById(`img-upload-${block.id}`)?.click()}
+                            >
+                              <Upload className="w-3.5 h-3.5 mr-2" />
+                              {uploadingBlockId === block.id ? "Subiendo..." : "Subir imagen"}
+                            </Button>
+                            <p className="text-[10px] text-muted-foreground">hasta 10MB</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {block.type === "download" && (
+                        <div className="space-y-2">
+                          <Input value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} placeholder="Pegá una URL externa (Drive, etc.) o subí un archivo abajo..." />
+                          <Input
+                            placeholder="Nombre a mostrar (ej: Guía de instalación.pdf)"
+                            value={block.label || ""}
+                            onChange={(e) => updateBlock(block.id, block.value, { label: e.target.value })}
+                          />
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              id={`file-upload-${block.id}`}
+                              className="hidden"
+                              onChange={(e) => handleResourceUpload(e, block.id)}
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              disabled={uploadingBlockId === block.id}
+                              onClick={() => document.getElementById(`file-upload-${block.id}`)?.click()}
+                            >
+                              <Upload className="w-3.5 h-3.5 mr-2" />
+                              {uploadingBlockId === block.id ? "Subiendo..." : "Subir archivo"}
+                            </Button>
+                            <p className="text-[10px] text-muted-foreground">PDF, ZIP, Word, etc. hasta 20MB</p>
+                          </div>
+                        </div>
                       )}
 
                       {block.type === "terminal" && <Textarea value={block.value} onChange={(e) => updateBlock(block.id, e.target.value)} className="font-mono bg-slate-900 text-emerald-400" placeholder="// Código JS inicial..." />}

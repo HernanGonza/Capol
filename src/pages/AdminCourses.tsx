@@ -48,7 +48,8 @@ const AdminCourses = () => {
   const [form, setForm] = useState({
     titulo: "", descripcion: "", url_imagen: "", url_flyer: "",
     tipo_flyer: "image", publicado: false, estado: "activo" as "proximamente" | "activo" | "finalizado",
-    fecha_inicio: "", fecha_fin: "", horarios: "",
+    modalidad: "en_vivo" as "en_vivo" | "grabado",
+    fecha_inicio: "", fecha_fin: "", horarios: "", duracion: "", carga_horaria: "",
     precio: "", tipo_precio: "curso", cantidad_cuotas: "",
   });
   const { currency: adminCurrency, usdToLocal, formatMoney } = useCurrencyConversion();
@@ -149,9 +150,12 @@ const AdminCourses = () => {
         titulo: form.titulo, descripcion: form.descripcion,
         url_imagen: form.url_imagen, url_flyer: form.url_flyer,
         tipo_flyer: form.tipo_flyer, publicado: form.publicado, estado: form.estado,
+        modalidad: form.modalidad,
         fecha_inicio: form.estado === "proximamente" && form.fecha_inicio ? form.fecha_inicio : null,
         fecha_fin: form.estado === "finalizado" ? (form.fecha_fin || new Date().toISOString().slice(0, 10)) : null,
         horarios: form.horarios.trim() || null,
+        duracion: form.duracion.trim() || null,
+        carga_horaria: form.carga_horaria ? parseInt(form.carga_horaria) : null,
         precio: form.precio ? parseFloat(form.precio) : null,
         tipo_precio: form.tipo_precio,
         cantidad_cuotas: (form.tipo_precio === "cuotas" || form.tipo_precio === "clase") && form.cantidad_cuotas ? parseInt(form.cantidad_cuotas) : null,
@@ -194,6 +198,9 @@ const AdminCourses = () => {
           url_flyer: course.url_flyer,
           tipo_flyer: course.tipo_flyer,
           horarios: course.horarios,
+          duracion: course.duracion,
+          carga_horaria: course.carga_horaria,
+          modalidad: course.modalidad || "en_vivo",
           publicado: false,
           estado: "proximamente",
           fecha_inicio: null,
@@ -302,7 +309,7 @@ const AdminCourses = () => {
   };
 
   const resetForm = () => {
-    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", fecha_inicio: "", fecha_fin: "", horarios: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "" });
+    setForm({ titulo: "", descripcion: "", url_imagen: "", url_flyer: "", tipo_flyer: "image", publicado: false, estado: "activo", modalidad: "en_vivo", fecha_inicio: "", fecha_fin: "", horarios: "", duracion: "", carga_horaria: "", precio: "", tipo_precio: "curso", cantidad_cuotas: "" });
     setEditingCourse(null); setPreviewUrl(null); setPreviewType("image");
   };
 
@@ -313,7 +320,8 @@ const AdminCourses = () => {
       titulo: course.titulo, descripcion: course.descripcion || "",
       url_imagen: course.url_imagen || "", url_flyer: course.url_flyer || "",
       tipo_flyer: flyerType, publicado: course.publicado, estado: course.estado || "activo",
-      fecha_inicio: course.fecha_inicio || "", fecha_fin: course.fecha_fin || "", horarios: course.horarios || "",
+      modalidad: course.modalidad || "en_vivo",
+      fecha_inicio: course.fecha_inicio || "", fecha_fin: course.fecha_fin || "", horarios: course.horarios || "", duracion: course.duracion || "", carga_horaria: course.carga_horaria?.toString() || "",
       precio: course.precio?.toString() || "",
       tipo_precio: course.tipo_precio || "curso",
       cantidad_cuotas: course.cantidad_cuotas?.toString() || "",
@@ -505,6 +513,21 @@ const AdminCourses = () => {
                     </p>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label className={labelCls}>Modalidad</Label>
+                    <select
+                      value={form.modalidad}
+                      onChange={(e) => setForm({ ...form, modalidad: e.target.value as "en_vivo" | "grabado" })}
+                      className={selectCls}
+                    >
+                      <option value="en_vivo">En vivo (con clases programadas)</option>
+                      <option value="grabado">Grabado (acceso libre, todas las clases desbloqueadas)</option>
+                    </select>
+                    <p className="text-xs text-muted-foreground">
+                      "Grabado" ignora la fecha de desbloqueo de las clases — el alumno accede a todo apenas se inscribe, y el botón de la tarjeta dice "Comprar" en vez de "Inscribirme".
+                    </p>
+                  </div>
+
                   {form.estado === "proximamente" && (
                     <div className="space-y-2">
                       <Label className={labelCls}>Fecha de la próxima edición (opcional)</Label>
@@ -527,6 +550,22 @@ const AdminCourses = () => {
                     <Input placeholder="Ej: Martes y Jueves de 21 a 22hs" value={form.horarios} onChange={(e) => setForm({ ...form, horarios: e.target.value })} />
                     <p className="text-xs text-muted-foreground">
                       Si lo cargás, se muestra en la tarjeta. Si lo dejás vacío, no se muestra nada.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className={labelCls}>Duración del curso (opcional)</Label>
+                    <Input placeholder="Ej: 8 semanas" value={form.duracion} onChange={(e) => setForm({ ...form, duracion: e.target.value })} />
+                    <p className="text-xs text-muted-foreground">
+                      Si la cargás, se muestra en la tarjeta. Si la dejás vacía, no se muestra nada.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className={labelCls}>Carga horaria en horas (opcional)</Label>
+                    <Input type="number" min="0" placeholder="Ej: 32" value={form.carga_horaria} onChange={(e) => setForm({ ...form, carga_horaria: e.target.value })} />
+                    <p className="text-xs text-muted-foreground">
+                      Si la cargás, aparece en el certificado de finalización ("completó satisfactoriamente 32 horas de curso"). Si la dejás vacía, el certificado no menciona la carga horaria.
                     </p>
                   </div>
 

@@ -24,6 +24,9 @@ import {
   Mail,
   Send,
   ArrowUp,
+  Hourglass,
+  Video,
+  Film,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,9 +43,11 @@ interface Course {
   tipo_flyer: string | null;
   url_imagen: string | null;
   estado: "proximamente" | "activo" | "finalizado";
+  modalidad: "en_vivo" | "grabado";
   fecha_inicio: string | null;
   fecha_fin: string | null;
   horarios: string | null;
+  duracion: string | null;
   precio: number | null;
   moneda: string | null;
   tipo_precio: string | null;
@@ -121,9 +126,11 @@ const Landing = () => {
           tipo_flyer,
           url_imagen,
           estado,
+          modalidad,
           fecha_inicio,
           fecha_fin,
           horarios,
+          duracion,
           precio,
           moneda,
           tipo_precio,
@@ -293,7 +300,7 @@ const Landing = () => {
             </Link>
             <Link to="/auth?registro=1">
               <Button className="bg-gradient-to-r from-indigo-500 to-purple-500 hover:from-indigo-600 hover:to-purple-600 text-white font-bold px-3 sm:px-6 text-sm sm:text-base shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/40 transition-all">
-                Inscribirme
+                Registrarse
                 <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
               </Button>
             </Link>
@@ -554,8 +561,8 @@ const Landing = () => {
 
                     {/* Badge de clases */}
                     <div className="absolute top-4 right-4">
-                      <Badge className="bg-black/50 backdrop-blur-sm text-white border-none font-bold">
-                        <BookOpen className="w-3 h-3 mr-1" />
+                      <Badge className="bg-amber-400 text-black border-none font-black text-sm px-3 py-1 shadow-lg">
+                        <BookOpen className="w-3.5 h-3.5 mr-1.5" />
                         {leccionesPorCurso[course.id] || 0} clases
                       </Badge>
                     </div>
@@ -570,7 +577,14 @@ const Landing = () => {
                         {course.descripcion ||
                           "Próximamente más información sobre este curso."}
                       </p>
-                      {(course.fecha_inicio || course.horarios) && (
+                      <div className={`mt-3 flex items-center gap-2 text-xs font-semibold ${course.modalidad === "grabado" ? "text-slate-500 dark:text-white/40" : "text-emerald-600 dark:text-emerald-400"}`}>
+                        {course.modalidad === "grabado" ? (
+                          <><Film className="w-3.5 h-3.5 shrink-0" /> 100% grabado, sin clases en vivo</>
+                        ) : (
+                          <><Video className="w-3.5 h-3.5 shrink-0" /> Incluye clases en vivo</>
+                        )}
+                      </div>
+                      {(course.fecha_inicio || course.horarios || course.duracion) && (
                         <div className="mt-3 space-y-1.5">
                           {course.fecha_inicio && (
                             <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
@@ -584,6 +598,12 @@ const Landing = () => {
                             <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
                               <Clock className="w-3.5 h-3.5 shrink-0" />
                               <span>{course.horarios}</span>
+                            </div>
+                          )}
+                          {course.duracion && (
+                            <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
+                              <Hourglass className="w-3.5 h-3.5 shrink-0" />
+                              <span>{course.duracion}</span>
                             </div>
                           )}
                         </div>
@@ -606,17 +626,8 @@ const Landing = () => {
                           />
                         </div>
                       ) : (
-                        <span />
+                        <span className="text-xs text-slate-400 dark:text-white/30">Consultar precio</span>
                       )}
-                      <Link to="/auth?registro=1">
-                        <Button
-                          size="sm"
-                          className="bg-indigo-500 hover:bg-indigo-600 text-white font-bold rounded-xl group-hover:shadow-lg group-hover:shadow-indigo-500/25 transition-all"
-                        >
-                          Inscribirme
-                          <ArrowRight className="w-4 h-4 ml-1" />
-                        </Button>
-                      </Link>
                     </div>
                   </CardContent>
                 </Card>

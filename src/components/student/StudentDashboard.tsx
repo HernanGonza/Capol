@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,11 +9,122 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   BookOpen, Clock, CheckCircle, PlayCircle, GraduationCap,
-  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap, Calendar
+  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap, Calendar, Hourglass, Video, Film,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { openCertificate } from "@/lib/certificate";
+import { openCertificate, fetchCertificateSignatures } from "@/lib/certificate";
 import PriceTag from "@/components/PriceTag";
+
+// Prefijo para "cuotas"/"clase" (ej: "3x", "8 clases x"); el monto en sí se
+// muestra con PriceTag, que lo convierte a la moneda del alumno.
+const precioPrefijo = (course: any) => {
+  if (!course.cantidad_cuotas) return "";
+  if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x `;
+  if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x `;
+  return "";
+};
+
+// Tarjeta de catálogo (distinta de "mis cursos"): se usa tanto para los
+// cursos a los que todavía se puede inscribir/comprar como para los que solo
+// quedan como referencia (activo/finalizado) — "canEnroll" decide si aparece
+// el botón o un texto de estado en su lugar.
+const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEnroll: boolean; onEnroll: () => void }) => (
+  <Card className="overflow-hidden border border-border/50 shadow-sm hover:shadow-card transition-all duration-300 group bg-card">
+    <div className="h-36 relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50">
+      {course.url_flyer || course.url_imagen ? (
+        course.tipo_flyer === "video"
+          ? <video src={course.url_flyer} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+          : <img src={course.url_flyer || course.url_imagen} alt={course.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center">
+          <GraduationCap className="w-10 h-10 text-indigo-200" />
+        </div>
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      <div className="absolute top-2 left-2">
+        {course.estado === "proximamente" ? (
+          <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+            <Clock className="w-2.5 h-2.5 mr-1" /> Próximamente
+          </Badge>
+        ) : course.estado === "activo" ? (
+          <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+            <Zap className="w-2.5 h-2.5 mr-1" /> Cursando
+          </Badge>
+        ) : (
+          <Badge className="bg-white/20 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+            <GraduationCap className="w-2.5 h-2.5 mr-1" /> Finalizado
+          </Badge>
+        )}
+      </div>
+      <div className="absolute bottom-2 left-3 flex items-center gap-2">
+        <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+          <BookOpen className="w-2.5 h-2.5 mr-1" />{course.lecciones?.[0]?.count || 0} clases
+        </Badge>
+        <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
+          <Users className="w-2.5 h-2.5 mr-1" />{course.inscripciones?.[0]?.count || 0}
+        </Badge>
+      </div>
+    </div>
+    <CardContent className="p-4">
+      <h3 className="font-bold text-base line-clamp-1 group-hover:text-primary transition-colors mb-1">{course.titulo}</h3>
+      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{course.descripcion || "Más información próximamente."}</p>
+      <div className={`flex items-center gap-1.5 text-[11px] font-semibold mb-2 ${course.modalidad === "grabado" ? "text-muted-foreground" : "text-emerald-600 dark:text-emerald-400"}`}>
+        {course.modalidad === "grabado" ? (
+          <><Film className="w-3 h-3 shrink-0" /> 100% grabado, sin clases en vivo</>
+        ) : (
+          <><Video className="w-3 h-3 shrink-0" /> Incluye clases en vivo</>
+        )}
+      </div>
+      {(course.fecha_inicio || course.horarios || course.duracion) && (
+        <div className="space-y-1 mb-3">
+          {course.fecha_inicio && (
+            <div className="flex items-center gap-1.5 text-[11px] text-primary font-semibold">
+              <Calendar className="w-3 h-3 shrink-0" />
+              <span>
+                Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
+              </span>
+            </div>
+          )}
+          {course.horarios && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold">
+              <Clock className="w-3 h-3 shrink-0" />
+              <span className="line-clamp-1">{course.horarios}</span>
+            </div>
+          )}
+          {course.duracion && (
+            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold">
+              <Hourglass className="w-3 h-3 shrink-0" />
+              <span className="line-clamp-1">{course.duracion}</span>
+            </div>
+          )}
+        </div>
+      )}
+      <div className="flex items-center justify-between">
+        {course.precio ? (
+          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
+            <DollarSign className="w-3 h-3" />
+            {precioPrefijo(course)}
+            <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} />
+          </span>
+        ) : (
+          <span className="text-xs text-muted-foreground">Consultar precio</span>
+        )}
+        {canEnroll ? (
+          <button
+            onClick={onEnroll}
+            className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-3 py-1.5 rounded-lg flex items-center gap-1"
+          >
+            {course.modalidad === "grabado" ? "Comprar" : "Inscribirme"} <ArrowRight className="w-3 h-3" />
+          </button>
+        ) : (
+          <span className="text-[11px] text-muted-foreground font-semibold">
+            {course.estado === "activo" ? "Cursando actualmente" : "Edición finalizada"}
+          </span>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+);
 
 const StudentDashboard = () => {
   const { user, profile } = useAuth();
@@ -29,7 +140,7 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select(`
           id, estado, curso_id,
-          cursos (id, titulo, descripcion, url_imagen, fecha_inicio, horarios, lecciones (id))
+          cursos (id, titulo, descripcion, url_imagen, fecha_inicio, horarios, carga_horaria, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
         .eq("estado", "active")
@@ -59,17 +170,21 @@ const StudentDashboard = () => {
     enabled: !!user,
   });
 
-  // Cursos disponibles para inscripción: solo ediciones "proximamente" — un
-  // curso "activo" ya se está cursando, así que un alumno nuevo no puede
-  // sumarse a mitad de camino, tiene que esperar a la próxima edición.
+  // Catálogo completo (para que el alumno vea qué ofrece la escuela, no solo
+  // lo que puede inscribir ahora mismo). Un curso puede tener varias
+  // ediciones (copias) — se muestra una sola tarjeta por curso, priorizando
+  // la edición "Próximamente" (a la que se puede inscribir), después
+  // "Activo", y si no hay ninguna de esas, la última "Finalizado" — mismo
+  // criterio que ya usa la Landing pública. Recién en el render se separa
+  // en dos secciones: solo "Próximamente" tiene botón de inscripción/compra,
+  // "Activo"/"Finalizado" quedan solo como referencia del catálogo.
   const { data: availableCourses, isLoading: loadingAvailable } = useQuery({
     queryKey: ["available-courses", user?.id],
     queryFn: async () => {
       const { data: allCourses } = await supabase
         .from("cursos")
-        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, fecha_inicio, horarios, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
+        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, modalidad, fecha_inicio, fecha_fin, horarios, duracion, precio, tipo_precio, cantidad_cuotas, moneda, lecciones (count), inscripciones (count)`)
         .eq("publicado", true)
-        .eq("estado", "proximamente")
         .order("creado_en", { ascending: false });
 
       const { data: activeSubs } = await supabase
@@ -80,20 +195,27 @@ const StudentDashboard = () => {
         .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
-      // Si el mismo curso tiene varias ediciones (copias) "próximamente" a
-      // la vez, mostramos una sola por grupo — el alumno no necesita ver
-      // duplicados en el catálogo.
-      const gruposVistos = new Set<string>();
-      return (allCourses || []).filter((c: any) => {
-        if (enrolledIds.has(c.id)) return false;
+
+      const porGrupo = new Map<string, any[]>();
+      for (const c of allCourses || []) {
+        if (enrolledIds.has(c.id)) continue;
         const key = c.grupo_id || c.id;
-        if (gruposVistos.has(key)) return false;
-        gruposVistos.add(key);
-        return true;
+        if (!porGrupo.has(key)) porGrupo.set(key, []);
+        porGrupo.get(key)!.push(c);
+      }
+      return Array.from(porGrupo.values()).map((ediciones) => {
+        const proxima = ediciones.find((c) => c.estado === "proximamente");
+        if (proxima) return proxima;
+        const activo = ediciones.find((c) => c.estado === "activo");
+        if (activo) return activo;
+        return [...ediciones].sort((a, b) => (b.fecha_fin || "").localeCompare(a.fecha_fin || ""))[0];
       });
     },
     enabled: !!user,
   });
+
+  const proximamenteCourses = useMemo(() => (availableCourses || []).filter((c: any) => c.estado === "proximamente"), [availableCourses]);
+  const otrosCourses = useMemo(() => (availableCourses || []).filter((c: any) => c.estado !== "proximamente"), [availableCourses]);
 
   // Medios de pago
   const { data: mediosDePago } = useQuery({
@@ -104,15 +226,6 @@ const StudentDashboard = () => {
       return (data?.valor as string[]) || [];
     },
   });
-
-  // Prefijo para "cuotas"/"clase" (ej: "3x", "8 clases x"); el monto en sí
-  // se muestra con PriceTag, que lo convierte a la moneda del alumno.
-  const precioPrefijo = (course: any) => {
-    if (!course.cantidad_cuotas) return "";
-    if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x `;
-    if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x `;
-    return "";
-  };
 
   const handleSolicitar = async () => {
     if (!modalCourse || !user) return;
@@ -191,13 +304,16 @@ const StudentDashboard = () => {
                           </div>
                           {item.percent === 100 ? (
                             <button
-                              onClick={(e) => {
+                              onClick={async (e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
+                                const sig = item.course?.id ? await fetchCertificateSignatures(item.course.id) : {};
                                 openCertificate({
                                   studentName: profile?.nombre_completo || "Alumno",
                                   courseTitle: item.course?.titulo || "",
                                   completionDate: item.completedAt,
+                                  cargaHoraria: item.course?.carga_horaria,
+                                  ...sig,
                                 });
                               }}
                               className="text-xs font-bold text-primary flex items-center gap-1 hover:underline"
@@ -227,100 +343,46 @@ const StudentDashboard = () => {
           )}
         </div>
 
-        {/* CURSOS DISPONIBLES */}
-        {availableCourses && availableCourses.length > 0 && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <h2 className="text-2xl font-bold tracking-tight">Cursos Disponibles</h2>
-                <p className="text-muted-foreground text-sm mt-1">Solicitá tu inscripción y te contactamos para coordinar el pago.</p>
-              </div>
-              <Badge variant="secondary" className="text-xs font-bold">{availableCourses.length} cursos</Badge>
-            </div>
-
-            {loadingAvailable ? (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {[1,2,3].map(i => <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />)}
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {availableCourses.map((course: any) => (
-                  <Card key={course.id} className="overflow-hidden border border-border/50 shadow-sm hover:shadow-card transition-all duration-300 group bg-card">
-                    <div className="h-36 relative overflow-hidden bg-gradient-to-br from-indigo-50 to-purple-50">
-                      {course.url_flyer || course.url_imagen ? (
-                        course.tipo_flyer === "video"
-                          ? <video src={course.url_flyer} className="w-full h-full object-cover" muted loop autoPlay playsInline />
-                          : <img src={course.url_flyer || course.url_imagen} alt={course.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center">
-                          <GraduationCap className="w-10 h-10 text-indigo-200" />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                      <div className="absolute top-2 left-2">
-                        {course.estado === "proximamente" ? (
-                          <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
-                            <Clock className="w-2.5 h-2.5 mr-1" /> Próximamente
-                          </Badge>
-                        ) : (
-                          <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
-                            <Zap className="w-2.5 h-2.5 mr-1" /> Activo
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="absolute bottom-2 left-3 flex items-center gap-2">
-                        <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
-                          <BookOpen className="w-2.5 h-2.5 mr-1" />{course.lecciones?.[0]?.count || 0} clases
-                        </Badge>
-                        <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
-                          <Users className="w-2.5 h-2.5 mr-1" />{course.inscripciones?.[0]?.count || 0}
-                        </Badge>
-                      </div>
-                    </div>
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-base line-clamp-1 group-hover:text-primary transition-colors mb-1">{course.titulo}</h3>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mb-2">{course.descripcion || "Más información próximamente."}</p>
-                      {(course.fecha_inicio || course.horarios) && (
-                        <div className="space-y-1 mb-3">
-                          {course.fecha_inicio && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-primary font-semibold">
-                              <Calendar className="w-3 h-3 shrink-0" />
-                              <span>
-                                Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long" })}
-                              </span>
-                            </div>
-                          )}
-                          {course.horarios && (
-                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground font-semibold">
-                              <Clock className="w-3 h-3 shrink-0" />
-                              <span className="line-clamp-1">{course.horarios}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div className="flex items-center justify-between">
-                        {course.precio ? (
-                          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
-                            <DollarSign className="w-3 h-3" />
-                            {precioPrefijo(course)}
-                            <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} />
-                          </span>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Consultar precio</span>
-                        )}
-                        <button
-                          onClick={() => setModalCourse(course)}
-                          className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-3 py-1.5 rounded-lg flex items-center gap-1"
-                        >
-                          Inscribirme <ArrowRight className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+        {/* CURSOS DISPONIBLES PARA INSCRIPCIÓN */}
+        {loadingAvailable ? (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[1,2,3].map(i => <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />)}
+          </div>
+        ) : (
+          <>
+            {proximamenteCourses.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Cursos Disponibles</h2>
+                    <p className="text-muted-foreground text-sm mt-1">Solicitá tu inscripción y te contactamos para coordinar el pago.</p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs font-bold">{proximamenteCourses.length} cursos</Badge>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {proximamenteCourses.map((course: any) => (
+                    <CourseCatalogCard key={course.id} course={course} canEnroll onEnroll={() => setModalCourse(course)} />
+                  ))}
+                </div>
               </div>
             )}
-          </div>
+
+            {/* CATÁLOGO: cursos cursando o finalizados — solo para que se vea la
+                oferta completa, sin botón porque no se pueden inscribir ahora. */}
+            {otrosCourses.length > 0 && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Catálogo Completo</h2>
+                  <p className="text-muted-foreground text-sm mt-1">Estos cursos ya están cursando o finalizaron. Vas a poder inscribirte cuando se abra la próxima edición.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {otrosCourses.map((course: any) => (
+                    <CourseCatalogCard key={course.id} course={course} canEnroll={false} onEnroll={() => {}} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </>
         )}
 
       </div>
@@ -367,7 +429,7 @@ const StudentDashboard = () => {
               )}
 
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Estás a punto de solicitar tu inscripción al curso <strong className="text-foreground">"{modalCourse.titulo}"</strong>.
+                Estás a punto de solicitar {modalCourse.modalidad === "grabado" ? "la compra" : "tu inscripción"} del curso <strong className="text-foreground">"{modalCourse.titulo}"</strong>.
                 Podrás ingresar al mismo una vez que se acredite tu pago.
                 <br /><br />
                 <strong className="text-foreground">Nos estaremos comunicando con vos para coordinar el pago.</strong>
@@ -396,7 +458,7 @@ const StudentDashboard = () => {
                   disabled={solicitando}
                   className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl transition-all disabled:opacity-50"
                 >
-                  {solicitando ? "Enviando solicitud..." : "Confirmar solicitud de inscripción"}
+                  {solicitando ? "Enviando solicitud..." : modalCourse.modalidad === "grabado" ? "Confirmar compra" : "Confirmar solicitud de inscripción"}
                 </button>
               )}
             </div>

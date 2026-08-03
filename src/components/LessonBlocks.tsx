@@ -131,8 +131,8 @@ const LessonBlocks = ({ content }: Props) => {
               <div className="flex items-center gap-5">
                 <div className="p-4 bg-muted rounded-2xl group-hover:bg-primary/10 transition-colors"><Download className="w-7 h-7 text-muted-foreground group-hover:text-primary" /></div>
                 <div>
-                  <div className="font-black text-xl text-foreground">Material de Apoyo</div>
-                  <div className="text-sm text-muted-foreground font-bold uppercase tracking-tighter">Descargar archivos</div>
+                  <div className="font-black text-xl text-foreground">{block.label || "Material de Apoyo"}</div>
+                  <div className="text-sm text-muted-foreground font-bold uppercase tracking-tighter">Descargar archivo</div>
                 </div>
               </div>
               <ArrowRight className="w-6 h-6 text-muted-foreground group-hover:text-primary group-hover:translate-x-2 transition-all" />

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
@@ -8,17 +9,23 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import SignaturePad from "@/components/SignaturePad";
 import { toast } from "sonner";
-import { Camera, Mail, User, Phone, MapPin, CreditCard } from "lucide-react";
+import { Camera, Mail, User, Phone, MapPin, CreditCard, PenTool } from "lucide-react";
 import { PROVINCIAS_AR, PAISES_MUNDO } from "@/lib/geo";
 
 const Profile = () => {
   const { user, profile, role, refreshProfile } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editingSignature, setEditingSignature] = useState(false);
+  const [savingSignature, setSavingSignature] = useState(false);
+  const [editingDirectorSignature, setEditingDirectorSignature] = useState(false);
+  const [savingDirectorSignature, setSavingDirectorSignature] = useState(false);
   const [form, setForm] = useState({
     nombre_completo: "",
     telefono: "",
@@ -53,6 +60,59 @@ const Profile = () => {
     const reader = new FileReader();
     reader.onload = () => setAvatarPreview(reader.result as string);
     reader.readAsDataURL(file);
+  };
+
+  // Firma de "Dirección": compartida entre todos los admins, no es de una
+  // cuenta puntual — se guarda como una fila más en configuracion_global,
+  // mismo patrón que "medios_de_pago".
+  const { data: directorSignatureUrl } = useQuery({
+    queryKey: ["firma-director"],
+    queryFn: async () => {
+      const { data } = await supabase.from("configuracion_global").select("valor").eq("clave", "firma_director").maybeSingle();
+      return (data?.valor as { url?: string } | null)?.url || null;
+    },
+    enabled: role === "admin",
+  });
+
+  const handleSaveSignature = async (file: File) => {
+    if (!user) return;
+    setSavingSignature(true);
+    try {
+      const path = `profesor-${user.id}.png`;
+      const { error } = await supabase.storage.from("firmas").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("firmas").getPublicUrl(path);
+      const url = `${data.publicUrl}?t=${Date.now()}`;
+      const { error: updErr } = await supabase.from("perfiles").update({ firma_url: url }).eq("id", user.id);
+      if (updErr) throw updErr;
+      await refreshProfile();
+      setEditingSignature(false);
+      toast.success("Firma guardada");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSavingSignature(false);
+    }
+  };
+
+  const handleSaveDirectorSignature = async (file: File) => {
+    setSavingDirectorSignature(true);
+    try {
+      const path = "director.png";
+      const { error } = await supabase.storage.from("firmas").upload(path, file, { upsert: true });
+      if (error) throw error;
+      const { data } = supabase.storage.from("firmas").getPublicUrl(path);
+      const url = `${data.publicUrl}?t=${Date.now()}`;
+      const { error: cfgErr } = await supabase.from("configuracion_global").upsert({ clave: "firma_director", valor: { url } });
+      if (cfgErr) throw cfgErr;
+      queryClient.invalidateQueries({ queryKey: ["firma-director"] });
+      setEditingDirectorSignature(false);
+      toast.success("Firma de dirección guardada");
+    } catch (e: any) {
+      toast.error(e.message);
+    } finally {
+      setSavingDirectorSignature(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -167,6 +227,44 @@ const Profile = () => {
               </div>
             </CardContent>
           </Card>
+
+          {role === "teacher" && (
+            <Card className="shadow-card border-none">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><PenTool className="w-4 h-4 text-primary" /> Mi firma</CardTitle>
+                <p className="text-xs text-muted-foreground">Se usa en los certificados de finalización de tus cursos.</p>
+              </CardHeader>
+              <CardContent>
+                {profile?.firma_url && !editingSignature ? (
+                  <div className="flex items-center gap-4">
+                    <img src={profile.firma_url} alt="Tu firma" className="h-16 bg-white rounded-lg border px-3" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setEditingSignature(true)}>Volver a firmar</Button>
+                  </div>
+                ) : (
+                  <SignaturePad saving={savingSignature} onSave={handleSaveSignature} />
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {role === "admin" && (
+            <Card className="shadow-card border-none">
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2"><PenTool className="w-4 h-4 text-primary" /> Firma de Dirección</CardTitle>
+                <p className="text-xs text-muted-foreground">Firma compartida que se usa en todos los certificados emitidos por la escuela. Cualquier admin la puede actualizar.</p>
+              </CardHeader>
+              <CardContent>
+                {directorSignatureUrl && !editingDirectorSignature ? (
+                  <div className="flex items-center gap-4">
+                    <img src={directorSignatureUrl} alt="Firma de dirección" className="h-16 bg-white rounded-lg border px-3" />
+                    <Button type="button" variant="outline" size="sm" onClick={() => setEditingDirectorSignature(true)}>Volver a firmar</Button>
+                  </div>
+                ) : (
+                  <SignaturePad saving={savingDirectorSignature} onSave={handleSaveDirectorSignature} />
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="shadow-card border-none">
             <CardHeader>

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { openCertificate } from "@/lib/certificate";
+import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
@@ -36,6 +37,7 @@ interface Props {
   onBack: () => void;
   userId: string;
   courseTitle?: string;
+  courseCargaHoraria?: number | null;
   isPreview?: boolean;
   isLastLesson?: boolean;
 }
@@ -48,7 +50,7 @@ const getDriveEmbedUrl = (url: string): string | null => {
   return `https://drive.google.com/file/d/${match[1]}/preview`;
 };
 
-const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastLesson }: Props) => {
+const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria, isPreview, isLastLesson }: Props) => {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const [showJitsi, setShowJitsi] = useState(false);
@@ -57,6 +59,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastL
   const [submissionTab, setSubmissionTab] = useState<"link" | "archivo">("link");
   const [linkValue, setLinkValue] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const certSignatures = useCertificateSignatures(lesson.curso_id || undefined, isLastLesson === true);
 
   const exportToPdf = async () => {
     setExporting(true);
@@ -456,6 +459,8 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, isPreview, isLastL
                 studentName: profile?.nombre_completo || "Alumno",
                 courseTitle: courseTitle || "",
                 completionDate: progress?.completado_en,
+                cargaHoraria: courseCargaHoraria,
+                ...certSignatures,
               })}
               className="gradient-primary text-white font-black px-10 h-14 rounded-2xl text-lg shadow-xl hover:scale-105 transition-transform"
             >
