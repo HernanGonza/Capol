@@ -11,8 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import SignaturePad from "@/components/SignaturePad";
 import { toast } from "sonner";
-import { Camera, Mail, User, Phone, MapPin, CreditCard, PenTool } from "lucide-react";
+import { Camera, Mail, User, Phone, MapPin, CreditCard, PenTool, Lock, Eye, EyeOff } from "lucide-react";
 import { PROVINCIAS_AR, PAISES_MUNDO } from "@/lib/geo";
+import { passwordChecks } from "@/lib/password";
 
 const Profile = () => {
   const { user, profile, role, refreshProfile } = useAuth();
@@ -30,12 +31,17 @@ const Profile = () => {
     nombre_completo: "",
     telefono: "",
     dni: "",
+    edad: "",
+    ocupacion: "",
     direccion: "",
     localidad: "",
     provincia: "",
     pais: "Argentina",
     biografia: "",
   });
+  const [passwordForm, setPasswordForm] = useState({ actual: "", nueva: "", confirmar: "" });
+  const [showPasswords, setShowPasswords] = useState(false);
+  const [changingPassword, setChangingPassword] = useState(false);
 
   // Cargamos el form una vez tengamos el perfil (llega async desde el contexto).
   useEffect(() => {
@@ -44,6 +50,8 @@ const Profile = () => {
         nombre_completo: profile.nombre_completo || "",
         telefono: profile.telefono || "",
         dni: profile.dni || "",
+        edad: profile.edad?.toString() || "",
+        ocupacion: profile.ocupacion || "",
         direccion: profile.direccion || "",
         localidad: profile.localidad || "",
         provincia: profile.provincia || "",
@@ -138,6 +146,8 @@ const Profile = () => {
         nombre_completo: form.nombre_completo,
         telefono: form.telefono,
         dni: form.dni,
+        edad: form.edad ? parseInt(form.edad) : null,
+        ocupacion: form.ocupacion,
         direccion: form.direccion,
         localidad: form.localidad,
         provincia: form.provincia,
@@ -159,7 +169,44 @@ const Profile = () => {
     }
   };
 
+  // Supabase no tiene un endpoint dedicado para "cambiar contraseña
+  // verificando la actual" — updateUser() la cambia directo sin pedir nada
+  // más. Por eso primero se re-autentica con la contraseña actual (si no es
+  // la correcta, esto falla) y recién después se actualiza a la nueva.
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user?.email) return;
+    if (passwordForm.nueva !== passwordForm.confirmar) {
+      toast.error("Las contraseñas nuevas no coinciden");
+      return;
+    }
+    if (passwordChecks(passwordForm.nueva).some((c) => !c.ok)) {
+      toast.error("La contraseña nueva no es suficientemente segura");
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: passwordForm.actual,
+      });
+      if (verifyError) {
+        toast.error("La contraseña actual no es correcta");
+        return;
+      }
+      const { error } = await supabase.auth.updateUser({ password: passwordForm.nueva });
+      if (error) throw error;
+      toast.success("Contraseña actualizada");
+      setPasswordForm({ actual: "", nueva: "", confirmar: "" });
+    } catch (error: any) {
+      toast.error(error.message || "No se pudo cambiar la contraseña");
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   const currentAvatar = avatarPreview || profile?.url_avatar;
+  const newPasswordChecks = passwordForm.nueva ? passwordChecks(passwordForm.nueva) : [];
 
   return (
     <AppLayout>
@@ -219,6 +266,16 @@ const Profile = () => {
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input className="pl-9" value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
                   </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Edad</Label>
+                  <Input type="number" min="1" max="120" value={form.edad} onChange={(e) => setForm({ ...form, edad: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Ocupación</Label>
+                  <Input value={form.ocupacion} onChange={(e) => setForm({ ...form, ocupacion: e.target.value })} />
                 </div>
               </div>
               <div className="space-y-1.5">
@@ -318,6 +375,72 @@ const Profile = () => {
           <Button type="submit" className="w-full gradient-primary text-primary-foreground h-11" disabled={saving}>
             {saving ? "Guardando..." : "Guardar cambios"}
           </Button>
+        </form>
+
+        <form onSubmit={handleChangePassword}>
+          <Card className="shadow-card border-none">
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><Lock className="w-4 h-4 text-primary" /> Cambiar contraseña</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase text-muted-foreground">Contraseña actual</Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    className="pl-9 pr-9"
+                    type={showPasswords ? "text" : "password"}
+                    value={passwordForm.actual}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, actual: e.target.value })}
+                    autoComplete="current-password"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPasswords(!showPasswords)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    {showPasswords ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Contraseña nueva</Label>
+                  <Input
+                    type={showPasswords ? "text" : "password"}
+                    value={passwordForm.nueva}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, nueva: e.target.value })}
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold uppercase text-muted-foreground">Repetir contraseña nueva</Label>
+                  <Input
+                    type={showPasswords ? "text" : "password"}
+                    value={passwordForm.confirmar}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmar: e.target.value })}
+                    autoComplete="new-password"
+                    required
+                  />
+                </div>
+              </div>
+              {passwordForm.nueva && (
+                <div className="grid grid-cols-2 gap-1.5">
+                  {newPasswordChecks.map((c) => (
+                    <p key={c.label} className={`text-xs flex items-center gap-1.5 ${c.ok ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${c.ok ? "bg-emerald-500" : "bg-muted-foreground/40"}`} />
+                      {c.label}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <Button type="submit" variant="outline" className="w-full" disabled={changingPassword}>
+                {changingPassword ? "Cambiando..." : "Cambiar contraseña"}
+              </Button>
+            </CardContent>
+          </Card>
         </form>
       </div>
     </AppLayout>

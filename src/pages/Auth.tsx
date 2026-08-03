@@ -14,13 +14,7 @@ import {
 import { PROVINCIAS_AR, PAISES_MUNDO, CODIGO_TELEFONICO } from "@/lib/geo";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
-
-const passwordChecks = (pw: string) => [
-  { label: "Al menos 8 caracteres", ok: pw.length >= 8 },
-  { label: "Una mayúscula", ok: /[A-Z]/.test(pw) },
-  { label: "Un número", ok: /[0-9]/.test(pw) },
-  { label: "Un carácter especial", ok: /[^A-Za-z0-9]/.test(pw) },
-];
+import { passwordChecks } from "@/lib/password";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
