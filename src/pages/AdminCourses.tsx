@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap, Copy, FlagOff, Archive } from "lucide-react";
+import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap, Copy, FlagOff, Archive, Eye } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
 import { compressImageToWebP } from "@/lib/imageCompression";
@@ -686,6 +686,11 @@ const AdminCourses = () => {
                       <Link to={`/admin/courses/${course.id}/lessons`} className="flex-1">
                         <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" size="sm">
                           <Layers className="w-3.5 h-3.5 mr-2" /> Clases
+                        </Button>
+                      </Link>
+                      <Link to={`/course/${course.id}`} title="Vista previa (como lo ve un alumno, incluye certificado de prueba)">
+                        <Button variant="outline" size="sm">
+                          <Eye className="w-3.5 h-3.5" />
                         </Button>
                       </Link>
                       <Button variant="outline" size="sm" onClick={() => openEdit(course)} title="Editar">
