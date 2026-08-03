@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
@@ -394,7 +394,10 @@ const StudentDashboard = () => {
             <div className="space-y-5">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wider text-indigo-500 mb-1">Solicitud de inscripción</p>
-                <h2 className="text-xl font-black leading-tight">{modalCourse.titulo}</h2>
+                <DialogTitle asChild>
+                  <h2 className="text-xl font-black leading-tight">{modalCourse.titulo}</h2>
+                </DialogTitle>
+                <DialogDescription className="sr-only">Confirmá tu solicitud de inscripción a este curso</DialogDescription>
               </div>
 
               {(modalCourse.url_flyer || modalCourse.url_imagen) && (

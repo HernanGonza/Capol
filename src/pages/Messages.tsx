@@ -6,7 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -750,6 +750,7 @@ const Messages = () => {
             <div className="flex items-center justify-between gap-2 pr-6">
               <div className="min-w-0">
                 <DialogTitle className="truncate">{selected?.tipo === "foro" ? "Foro del Curso" : selected?.nombre}</DialogTitle>
+                <DialogDescription className="sr-only">Conversación de mensajes{selected?.cursoTitulo ? ` — ${selected.cursoTitulo}` : ""}</DialogDescription>
                 {selected?.tipo === "foro" && (
                   <p className="text-xs text-muted-foreground">{selected.cursoTitulo}</p>
                 )}
@@ -942,6 +943,7 @@ const Messages = () => {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Nuevo Mensaje</DialogTitle>
+            <DialogDescription>Buscá a quién escribirle o a qué foro sumarte</DialogDescription>
           </DialogHeader>
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />

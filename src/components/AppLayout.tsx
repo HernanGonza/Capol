@@ -35,6 +35,16 @@ import { startOnboardingTour } from "@/lib/onboardingTour";
 // esperable).
 let sidebarScrollTop = 0;
 
+// El sidebar colapsado/expandido es una preferencia del usuario, no un
+// estado de sesión — se guarda en localStorage (mismo criterio que el tema
+// claro/oscuro) para que sobreviva tanto a un cambio de ruta (AppLayout se
+// remonta en cada uno, ver más arriba) como a un refresh de página entero.
+const SIDEBAR_COLLAPSED_KEY = "capol-sidebar-collapsed";
+const getInitialCollapsed = (): boolean => {
+  if (typeof window === "undefined") return false;
+  return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === "1";
+};
+
 // Evita que el tour se vuelva a disparar en cada remount de AppLayout (pasa
 // en cada cambio de ruta, ver comentario de "sidebarScrollTop") mientras
 // dure la sesión del mismo usuario. Se guarda por id de usuario (no un
@@ -49,7 +59,11 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsedState] = useState(getInitialCollapsed);
+  const setCollapsed = (value: boolean) => {
+    setCollapsedState(value);
+    localStorage.setItem(SIDEBAR_COLLAPSED_KEY, value ? "1" : "0");
+  };
   const navRef = useRef<HTMLElement>(null);
   const isAdmin = role === "admin";
   const isTeacher = role === "teacher";

@@ -5,7 +5,7 @@ import { openCertificate } from "@/lib/certificate";
 import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -381,6 +381,8 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
       {/* Modal con la grabación embebida de Drive */}
       <Dialog open={showRecording} onOpenChange={setShowRecording}>
         <DialogContent className="sm:max-w-4xl bg-black border-white/10 p-2">
+          <DialogTitle className="sr-only">Grabación de la clase</DialogTitle>
+          <DialogDescription className="sr-only">Video de la grabación de esta clase</DialogDescription>
           {driveEmbedUrl ? (
             <iframe
               src={driveEmbedUrl}

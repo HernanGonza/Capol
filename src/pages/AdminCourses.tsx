@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -361,8 +361,8 @@ const AdminCourses = () => {
               <DialogContent className="sm:max-w-[420px]">
                 <DialogHeader>
                   <DialogTitle className="text-xl font-bold">Medios de Pago</DialogTitle>
+                  <DialogDescription>Estos medios aparecerán en el modal de inscripción de cada curso.</DialogDescription>
                 </DialogHeader>
-                <p className="text-sm text-muted-foreground">Estos medios aparecerán en el modal de inscripción de cada curso.</p>
                 <div className="space-y-3 pt-2">
                   {(mediosDePago || []).map((medio, i) => (
                     <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl border">
@@ -421,6 +421,7 @@ const AdminCourses = () => {
               <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle className="text-xl font-bold">{editingCourse ? "Editar Curso" : "Nuevo Curso"}</DialogTitle>
+                  <DialogDescription>Datos, precio y horarios del curso</DialogDescription>
                 </DialogHeader>
                 <form onSubmit={(e) => { e.preventDefault(); saveMutation.mutate(); }} className="space-y-4 pt-2">
                   <div className="space-y-2">

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PriceTag from "@/components/PriceTag";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { detectCountryCode } from "@/lib/currency";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import Tilt from "react-parallax-tilt";
 import ScrollReveal from "scrollreveal";
 import {
@@ -77,10 +78,16 @@ const Landing = () => {
   }, []);
 
   // Contador de visitas para las métricas del admin — un registro por carga
-  // de la Landing, sin importar si el visitante está logueado o no.
+  // de la Landing, sin importar si el visitante está logueado o no. Se
+  // manda el país (mismo detectCountryCode que usa el precio automático)
+  // para poder separar después "Argentina" vs "resto del mundo" en Métricas
+  // — no bloquea el insert si la geolocalización falla, la visita se
+  // cuenta igual, solo queda sin país conocido.
   useEffect(() => {
-    supabase.from("landing_visits").insert({}).then(({ error }) => {
-      if (error) console.error("No se pudo registrar la visita:", error);
+    detectCountryCode().then((pais_code) => {
+      supabase.from("landing_visits").insert({ pais_code }).then(({ error }) => {
+        if (error) console.error("No se pudo registrar la visita:", error);
+      });
     });
   }, []);
 
@@ -852,10 +859,14 @@ const Landing = () => {
                 />
               )}
               <div className="p-6 space-y-2">
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white">{selectedCourseMedia.titulo}</h3>
-                <p className="text-slate-600 dark:text-white/60 text-sm leading-relaxed whitespace-pre-line">
-                  {selectedCourseMedia.descripcion || "Sin descripción disponible."}
-                </p>
+                <DialogTitle asChild>
+                  <h3 className="text-xl font-bold text-slate-900 dark:text-white">{selectedCourseMedia.titulo}</h3>
+                </DialogTitle>
+                <DialogDescription asChild>
+                  <p className="text-slate-600 dark:text-white/60 text-sm leading-relaxed whitespace-pre-line">
+                    {selectedCourseMedia.descripcion || "Sin descripción disponible."}
+                  </p>
+                </DialogDescription>
               </div>
             </>
           )}

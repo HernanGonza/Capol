@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -290,14 +290,17 @@ const AdminSubscriptions = () => {
                 <Wallet className="w-4 h-4 mr-2" /> Payoneer <ExternalLink className="w-3.5 h-3.5 ml-2 opacity-60" />
               </a>
             </Button>
-            <Dialog open={open} onOpenChange={(v) => !v && handleClose()}>
+            <Dialog open={open} onOpenChange={(v) => (v ? setOpen(true) : handleClose())}>
               <DialogTrigger asChild>
                 <Button className="gradient-primary text-primary-foreground">
                   <Plus className="w-4 h-4 mr-2" /> Cargar Pago Nuevo
                 </Button>
               </DialogTrigger>
             <DialogContent className="max-w-md">
-              <DialogHeader><DialogTitle>{editingId ? "Editar Registro" : "Registrar Pago"}</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>{editingId ? "Editar Registro" : "Registrar Pago"}</DialogTitle>
+                <DialogDescription>Suscripción, monto y medio de pago del alumno</DialogDescription>
+              </DialogHeader>
               <form onSubmit={(e) => { e.preventDefault(); upsertMutation.mutate(); }} className="space-y-4 pt-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2 col-span-2">

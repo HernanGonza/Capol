@@ -387,14 +387,17 @@ export type Database = {
       landing_visits: {
         Row: {
           id: string
+          pais_code: string | null
           visited_at: string
         }
         Insert: {
           id?: string
+          pais_code?: string | null
           visited_at?: string
         }
         Update: {
           id?: string
+          pais_code?: string | null
           visited_at?: string
         }
         Relationships: []

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -250,6 +250,7 @@ const AdminTeachers = () => {
             <DialogContent className="sm:max-w-[425px]">
               <DialogHeader>
                 <DialogTitle className="text-xl font-bold">Agregar Profesor</DialogTitle>
+                <DialogDescription>Convertí a un alumno existente en profesor</DialogDescription>
               </DialogHeader>
               <div className="space-y-4 pt-4">
                 <div className="space-y-2">
@@ -470,6 +471,7 @@ const AdminTeachers = () => {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle className="text-xl font-bold">Asignar Curso</DialogTitle>
+              <DialogDescription>Elegí qué curso va a dictar este profesor</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 pt-4">
               <p className="text-sm text-muted-foreground">

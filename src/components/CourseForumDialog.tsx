@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import CourseForumThread from "@/components/CourseForumThread";
 
 interface CourseForumDialogProps {
@@ -13,7 +13,9 @@ const CourseForumDialog = ({ open, onOpenChange, courseId, courseTitle }: Course
     <DialogContent className="max-w-lg flex flex-col max-h-[90vh] h-[70vh]">
       <DialogHeader>
         <DialogTitle>Foro del Curso</DialogTitle>
-        {courseTitle && <p className="text-xs text-muted-foreground -mt-1">{courseTitle}</p>}
+        <DialogDescription className={courseTitle ? "text-xs -mt-1" : "sr-only"}>
+          {courseTitle || "Mensajes grupales de este curso"}
+        </DialogDescription>
       </DialogHeader>
       <CourseForumThread courseId={courseId} />
     </DialogContent>

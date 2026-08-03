@@ -6,7 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -314,7 +314,10 @@ const AdminStudents = () => {
               <Button className="gradient-primary"><UserPlus className="w-4 h-4 mr-2" /> Inscribir Alumno</Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Nueva Inscripción</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Nueva Inscripción</DialogTitle>
+                <DialogDescription>Anotá a un alumno (o profesor/admin) en un curso</DialogDescription>
+              </DialogHeader>
               <div className="space-y-4 pt-4">
                 <Select value={selectedStudent} onValueChange={setSelectedStudent}>
                   <SelectTrigger><SelectValue placeholder="Seleccionar alumno" /></SelectTrigger>

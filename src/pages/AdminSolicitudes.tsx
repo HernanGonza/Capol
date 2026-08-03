@@ -5,7 +5,7 @@ import AppLayout from "@/components/AppLayout";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import {
   CheckCircle, XCircle, Clock, User, BookOpen,
@@ -243,7 +243,10 @@ const AdminSolicitudes = () => {
                     : <User className="w-7 h-7 text-indigo-400" />}
                 </div>
                 <div>
-                  <h2 className="text-xl font-black">{modalAlumno.perfiles?.nombre_completo}</h2>
+                  <DialogTitle asChild>
+                    <h2 className="text-xl font-black">{modalAlumno.perfiles?.nombre_completo}</h2>
+                  </DialogTitle>
+                  <DialogDescription className="sr-only">Datos de contacto y curso solicitado por este alumno</DialogDescription>
                   <p className="text-xs text-muted-foreground">{modalAlumno.perfiles?.email}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     {estadoBadge(modalAlumno.estado)}
