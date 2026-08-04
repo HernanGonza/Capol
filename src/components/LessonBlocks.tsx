@@ -13,6 +13,7 @@ import {
 import Terminal from "@/components/Terminal";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { isSafeUrl } from "@/lib/safeUrl";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -30,7 +31,10 @@ const getEmbedUrl = (url: string) => {
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  return url;
+  // Si no es ninguno de los dos, se embebe la URL tal cual (para otros
+  // proveedores de video) — pero solo si es http/https, sino un iframe con
+  // "javascript:" u otro esquema raro no tiene por qué estar ahí.
+  return isSafeUrl(url) ? url : "";
 };
 
 interface Props {
@@ -126,7 +130,7 @@ const LessonBlocks = ({ content }: Props) => {
           )}
 
           {/* 6. RECURSO */}
-          {block.type === 'download' && (
+          {block.type === 'download' && isSafeUrl(block.value) && (
             <a href={block.value} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-6 bg-card border-2 border-border rounded-3xl hover:border-primary hover:shadow-xl transition-all group">
               <div className="flex items-center gap-5">
                 <div className="p-4 bg-muted rounded-2xl group-hover:bg-primary/10 transition-colors"><Download className="w-7 h-7 text-muted-foreground group-hover:text-primary" /></div>

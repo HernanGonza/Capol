@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { openCertificate } from "@/lib/certificate";
+import { isSafeUrl } from "@/lib/safeUrl";
 import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -264,11 +265,13 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
                   <Button onClick={() => setShowRecording(true)} className="bg-white text-slate-900 font-black hover:bg-white/90">
                     <PlayCircle className="w-5 h-5 mr-2" /> Ver Grabación
                   </Button>
-                  <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer">
-                    <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white hover:text-black">
-                      <ExternalLink className="w-4 h-4 mr-2" /> Abrir en Drive
-                    </Button>
-                  </a>
+                  {isSafeUrl(lesson.grabacion_url) && (
+                    <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer">
+                      <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white hover:text-black">
+                        <ExternalLink className="w-4 h-4 mr-2" /> Abrir en Drive
+                      </Button>
+                    </a>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -331,14 +334,18 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
                   <CheckCircle className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-emerald-800 dark:text-emerald-300">Ya entregaste tu trabajo final</p>
-                    <a
-                      href={entrega.tipo === "link" ? entrega.url : (entregaFileUrl || "#")}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-emerald-700 dark:text-emerald-400 underline break-all"
-                    >
-                      {entrega.tipo === "link" ? entrega.url : entrega.nombre_archivo}
-                    </a>
+                    {entrega.tipo !== "link" || isSafeUrl(entrega.url) ? (
+                      <a
+                        href={entrega.tipo === "link" ? entrega.url : (entregaFileUrl || "#")}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-emerald-700 dark:text-emerald-400 underline break-all"
+                      >
+                        {entrega.tipo === "link" ? entrega.url : entrega.nombre_archivo}
+                      </a>
+                    ) : (
+                      <span className="text-xs text-destructive">Link inválido — no se puede abrir</span>
+                    )}
                   </div>
                 </div>
               )}
@@ -393,7 +400,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
           ) : (
             <div className="p-10 text-center text-white space-y-3">
               <p>No pudimos mostrar la grabación acá adentro.</p>
-              {lesson.grabacion_url && (
+              {isSafeUrl(lesson.grabacion_url) && (
                 <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer" className="underline text-primary">
                   Abrir en Google Drive
                 </a>

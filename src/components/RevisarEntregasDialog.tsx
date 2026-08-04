@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { CheckCircle, Clock, FileText, Link2, User } from "lucide-react";
+import { isSafeUrl } from "@/lib/safeUrl";
 
 interface RevisarEntregasDialogProps {
   open: boolean;
@@ -104,22 +105,36 @@ const RevisarEntregasDialog = ({ open, onOpenChange, lesson }: RevisarEntregasDi
           {isLoading ? (
             <p className="text-sm text-muted-foreground text-center py-8">Cargando entregas...</p>
           ) : entregas && entregas.length > 0 ? (
-            entregas.map((entrega: any) => (
+            entregas.map((entrega: any) => {
+              const href = entrega.tipo === "link" ? entrega.url : (signedUrls[entrega.id] || "#");
+              // El link de la entrega lo carga el alumno — la validación del
+              // formulario es solo del lado del cliente y se puede evitar
+              // llamando a la API directo, así que acá (donde el PROFESOR lo
+              // abre) hay que volver a chequear que sea http/https antes de
+              // dejarlo clickeable.
+              const linkSeguro = entrega.tipo !== "link" || isSafeUrl(href);
+              return (
               <div key={entrega.id} className="flex items-center gap-4 p-4 rounded-xl border bg-card">
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-primary" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold truncate">{profileMap.get(entrega.usuario_id)?.nombre_completo || "Alumno"}</p>
-                  <a
-                    href={entrega.tipo === "link" ? entrega.url : (signedUrls[entrega.id] || "#")}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1 truncate"
-                  >
-                    {entrega.tipo === "link" ? <Link2 className="w-3 h-3 shrink-0" /> : <FileText className="w-3 h-3 shrink-0" />}
-                    <span className="truncate">{entrega.tipo === "link" ? entrega.url : entrega.nombre_archivo}</span>
-                  </a>
+                  {linkSeguro ? (
+                    <a
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-primary hover:underline flex items-center gap-1 truncate"
+                    >
+                      {entrega.tipo === "link" ? <Link2 className="w-3 h-3 shrink-0" /> : <FileText className="w-3 h-3 shrink-0" />}
+                      <span className="truncate">{entrega.tipo === "link" ? entrega.url : entrega.nombre_archivo}</span>
+                    </a>
+                  ) : (
+                    <span className="text-xs text-destructive flex items-center gap-1 truncate" title="Este link no es válido, no se puede abrir">
+                      <Link2 className="w-3 h-3 shrink-0" /> Link inválido — no se puede abrir
+                    </span>
+                  )}
                 </div>
                 {entrega.aprobado ? (
                   <div className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wide shrink-0">
@@ -136,7 +151,8 @@ const RevisarEntregasDialog = ({ open, onOpenChange, lesson }: RevisarEntregasDi
                   </Button>
                 )}
               </div>
-            ))
+              );
+            })
           ) : (
             <div className="text-center py-12 space-y-2">
               <Clock className="w-10 h-10 text-muted-foreground/40 mx-auto" />
