@@ -697,50 +697,56 @@ const AdminCourses = () => {
                         <p className="font-bold text-lg text-blue-700 dark:text-blue-400">{course.total_lessons}</p>
                       </div>
                     </div>
-                    <div className="flex gap-2 flex-wrap">
-                      <Link to={`/admin/courses/${course.id}/lessons`} className="flex-1">
-                        <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" size="sm">
-                          <Layers className="w-3.5 h-3.5 mr-2" /> Clases
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <Link to={`/admin/courses/${course.id}/lessons`} className="flex-1">
+                          <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white" size="sm">
+                            <Layers className="w-3.5 h-3.5 mr-2" /> Clases
+                          </Button>
+                        </Link>
+                        <Button variant="outline" size="sm" onClick={() => openEdit(course)} title="Editar">
+                          <Edit className="w-3.5 h-3.5" />
                         </Button>
-                      </Link>
-                      <Link to={`/course/${course.id}`} title="Vista previa (como lo ve un alumno, incluye certificado de prueba)">
-                        <Button variant="outline" size="sm">
-                          <Eye className="w-3.5 h-3.5" />
-                        </Button>
-                      </Link>
-                      <Button variant="outline" size="sm" onClick={() => openEdit(course)} title="Editar">
-                        <Edit className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        title="Nueva edición (misma serie, sin alumnos)"
-                        disabled={duplicateMutation.isPending}
-                        onClick={() => setConfirmAction({ type: "duplicar", course })}
-                      >
-                        <Copy className="w-3.5 h-3.5" />
-                      </Button>
-                      {course.estado !== "finalizado" && (
+                        <Link to={`/course/${course.id}`} title="Vista previa (como lo ve un alumno, incluye certificado de prueba)">
+                          <Button variant="outline" size="sm">
+                            <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        </Link>
+                      </div>
+                      <div className="flex gap-2">
+                        {course.estado !== "finalizado" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            title="Terminar curso"
+                            disabled={terminarMutation.isPending}
+                            onClick={() => setConfirmAction({ type: "terminar", course })}
+                          >
+                            <FlagOff className="w-3.5 h-3.5" />
+                          </Button>
+                        )}
                         <Button
                           variant="outline"
                           size="sm"
-                          title="Terminar curso"
-                          disabled={terminarMutation.isPending}
-                          onClick={() => setConfirmAction({ type: "terminar", course })}
+                          className="flex-1"
+                          title="Nueva edición (misma serie, sin alumnos)"
+                          disabled={duplicateMutation.isPending}
+                          onClick={() => setConfirmAction({ type: "duplicar", course })}
                         >
-                          <FlagOff className="w-3.5 h-3.5" />
+                          <Copy className="w-3.5 h-3.5" />
                         </Button>
-                      )}
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-destructive hover:bg-destructive/10"
-                        title="Eliminar curso"
-                        disabled={deleteMutation.isPending}
-                        onClick={() => handleDelete(course)}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-destructive hover:bg-destructive/10"
+                          title="Eliminar curso"
+                          disabled={deleteMutation.isPending}
+                          onClick={() => handleDelete(course)}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
