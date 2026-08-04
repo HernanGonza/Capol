@@ -54,13 +54,13 @@ const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: P
   };
 
   return (
-    <div className="flex flex-col items-center justify-center h-full min-h-[500px] bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl p-8 space-y-6">
-      <div className="text-center space-y-4">
-        <div className="w-20 h-20 mx-auto rounded-full bg-primary/20 flex items-center justify-center">
-          <Video className="w-10 h-10 text-primary" />
+    <div className="flex flex-col items-center justify-center h-full w-full min-h-0 bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl p-4 gap-3">
+      <div className="text-center space-y-1.5">
+        <div className="w-11 h-11 mx-auto rounded-full bg-primary/20 flex items-center justify-center">
+          <Video className="w-5 h-5 text-primary" />
         </div>
-        <h2 className="text-2xl font-bold text-white">Clase en Vivo</h2>
-        <p className="text-white/60 max-w-md">
+        <h2 className="text-base font-bold text-white">Clase en Vivo</h2>
+        <p className="text-white/60 text-xs max-w-md">
           {courseTitle && lessonTitle
             ? `${courseTitle} - ${lessonTitle}`
             : "Sala de videoconferencia"}
@@ -69,28 +69,24 @@ const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: P
 
       <Button
         onClick={openInNewTab}
-        className="h-14 text-lg font-bold bg-primary hover:bg-primary/90 px-10"
+        className="h-10 text-sm font-bold bg-primary hover:bg-primary/90 px-6"
       >
-        <ExternalLink className="w-5 h-5 mr-2" />
+        <ExternalLink className="w-4 h-4 mr-2" />
         Abrir Video Llamada en Ventana Nueva
       </Button>
 
       {isTeacher && (
-        <div className="flex items-start gap-2 bg-white/5 border border-white/10 rounded-xl p-3 max-w-md text-xs text-white/60">
-          <Circle className="w-3 h-3 text-red-500 fill-red-500 shrink-0 mt-0.5" />
+        <div className="flex items-start gap-2 bg-white/5 border border-white/10 rounded-xl p-2.5 max-w-md text-[11px] text-white/60">
+          <Circle className="w-2.5 h-2.5 text-red-500 fill-red-500 shrink-0 mt-0.5" />
           <p>
-            Para grabar la clase: dentro de Jitsi, abrí el menú <strong className="text-white/80">"Más acciones"</strong> (los
-            tres puntos) y elegí <strong className="text-white/80">"Iniciar grabación"</strong>. Se guarda en tu dispositivo al finalizar.
+            Para grabar: dentro de Jitsi, abrí <strong className="text-white/80">"Más acciones"</strong> (los tres puntos) y elegí{" "}
+            <strong className="text-white/80">"Iniciar grabación"</strong>. Se guarda en tu dispositivo al finalizar.
           </p>
         </div>
       )}
 
-      <p className="text-xs text-white/40 text-center break-all max-w-md">
-        Enlace: <span className="text-white/60 font-mono">{jitsiUrl}</span>
-      </p>
-
       {onClose && (
-        <Button variant="ghost" onClick={onClose} className="text-white/50 hover:text-white">
+        <Button variant="ghost" size="sm" onClick={onClose} className="text-white/50 hover:text-white">
           Cerrar
         </Button>
       )}

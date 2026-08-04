@@ -381,26 +381,28 @@ const TeacherLessons = () => {
             </Button>
           </div>
         </div>
-        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2">
+        <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 min-h-0">
           {/* Contenido de la clase, igual a lo que ve el alumno */}
-          <div className="overflow-y-auto p-6 md:p-10 bg-white text-slate-900">
+          <div className="overflow-y-auto p-6 md:p-10 bg-white text-slate-900 min-h-0">
             <LessonBlocks content={activeLesson?.content} />
           </div>
-          {/* Video llamada */}
-          <div className="bg-black overflow-y-auto p-4 lg:h-full">
-            <div className="lg:sticky lg:top-4 lg:h-[calc(100vh-6rem)]">
-              <JitsiMeet 
-                roomName={activeRoom}
-                courseTitle={course?.titulo}
-                lessonTitle={activeLesson?.titulo}
-                isTeacher
-                onClose={() => {
-                  setShowJitsi(false);
-                  setActiveRoom("");
-                  setActiveLesson(null);
-                }}
-              />
-            </div>
+          {/* Video llamada — sin scroll y sin altura en porcentaje/sticky
+              (eso era lo frágil): el panel ocupa exactamente el alto de la
+              fila del grid ("min-h-0" es lo que le permite encogerse en vez
+              de desbordar) y JitsiMeet adentro achica su propio contenido
+              para entrar siempre, sin necesitar scroll. */}
+          <div className="bg-black overflow-hidden p-4 flex min-h-0">
+            <JitsiMeet
+              roomName={activeRoom}
+              courseTitle={course?.titulo}
+              lessonTitle={activeLesson?.titulo}
+              isTeacher
+              onClose={() => {
+                setShowJitsi(false);
+                setActiveRoom("");
+                setActiveLesson(null);
+              }}
+            />
           </div>
         </div>
         {endClassDialog}
