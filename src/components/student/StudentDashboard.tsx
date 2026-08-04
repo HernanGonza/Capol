@@ -41,6 +41,15 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
         </div>
       )}
       <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+      <div
+        className={`absolute -right-8 top-3 z-20 w-32 rotate-45 text-white text-[9px] font-black uppercase tracking-widest text-center py-0.5 shadow-lg ${
+          course.modalidad === "grabado"
+            ? "bg-gradient-to-r from-fuchsia-600 to-purple-600"
+            : "bg-gradient-to-r from-emerald-500 to-teal-500"
+        }`}
+      >
+        {course.modalidad === "grabado" ? "Grabado" : "En vivo"}
+      </div>
       <div className="absolute top-2 left-2">
         {course.estado === "proximamente" ? (
           <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
