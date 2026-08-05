@@ -36,6 +36,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
+import FaqBot from "@/components/FaqBot";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 
 interface Course {
@@ -935,12 +936,15 @@ const Landing = () => {
         </svg>
       </a>
 
-      {/* Botón flotante de "volver arriba" */}
+      {/* Bot de consultas (FAQ interactivo) */}
+      <FaqBot courses={courses} whatsappNumber={WHATSAPP_NUMBER} />
+
+      {/* Botón flotante de "volver arriba" (bottom-24 para no chocar con la burbuja del bot en bottom-6) */}
       {showBackToTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Volver arriba"
-          className="fixed bottom-6 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 dark:bg-none dark:bg-white text-white dark:text-slate-900 shadow-2xl shadow-indigo-500/30 dark:shadow-black/40 flex items-center justify-center hover:scale-110 transition-transform animate-fade-in"
+          className="fixed bottom-24 right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 dark:bg-none dark:bg-white text-white dark:text-slate-900 shadow-2xl shadow-indigo-500/30 dark:shadow-black/40 flex items-center justify-center hover:scale-110 transition-transform animate-fade-in"
         >
           <ArrowUp className="w-5 h-5" />
         </button>
