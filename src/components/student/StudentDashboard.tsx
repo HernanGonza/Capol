@@ -9,11 +9,12 @@ import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import {
   BookOpen, Clock, CheckCircle, PlayCircle, GraduationCap,
-  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap, Calendar, Hourglass, Video, Film,
+  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap, Calendar, Hourglass, Video, Film, Lock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openCertificate, fetchCertificateSignatures } from "@/lib/certificate";
 import PriceTag from "@/components/PriceTag";
+import { usePaymentStatus } from "@/hooks/use-payment-status";
 
 // Prefijo para "cuotas"/"clase" (ej: "3x", "8 clases x"); el monto en sí se
 // muestra con PriceTag, que lo convierte a la moneda del alumno.
@@ -141,6 +142,14 @@ const StudentDashboard = () => {
   const [solicitando, setSolicitando] = useState(false);
   const [yaSolicitado, setYaSolicitado] = useState<Set<string>>(new Set());
 
+  // Estado de pago del mes en curso (para avisar/marcar los cursos a los que
+  // se les va a cortar o ya se les cortó el acceso por falta de pago).
+  const { data: paymentStatus } = usePaymentStatus(user?.id);
+  const paymentStatusByCurso = useMemo(
+    () => new Map((paymentStatus || []).map((p) => [p.cursoId, p])),
+    [paymentStatus]
+  );
+
   // Mis cursos activos
   const { data: enrollments, isLoading: loadingEnrollments } = useQuery({
     queryKey: ["student-courses-progress", user?.id],
@@ -152,8 +161,7 @@ const StudentDashboard = () => {
           cursos (id, titulo, descripcion, url_imagen, fecha_inicio, horarios, carga_horaria, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
-        .eq("estado", "active")
-        .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
+        .eq("estado", "active");
       if (error) throw error;
 
       const { data: progress } = await supabase
@@ -200,8 +208,7 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select("curso_id")
         .eq("usuario_id", user!.id)
-        .eq("estado", "active")
-        .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
+        .eq("estado", "active");
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
 
@@ -277,7 +284,9 @@ const StudentDashboard = () => {
             </div>
           ) : enrollments && enrollments.length > 0 ? (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {enrollments.map((item) => (
+              {enrollments.map((item) => {
+                const pago = item.course?.id ? paymentStatusByCurso.get(item.course.id) : undefined;
+                return (
                 <Link key={item.id} to={`/course/${item.course?.id}`}>
                   <Card className="overflow-hidden border-none shadow-card hover:shadow-elevated transition-all duration-300 group bg-card">
                     <div className="h-44 relative overflow-hidden">
@@ -288,6 +297,16 @@ const StudentDashboard = () => {
                       {item.percent === 100 && (
                         <div className="absolute top-3 right-3 bg-success text-success-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
                           <CheckCircle className="w-3 h-3" /> COMPLETADO
+                        </div>
+                      )}
+                      {pago?.bloqueado && (
+                        <div className="absolute top-3 left-3 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                          <Lock className="w-3 h-3" /> PAGO VENCIDO
+                        </div>
+                      )}
+                      {!pago?.bloqueado && pago?.porVencer && (
+                        <div className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg animate-pulse">
+                          <Clock className="w-3 h-3" /> VENCE EL 10
                         </div>
                       )}
                     </div>
@@ -339,7 +358,8 @@ const StudentDashboard = () => {
                     </CardContent>
                   </Card>
                 </Link>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <Card className="p-10 text-center border-none shadow-card bg-muted/50">

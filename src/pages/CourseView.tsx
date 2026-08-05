@@ -11,6 +11,8 @@ import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
 import CourseForumDialog from "@/components/CourseForumDialog";
 import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
+import { usePaymentStatus } from "@/hooks/use-payment-status";
+import { DIA_LIMITE_PAGO } from "@/lib/paymentCutoff";
 
 const CourseView = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -19,23 +21,12 @@ const CourseView = () => {
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [forumOpen, setForumOpen] = useState(false);
 
-  // 1. Verificar Suscripción Activa
-  const { data: subscription, isLoading: isLoadingSub } = useQuery({
-    queryKey: ["check-subscription", user?.id, courseId],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("suscripciones")
-        .select("estado, fin_en")
-        .eq("usuario_id", user!.id)
-        .eq("curso_id", courseId!)
-        .eq("estado", "active")
-        .maybeSingle();
-
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!user && !!courseId,
-  });
+  // 1. Verificar suscripción activa y si el pago del mes en curso está al
+  // día (regla: hay que pagar antes del día 10 de cada mes; si no, el
+  // acceso se corta a partir del día 11 — ver src/lib/paymentCutoff.ts).
+  const { data: paymentStatus, isLoading: isLoadingSub } = usePaymentStatus(user?.id);
+  const courseStatus = paymentStatus?.find((p) => p.cursoId === courseId);
+  const subscription = courseStatus ? { estado: "active" } : null;
 
   // 1b. Si es profesor, ver si este curso está entre los suyos (para poder
   // previsualizarlo como lo ve un alumno, sin necesitar estar suscripto).
@@ -154,10 +145,12 @@ const CourseView = () => {
   }
 
   // Barrera de acceso (no aplica si es un profesor asignado o un admin: ellos
-  // pueden previsualizar el curso sin estar suscriptos)
-  const isExpired = subscription?.fin_en && new Date(subscription.fin_en) < new Date();
-  
-  if (!isStaffPreview && (!subscription || isExpired)) {
+  // pueden previsualizar el curso sin estar suscriptos). Bloqueado = no hay
+  // suscripción activa, o sí la hay pero no se registró el pago de este mes
+  // y ya pasó el día 10 (ver src/lib/paymentCutoff.ts).
+  const bloqueadoPorPago = !!courseStatus?.bloqueado;
+
+  if (!isStaffPreview && (!subscription || bloqueadoPorPago)) {
     return (
       <AppLayout>
         <div className="max-w-md mx-auto mt-20 text-center space-y-6 animate-fade-in">
@@ -167,8 +160,8 @@ const CourseView = () => {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold">Acceso no autorizado</h1>
             <p className="text-muted-foreground">
-              {isExpired 
-                ? "Tu suscripción mensual para este curso ha vencido." 
+              {bloqueadoPorPago
+                ? `No se registró tu pago de este mes. El acceso se desactiva automáticamente si no se paga antes del día ${DIA_LIMITE_PAGO}.`
                 : "No tienes una suscripción activa vinculada a este curso."}
             </p>
           </div>

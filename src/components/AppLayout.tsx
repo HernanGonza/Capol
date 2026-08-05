@@ -24,6 +24,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
 import NotificationBell, { type ForoActividadCurso } from "@/components/NotificationBell";
+import PaymentDueBanner from "@/components/student/PaymentDueBanner";
+import { usePaymentStatus } from "@/hooks/use-payment-status";
 import { startOnboardingTour } from "@/lib/onboardingTour";
 
 // Cada página envuelve su propio contenido en <AppLayout>, así que este
@@ -67,6 +69,9 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const navRef = useRef<HTMLElement>(null);
   const isAdmin = role === "admin";
   const isTeacher = role === "teacher";
+  const isStudent = role === "student";
+
+  const { data: paymentStatus } = usePaymentStatus(isStudent ? user?.id : undefined);
 
   useEffect(() => {
     if (navRef.current) navRef.current.scrollTop = sidebarScrollTop;
@@ -457,6 +462,8 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
       {/* Main content area */}
       <div className="flex-1 flex flex-col h-screen overflow-hidden">
+        {isStudent && paymentStatus && paymentStatus.length > 0 && <PaymentDueBanner items={paymentStatus} />}
+
         {/* Header Mobile Only */}
         <header className="h-14 border-b flex items-center justify-between px-4 lg:hidden bg-card/80 backdrop-blur-md shrink-0">
           <div className="flex items-center gap-3">

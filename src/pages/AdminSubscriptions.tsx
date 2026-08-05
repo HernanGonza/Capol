@@ -12,8 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle, MessageSquare, Wallet, ExternalLink } from "lucide-react";
-import { format, isBefore, parseISO, addDays } from "date-fns";
+import { format, parseISO, addDays, startOfMonth } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
+import { DIA_LIMITE_PAGO, DIAS_AVISO_PREVIO } from "@/lib/paymentCutoff";
 
 const AdminSubscriptions = () => {
   const queryClient = useQueryClient();
@@ -64,27 +65,50 @@ const AdminSubscriptions = () => {
     queryClient.invalidateQueries({ queryKey: ["pagos"] });
   };
 
-  // --- LÓGICA DE AUTO-EXPIRACIÓN ---
-  const checkAndExpireSubscriptions = async (subs: any[]) => {
-    const now = new Date();
-    const toExpire = subs.filter(sub => 
-      sub.estado === 'active' && 
-      sub.fin_en && 
-      isBefore(parseISO(sub.fin_en), now)
-    );
+  // --- LÓGICA DE AUTO-BLOQUEO POR FALTA DE PAGO ---
+  // Regla: hay que pagar antes del día 10 de cada mes. Si llega el día 11 y
+  // no hay un pago registrado (tabla "pagos") dentro del mes en curso para
+  // esa suscripción, se marca "expired" — CourseView además hace su propio
+  // chequeo en vivo con la misma regla, así que el corte real de acceso no
+  // depende de que este panel se haya abierto ese día.
+  const checkAndBlockUnpaidSubscriptions = async (subs: any[]) => {
+    if (new Date().getDate() <= DIA_LIMITE_PAGO) return;
 
-    if (toExpire.length > 0) {
-      const ids = toExpire.map(s => s.id);
+    const activos = subs.filter((sub) => sub.estado === "active");
+    if (!activos.length) return;
+
+    const { data: pagos } = await supabase
+      .from("pagos")
+      .select("suscripcion_id")
+      .gte("pagado_en", startOfMonth(new Date()).toISOString());
+    const pagaronEsteMes = new Set((pagos || []).map((p) => p.suscripcion_id));
+
+    const toBlock = activos.filter((sub) => !pagaronEsteMes.has(sub.id)).map((s) => s.id);
+    if (toBlock.length > 0) {
       const { error } = await supabase
         .from("suscripciones")
         .update({ estado: 'expired' })
-        .in("id", ids);
-      
+        .in("id", toBlock);
+
       if (!error) {
         queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
       }
     }
   };
+
+  // Pagos del mes en curso (por suscripción) — se usa tanto para el
+  // auto-bloqueo de arriba como para el badge "COBRAR PRONTO" de cada tarjeta.
+  const { data: pagosEsteMes } = useQuery({
+    queryKey: ["pagos-mes-actual"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("pagos")
+        .select("suscripcion_id")
+        .gte("pagado_en", startOfMonth(new Date()).toISOString());
+      if (error) throw error;
+      return new Set((data || []).map((p) => p.suscripcion_id));
+    },
+  });
 
   // Queries
   const { data: students } = useQuery({
@@ -130,7 +154,7 @@ const AdminSubscriptions = () => {
         .order("creado_en", { ascending: false });
       
       if (error) throw error;
-      if (data) checkAndExpireSubscriptions(data);
+      if (data) checkAndBlockUnpaidSubscriptions(data);
       return data || [];
     },
   });
@@ -404,8 +428,10 @@ const AdminSubscriptions = () => {
 
         <div className="grid gap-4">
           {filteredSubs.map((sub: any) => {
-            const isNearExp = sub.fin_en && sub.estado === 'active' && 
-                             isBefore(parseISO(sub.fin_en), addDays(new Date(), 3));
+            const pagoEsteMes = pagosEsteMes?.has(sub.id) ?? false;
+            const diaHoy = new Date().getDate();
+            const isNearExp = sub.estado === 'active' && !pagoEsteMes &&
+                             diaHoy >= DIA_LIMITE_PAGO - DIAS_AVISO_PREVIO && diaHoy <= DIA_LIMITE_PAGO;
 
             return (
               <Card key={sub.id} className={`overflow-hidden transition-all shadow-card ${isNearExp ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
