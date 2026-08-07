@@ -12,6 +12,7 @@ import {
   Eye, EyeOff, CheckCircle, XCircle, Camera, ArrowLeft, Shield, CreditCard
 } from "lucide-react";
 import { PROVINCIAS_AR, PAISES_MUNDO, CODIGO_TELEFONICO } from "@/lib/geo";
+import { detectCountryCode, COUNTRY_NAMES } from "@/lib/currency";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { passwordChecks } from "@/lib/password";
@@ -141,6 +142,12 @@ const Auth = () => {
         }
       }
 
+      // País real detectado por IP (además del que tipea a mano en el
+      // formulario) — así se puede contrastar uno contra el otro después
+      // desde "Gestión de Alumnos".
+      const codigoPaisIp = await detectCountryCode();
+      const paisIp = codigoPaisIp ? (COUNTRY_NAMES[codigoPaisIp] || codigoPaisIp) : null;
+
       // Pasar todos los datos en metadata — el trigger los usa para crear el perfil
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
@@ -155,6 +162,7 @@ const Auth = () => {
             localidad: form.localidad,
             provincia: form.provincia,
             pais: form.pais,
+            pais_ip: paisIp,
             avatar_url: url_avatar,
           },
           emailRedirectTo: `${window.location.origin}/dashboard`,

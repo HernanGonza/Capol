@@ -371,6 +371,19 @@ const AdminStudents = () => {
                           Registrado el {new Date(s.creado_en).toLocaleDateString("es-AR")} a las {new Date(s.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
                         </p>
                       )}
+                      {(s.pais || s.pais_ip) && (
+                        <p className="text-xs text-muted-foreground">
+                          País: {s.pais || "sin declarar"} (declarado)
+                          {s.pais_ip && (
+                            <>
+                              {" · "}
+                              <span className={s.pais && s.pais_ip !== s.pais ? "text-amber-600 dark:text-amber-400 font-semibold" : ""}>
+                                {s.pais_ip} (por IP)
+                              </span>
+                            </>
+                          )}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">

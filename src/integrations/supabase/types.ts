@@ -745,6 +745,7 @@ export type Database = {
           nombre_completo: string | null
           ocupacion: string | null
           pais: string | null
+          pais_ip: string | null
           provincia: string | null
           telefono: string | null
           tour_completado: boolean
@@ -765,6 +766,7 @@ export type Database = {
           nombre_completo?: string | null
           ocupacion?: string | null
           pais?: string | null
+          pais_ip?: string | null
           provincia?: string | null
           telefono?: string | null
           tour_completado?: boolean
@@ -785,6 +787,7 @@ export type Database = {
           nombre_completo?: string | null
           ocupacion?: string | null
           pais?: string | null
+          pais_ip?: string | null
           provincia?: string | null
           telefono?: string | null
           tour_completado?: boolean
