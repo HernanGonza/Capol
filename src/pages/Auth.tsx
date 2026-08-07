@@ -16,6 +16,7 @@ import { detectCountryCode, COUNTRY_NAMES } from "@/lib/currency";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { passwordChecks } from "@/lib/password";
+import { traducirErrorAuth } from "@/lib/authErrors";
 
 const Auth = () => {
   const [searchParams] = useSearchParams();
@@ -88,7 +89,7 @@ const Auth = () => {
         navigate("/dashboard");
       }
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(traducirErrorAuth(error));
     } finally {
       setLoading(false);
     }
@@ -105,7 +106,7 @@ const Auth = () => {
       // No confirmamos si el email existe o no (evita filtrar qué cuentas están registradas).
       setForgotSent(true);
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(traducirErrorAuth(error));
     } finally {
       setLoading(false);
     }
@@ -184,7 +185,7 @@ const Auth = () => {
       setAceptaTerminos(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch (error: any) {
-      toast.error(error?.message || "No se pudo crear la cuenta. Intentá de nuevo.");
+      toast.error(traducirErrorAuth(error));
     } finally {
       setLoading(false);
     }

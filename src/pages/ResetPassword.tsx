@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Lock, Eye, EyeOff, CheckCircle, XCircle, ArrowLeft } from "lucide-react";
+import { traducirErrorAuth } from "@/lib/authErrors";
 
 const passwordChecks = (pw: string) => [
   { label: "Al menos 8 caracteres", ok: pw.length >= 8 },
@@ -48,7 +49,7 @@ const ResetPassword = () => {
       setDone(true);
       toast.success("Contraseña actualizada");
     } catch (error: any) {
-      toast.error(error.message);
+      toast.error(traducirErrorAuth(error));
     } finally {
       setSubmitting(false);
     }

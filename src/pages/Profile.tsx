@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { Camera, Mail, User, Phone, MapPin, CreditCard, PenTool, Lock, Eye, EyeOff } from "lucide-react";
 import { PROVINCIAS_AR, PAISES_MUNDO } from "@/lib/geo";
 import { passwordChecks } from "@/lib/password";
+import { traducirErrorAuth } from "@/lib/authErrors";
 
 const Profile = () => {
   const { user, profile, role, refreshProfile } = useAuth();
@@ -199,7 +200,7 @@ const Profile = () => {
       toast.success("Contraseña actualizada");
       setPasswordForm({ actual: "", nueva: "", confirmar: "" });
     } catch (error: any) {
-      toast.error(error.message || "No se pudo cambiar la contraseña");
+      toast.error(traducirErrorAuth(error));
     } finally {
       setChangingPassword(false);
     }
