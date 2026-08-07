@@ -4,26 +4,17 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "sonner";
 import {
   BookOpen, Clock, CheckCircle, PlayCircle, GraduationCap,
-  ArrowRight, Users, DollarSign, X, CreditCard, Award, Zap, Calendar, Hourglass, Video, Film, Lock,
+  ArrowRight, Users, DollarSign, Award, Zap, Calendar, Hourglass, Video, Film, Lock,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openCertificate, fetchCertificateSignatures } from "@/lib/certificate";
 import PriceTag from "@/components/PriceTag";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
-
-// Prefijo para "cuotas"/"clase" (ej: "3x", "8 clases x"); el monto en sí se
-// muestra con PriceTag, que lo convierte a la moneda del alumno.
-const precioPrefijo = (course: any) => {
-  if (!course.cantidad_cuotas) return "";
-  if (course.tipo_precio === "cuotas") return `${course.cantidad_cuotas}x `;
-  if (course.tipo_precio === "clase") return `${course.cantidad_cuotas} clases x `;
-  return "";
-};
+import { clasificarCursos } from "@/lib/courseGrouping";
+import EnrollmentDialog, { precioPrefijo } from "@/components/student/EnrollmentDialog";
 
 // Tarjeta de catálogo (distinta de "mis cursos"): se usa tanto para los
 // cursos a los que todavía se puede inscribir/comprar como para los que solo
@@ -109,27 +100,40 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
           )}
         </div>
       )}
-      <div className="flex items-center justify-between">
-        {course.precio ? (
-          <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
-            <DollarSign className="w-3 h-3" />
-            {precioPrefijo(course)}
-            <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} arsRate={course.cotizacion_ars} />
-          </span>
-        ) : (
-          <span className="text-xs text-muted-foreground">Consultar precio</span>
-        )}
-        {canEnroll ? (
-          <button
-            onClick={onEnroll}
-            className="text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-3 py-1.5 rounded-lg flex items-center gap-1"
-          >
-            {course.modalidad === "grabado" ? "Comprar" : "Inscribirme"} <ArrowRight className="w-3 h-3" />
-          </button>
-        ) : (
-          <span className="text-[11px] text-muted-foreground font-semibold">
-            {course.estado === "activo" ? "Cursando actualmente" : "Edición finalizada"}
-          </span>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          {course.precio ? (
+            <span className="flex items-center gap-1 text-xs font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-1 rounded-full">
+              <DollarSign className="w-3 h-3" />
+              {precioPrefijo(course)}
+              <PriceTag usdAmount={course.precio} suffix={course.tipo_precio === "mensual" ? "/mes" : ""} arsRate={course.cotizacion_ars} />
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground">Consultar precio</span>
+          )}
+          {!canEnroll && (
+            <span className="text-[11px] text-muted-foreground font-semibold">
+              {course.estado === "activo" ? "Cursando actualmente" : "Edición finalizada"}
+            </span>
+          )}
+        </div>
+        {canEnroll && (
+          <div className="flex items-center gap-2">
+            {course.modalidad === "grabado" && (
+              <Link
+                to={`/course/${course.id}`}
+                className="flex-1 text-center text-xs font-bold text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 transition-colors px-3 py-1.5 rounded-lg"
+              >
+                Ver clase gratis
+              </Link>
+            )}
+            <button
+              onClick={onEnroll}
+              className="flex-1 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-colors px-3 py-1.5 rounded-lg flex items-center justify-center gap-1"
+            >
+              {course.modalidad === "grabado" ? "Comprar" : "Inscribirme"} <ArrowRight className="w-3 h-3" />
+            </button>
+          </div>
         )}
       </div>
     </CardContent>
@@ -139,8 +143,6 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
 const StudentDashboard = () => {
   const { user, profile } = useAuth();
   const [modalCourse, setModalCourse] = useState<any>(null);
-  const [solicitando, setSolicitando] = useState(false);
-  const [yaSolicitado, setYaSolicitado] = useState<Set<string>>(new Set());
 
   // Estado de pago del mes en curso (para avisar/marcar los cursos a los que
   // se les va a cortar o ya se les cortó el acceso por falta de pago).
@@ -188,13 +190,12 @@ const StudentDashboard = () => {
   });
 
   // Catálogo completo (para que el alumno vea qué ofrece la escuela, no solo
-  // lo que puede inscribir ahora mismo). Un curso puede tener varias
-  // ediciones (copias) — se muestra una sola tarjeta por curso, priorizando
-  // la edición "Próximamente" (a la que se puede inscribir), después
-  // "Activo", y si no hay ninguna de esas, la última "Finalizado" — mismo
-  // criterio que ya usa la Landing pública. Recién en el render se separa
-  // en dos secciones: solo "Próximamente" tiene botón de inscripción/compra,
-  // "Activo"/"Finalizado" quedan solo como referencia del catálogo.
+  // lo que puede inscribir ahora mismo), excluyendo los cursos donde ya tiene
+  // una suscripción activa. Se clasifica en 3 secciones (en vivo / grabado /
+  // finalizado, ver clasificarCursos en src/lib/courseGrouping.ts): las
+  // ediciones en vivo de un mismo grupo_id se deduplican en una sola tarjeta
+  // (prioridad Próximamente > Activo > Finalizado más reciente), los cursos
+  // grabados nunca se agrupan entre sí.
   const { data: availableCourses, isLoading: loadingAvailable } = useQuery({
     queryKey: ["available-courses", user?.id],
     queryFn: async () => {
@@ -211,61 +212,15 @@ const StudentDashboard = () => {
         .eq("estado", "active");
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
-
-      const porGrupo = new Map<string, any[]>();
-      for (const c of allCourses || []) {
-        if (enrolledIds.has(c.id)) continue;
-        const key = c.grupo_id || c.id;
-        if (!porGrupo.has(key)) porGrupo.set(key, []);
-        porGrupo.get(key)!.push(c);
-      }
-      return Array.from(porGrupo.values()).map((ediciones) => {
-        const proxima = ediciones.find((c) => c.estado === "proximamente");
-        if (proxima) return proxima;
-        const activo = ediciones.find((c) => c.estado === "activo");
-        if (activo) return activo;
-        return [...ediciones].sort((a, b) => (b.fecha_fin || "").localeCompare(a.fecha_fin || ""))[0];
-      });
+      return (allCourses || []).filter((c) => !enrolledIds.has(c.id));
     },
     enabled: !!user,
   });
 
-  const proximamenteCourses = useMemo(() => (availableCourses || []).filter((c: any) => c.estado === "proximamente"), [availableCourses]);
-  const otrosCourses = useMemo(() => (availableCourses || []).filter((c: any) => c.estado !== "proximamente"), [availableCourses]);
-
-  // Medios de pago
-  const { data: mediosDePago } = useQuery({
-    queryKey: ["config-medios-pago"],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("configuracion_global").select("valor").eq("clave", "medios_de_pago").single();
-      return (data?.valor as string[]) || [];
-    },
-  });
-
-  const handleSolicitar = async () => {
-    if (!modalCourse || !user) return;
-    setSolicitando(true);
-    try {
-      const { error } = await supabase.from("solicitudes_inscripcion").insert({
-        usuario_id: user.id,
-        curso_id: modalCourse.id,
-      });
-      if (error) {
-        if (error.code === "23505") {
-          toast.info("Ya enviaste una solicitud para este curso. Te contactaremos pronto.");
-        } else throw error;
-      } else {
-        toast.success("¡Solicitud enviada! Te contactaremos para coordinar el pago.");
-        setYaSolicitado(prev => new Set([...prev, modalCourse.id]));
-      }
-      setModalCourse(null);
-    } catch (e: any) {
-      toast.error(e.message);
-    } finally {
-      setSolicitando(false);
-    }
-  };
+  const { enVivo: cursosEnVivo, grabado: cursosGrabados, finalizado: cursosFinalizados } = useMemo(
+    () => clasificarCursos(availableCourses || []),
+    [availableCourses]
+  );
 
   return (
     <>
@@ -372,40 +327,62 @@ const StudentDashboard = () => {
           )}
         </div>
 
-        {/* CURSOS DISPONIBLES PARA INSCRIPCIÓN */}
+        {/* CURSOS DISPONIBLES, clasificados en 3 secciones (en vivo / grabado / finalizado) */}
         {loadingAvailable ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1,2,3].map(i => <div key={i} className="h-48 bg-muted animate-pulse rounded-2xl" />)}
           </div>
         ) : (
           <>
-            {proximamenteCourses.length > 0 && (
+            {cursosEnVivo.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Cursos Disponibles</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">Cursos en Vivo</h2>
                     <p className="text-muted-foreground text-sm mt-1">Solicitá tu inscripción y te contactamos para coordinar el pago.</p>
                   </div>
-                  <Badge variant="secondary" className="text-xs font-bold">{proximamenteCourses.length} cursos</Badge>
+                  <Badge variant="secondary" className="text-xs font-bold">{cursosEnVivo.length} cursos</Badge>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {proximamenteCourses.map((course: any) => (
+                  {cursosEnVivo.map((course: any) => (
+                    <CourseCatalogCard
+                      key={course.id}
+                      course={course}
+                      canEnroll={course.estado === "proximamente"}
+                      onEnroll={() => setModalCourse(course)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cursosGrabados.length > 0 && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold tracking-tight">Cursos Grabados</h2>
+                    <p className="text-muted-foreground text-sm mt-1">Acceso a tu ritmo, cuando quieras — mirá la primera clase gratis antes de comprar.</p>
+                  </div>
+                  <Badge variant="secondary" className="text-xs font-bold">{cursosGrabados.length} cursos</Badge>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {cursosGrabados.map((course: any) => (
                     <CourseCatalogCard key={course.id} course={course} canEnroll onEnroll={() => setModalCourse(course)} />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* CATÁLOGO: cursos cursando o finalizados — solo para que se vea la
-                oferta completa, sin botón porque no se pueden inscribir ahora. */}
-            {otrosCourses.length > 0 && (
+            {/* CATÁLOGO: ediciones finalizadas — solo para que se vea la oferta
+                completa, sin botón porque no se pueden inscribir ahora. */}
+            {cursosFinalizados.length > 0 && (
               <div className="space-y-4">
                 <div>
                   <h2 className="text-2xl font-bold tracking-tight">Catálogo Completo</h2>
-                  <p className="text-muted-foreground text-sm mt-1">Estos cursos ya están cursando o finalizaron. Vas a poder inscribirte cuando se abra la próxima edición.</p>
+                  <p className="text-muted-foreground text-sm mt-1">Estos cursos ya finalizaron. Vas a poder inscribirte cuando se abra la próxima edición.</p>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {otrosCourses.map((course: any) => (
+                  {cursosFinalizados.map((course: any) => (
                     <CourseCatalogCard key={course.id} course={course} canEnroll={false} onEnroll={() => {}} />
                   ))}
                 </div>
@@ -416,88 +393,7 @@ const StudentDashboard = () => {
 
       </div>
 
-      {/* Modal de inscripción */}
-      <Dialog open={!!modalCourse} onOpenChange={(o) => { if (!o) setModalCourse(null); }}>
-        <DialogContent className="sm:max-w-[460px]">
-          {modalCourse && (
-            <div className="space-y-5">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-wider text-indigo-500 mb-1">Solicitud de inscripción</p>
-                <DialogTitle asChild>
-                  <h2 className="text-xl font-black leading-tight">{modalCourse.titulo}</h2>
-                </DialogTitle>
-                <DialogDescription className="sr-only">Confirmá tu solicitud de inscripción a este curso</DialogDescription>
-              </div>
-
-              {(modalCourse.url_flyer || modalCourse.url_imagen) && (
-                <div className="rounded-xl overflow-hidden h-32">
-                  {modalCourse.tipo_flyer === "video"
-                    ? <video src={modalCourse.url_flyer} className="w-full h-full object-cover" muted autoPlay loop playsInline />
-                    : <img src={modalCourse.url_flyer || modalCourse.url_imagen} className="w-full h-full object-cover" alt={modalCourse.titulo} />}
-                </div>
-              )}
-
-              {modalCourse.precio ? (
-                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/60 rounded-full flex items-center justify-center shrink-0">
-                    <DollarSign className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <div>
-                    <p className="text-xs text-emerald-600 dark:text-emerald-400 font-semibold uppercase tracking-wide">Precio del curso</p>
-                    <p className="font-black text-xl text-emerald-800 dark:text-emerald-300">
-                      {precioPrefijo(modalCourse)}
-                      <PriceTag
-                        usdAmount={modalCourse.precio}
-                        suffix={modalCourse.tipo_precio === "mensual" ? "/mes" : ""}
-                        showUsdReference
-                        arsRate={modalCourse.cotizacion_ars}
-                      />
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-muted border rounded-xl p-4">
-                  <p className="text-sm text-muted-foreground">El precio se acordará al momento del contacto.</p>
-                </div>
-              )}
-
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Estás a punto de solicitar {modalCourse.modalidad === "grabado" ? "la compra" : "tu inscripción"} del curso <strong className="text-foreground">"{modalCourse.titulo}"</strong>.
-                Podrás ingresar al mismo una vez que se acredite tu pago.
-                <br /><br />
-                <strong className="text-foreground">Nos estaremos comunicando con vos para coordinar el pago.</strong>
-              </p>
-
-              {mediosDePago && mediosDePago.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5" /> Medios de pago disponibles
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {mediosDePago.map((medio: string, i: number) => (
-                      <span key={i} className="bg-muted text-foreground text-xs font-semibold px-3 py-1.5 rounded-full border">{medio}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {yaSolicitado.has(modalCourse.id) ? (
-                <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4 text-emerald-700 dark:text-emerald-400 font-semibold text-sm">
-                  <CheckCircle className="w-5 h-5" /> Solicitud enviada — te contactaremos pronto
-                </div>
-              ) : (
-                <button
-                  onClick={handleSolicitar}
-                  disabled={solicitando}
-                  className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl transition-all disabled:opacity-50"
-                >
-                  {solicitando ? "Enviando solicitud..." : modalCourse.modalidad === "grabado" ? "Confirmar compra" : "Confirmar solicitud de inscripción"}
-                </button>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+      <EnrollmentDialog course={modalCourse} onClose={() => setModalCourse(null)} />
     </>
   );
 };

@@ -39,6 +39,9 @@ const getEmbedUrl = (url: string) => {
 
 interface Props {
   content: string | null;
+  // true para la muestra gratis de un curso grabado: oculta los recursos
+  // descargables, que son material exclusivo de quien compró el curso.
+  restringido?: boolean;
 }
 
 // El quiz ahora soporta varias preguntas (antes era una sola, hardcodeada con
@@ -66,7 +69,7 @@ const getChecklistItems = (block: any): string[] => {
   return [];
 };
 
-const LessonBlocks = ({ content }: Props) => {
+const LessonBlocks = ({ content, restringido }: Props) => {
   const blocks = (() => {
     try {
       return JSON.parse(content || "[]");
@@ -90,11 +93,23 @@ const LessonBlocks = ({ content }: Props) => {
             </div>
           )}
 
-          {/* 2. VIDEO */}
+          {/* 2. VIDEO — solo reproducir: sin menú de click derecho ni nada
+              que sugiera "guardar/descargar" (más allá de eso, el video real
+              vive en un iframe de otro origen — YouTube, Vimeo, Drive —, así
+              que la protección real contra la descarga la da ese proveedor,
+              no nosotros). */}
           {block.type === 'video' && (
-            <Card className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-muted">
+            <Card
+              className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-muted"
+              onContextMenu={(e) => e.preventDefault()}
+            >
               <div className="aspect-video">
-                <iframe src={getEmbedUrl(block.value)} className="w-full h-full" allowFullScreen allow="autoplay; encrypted-media" />
+                <iframe
+                  src={getEmbedUrl(block.value)}
+                  className="w-full h-full"
+                  allowFullScreen
+                  allow="autoplay; encrypted-media"
+                />
               </div>
             </Card>
           )}
@@ -129,8 +144,9 @@ const LessonBlocks = ({ content }: Props) => {
             </div>
           )}
 
-          {/* 6. RECURSO */}
-          {block.type === 'download' && isSafeUrl(block.value) && (
+          {/* 6. RECURSO — material exclusivo de quien compró el curso, no
+              se muestra en la muestra gratis. */}
+          {block.type === 'download' && !restringido && isSafeUrl(block.value) && (
             <a href={block.value} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-6 bg-card border-2 border-border rounded-3xl hover:border-primary hover:shadow-xl transition-all group">
               <div className="flex items-center gap-5">
                 <div className="p-4 bg-muted rounded-2xl group-hover:bg-primary/10 transition-colors"><Download className="w-7 h-7 text-muted-foreground group-hover:text-primary" /></div>

@@ -25,6 +25,7 @@ const AdminSubscriptions = () => {
   // Estados para filtros
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [tab, setTab] = useState<"en_vivo" | "grabado">("en_vivo");
   
   const [form, setForm] = useState({
     usuario_id: "",
@@ -71,10 +72,15 @@ const AdminSubscriptions = () => {
   // esa suscripción, se marca "expired" — CourseView además hace su propio
   // chequeo en vivo con la misma regla, así que el corte real de acceso no
   // depende de que este panel se haya abierto ese día.
+  //
+  // Esto SOLO aplica a cursos en_vivo: los grabados se compran una sola vez
+  // (sin pago recurrente), así que no tiene sentido exigirles un "pago de
+  // este mes" — si se les aplicara esta regla, perderían el acceso al mes
+  // de haber comprado, aunque ya hayan pagado todo el curso.
   const checkAndBlockUnpaidSubscriptions = async (subs: any[]) => {
     if (new Date().getDate() <= DIA_LIMITE_PAGO) return;
 
-    const activos = subs.filter((sub) => sub.estado === "active");
+    const activos = subs.filter((sub) => sub.estado === "active" && sub.cursos?.modalidad === "en_vivo");
     if (!activos.length) return;
 
     const { data: pagos } = await supabase
@@ -150,7 +156,7 @@ const AdminSubscriptions = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("*, perfiles:usuario_id(nombre_completo, email), cursos:curso_id(titulo)")
+        .select("*, perfiles:usuario_id(nombre_completo, email), cursos:curso_id(titulo, modalidad)")
         .order("creado_en", { ascending: false });
       
       if (error) throw error;
@@ -162,7 +168,7 @@ const AdminSubscriptions = () => {
   // --- LÓGICA DE FILTRADO ---
   const filteredSubs = useMemo(() => {
     if (!subscriptions) return [];
-    
+
     return subscriptions.filter((sub: any) => {
       const fullName = (sub.perfiles?.nombre_completo || "").toLowerCase();
       const email = (sub.perfiles?.email || "").toLowerCase();
@@ -171,10 +177,20 @@ const AdminSubscriptions = () => {
 
       const matchesSearch = fullName.includes(searchTerm) || email.includes(searchTerm) || courseTitle.includes(searchTerm);
       const matchesStatus = statusFilter === "all" || sub.estado === statusFilter;
-      
-      return matchesSearch && matchesStatus;
+      const matchesTab = (sub.cursos?.modalidad || "en_vivo") === tab;
+
+      return matchesSearch && matchesStatus && matchesTab;
     });
-  }, [subscriptions, search, statusFilter]);
+  }, [subscriptions, search, statusFilter, tab]);
+
+  const countEnVivo = useMemo(
+    () => (subscriptions || []).filter((s: any) => (s.cursos?.modalidad || "en_vivo") === "en_vivo").length,
+    [subscriptions]
+  );
+  const countGrabado = useMemo(
+    () => (subscriptions || []).filter((s: any) => s.cursos?.modalidad === "grabado").length,
+    [subscriptions]
+  );
 
   const upsertMutation = useMutation({
     mutationFn: async () => {
@@ -397,12 +413,37 @@ const AdminSubscriptions = () => {
           </div>
         </div>
 
+        {/* Tabs En vivo / Grabados — las suscripciones de un curso en vivo son
+            pagos mensuales recurrentes, las de un curso grabado son una
+            compra única, así que se gestionan distinto y conviene no
+            mezclarlas en la misma lista. */}
+        <div className="flex gap-2 border-b">
+          <button
+            type="button"
+            onClick={() => setTab("en_vivo")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === "en_vivo" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            En vivo ({countEnVivo})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("grabado")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === "grabado" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Grabados ({countGrabado})
+          </button>
+        </div>
+
         {/* BARRA DE FILTROS */}
         <Card className="bg-muted/30 border-none shadow-none">
           <CardContent className="p-4 flex flex-col md:flex-row gap-4">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input 
+              <Input
                 placeholder="Buscar por alumno, email o curso..."
                 className="pl-9 bg-background" 
                 value={search}
@@ -428,9 +469,10 @@ const AdminSubscriptions = () => {
 
         <div className="grid gap-4">
           {filteredSubs.map((sub: any) => {
+            const esGrabado = sub.cursos?.modalidad === "grabado";
             const pagoEsteMes = pagosEsteMes?.has(sub.id) ?? false;
             const diaHoy = new Date().getDate();
-            const isNearExp = sub.estado === 'active' && !pagoEsteMes &&
+            const isNearExp = !esGrabado && sub.estado === 'active' && !pagoEsteMes &&
                              diaHoy >= DIA_LIMITE_PAGO - DIAS_AVISO_PREVIO && diaHoy <= DIA_LIMITE_PAGO;
 
             return (
@@ -441,7 +483,7 @@ const AdminSubscriptions = () => {
                       <h3 className="font-bold text-lg">{(sub.perfiles as any)?.nombre_completo}</h3>
                       <span className="text-sm text-muted-foreground">{(sub.perfiles as any)?.email}</span>
                       <Badge variant="outline" className={statusColor[sub.estado || "expired"]}>
-                        {sub.estado === 'active' ? 'AL DÍA' : (sub.estado || "sin estado").toUpperCase()}
+                        {sub.estado === 'active' ? (esGrabado ? 'COMPRADO' : 'AL DÍA') : (sub.estado || "sin estado").toUpperCase()}
                       </Badge>
                       {isNearExp && (
                         <Badge className="bg-amber-500 text-white border-none animate-pulse">
@@ -462,34 +504,47 @@ const AdminSubscriptions = () => {
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-sm border-l border-r px-6 border-muted">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Inicio</span>
-                      <span className="font-medium">{sub.inicio_en ? format(parseISO(sub.inicio_en), "dd/MM/yyyy") : "-"}</span>
+                  {esGrabado ? (
+                    // Compra única: no hay "próximo cobro" ni vencimiento, solo
+                    // interesa cuándo se compró.
+                    <div className="text-sm border-l border-r px-6 border-muted">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Comprado el</span>
+                        <span className="font-medium">{sub.inicio_en ? format(parseISO(sub.inicio_en), "dd/MM/yyyy") : "-"}</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Próx. Cobro</span>
-                      <span className="text-blue-600 dark:text-blue-400 font-bold">
-                        {sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "dd/MM/yyyy") : "-"}
-                      </span>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-8 gap-y-2 text-sm border-l border-r px-6 border-muted">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Inicio</span>
+                        <span className="font-medium">{sub.inicio_en ? format(parseISO(sub.inicio_en), "dd/MM/yyyy") : "-"}</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Próx. Cobro</span>
+                        <span className="text-blue-600 dark:text-blue-400 font-bold">
+                          {sub.proxima_fecha_pago ? format(parseISO(sub.proxima_fecha_pago), "dd/MM/yyyy") : "-"}
+                        </span>
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vencimiento</span>
+                        <span className={sub.estado === 'expired' ? 'text-destructive font-bold' : 'font-bold'}>
+                          {sub.fin_en ? format(parseISO(sub.fin_en), "dd/MM/yyyy") : "-"}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex flex-col">
-                      <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vencimiento</span>
-                      <span className={sub.estado === 'expired' ? 'text-destructive font-bold' : 'font-bold'}>
-                        {sub.fin_en ? format(parseISO(sub.fin_en), "dd/MM/yyyy") : "-"}
-                      </span>
-                    </div>
-                  </div>
+                  )}
 
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/40 border-green-200 dark:border-green-900"
-                      onClick={() => handleQuickRenew(sub)}
-                    >
-                      <RefreshCw className="w-4 h-4 mr-2" /> Renovar Mes
-                    </Button>
+                    {!esGrabado && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 hover:bg-green-50 dark:hover:bg-green-950/40 border-green-200 dark:border-green-900"
+                        onClick={() => handleQuickRenew(sub)}
+                      >
+                        <RefreshCw className="w-4 h-4 mr-2" /> Renovar Mes
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
 import FaqBot from "@/components/FaqBot";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
+import { clasificarCursos } from "@/lib/courseGrouping";
 
 interface Course {
   id: string;
@@ -67,14 +68,20 @@ interface Course {
 // argentino incluido: +54 9 383 447-9734 -> 5493834479734.
 const WHATSAPP_NUMBER = "5493834479734";
 
+// La escuela existe desde antes de esta plataforma, así que estos números
+// del hero son fijos (trayectoria real de CapOL) en vez de salir de la
+// base de datos — la plataforma es nueva y todavía no tiene esa cantidad
+// de cuentas creadas. "Inscripciones" es más alto que "Alumnos" porque un
+// mismo alumno puede haber cursado más de un curso.
+const ALUMNOS_DESTACADOS = "300+";
+const INSCRIPCIONES_DESTACADAS = "450+";
+
 const Landing = () => {
   useDocumentMeta("Plataforma CapOL | Escuela Virtual de Informática", "/");
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCourseMedia, setSelectedCourseMedia] = useState<{ url: string; type: "video" | "image"; titulo: string; descripcion: string | null } | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [totalAlumnos, setTotalAlumnos] = useState<number | null>(null);
-  const [totalRegistrados, setTotalRegistrados] = useState<number | null>(null);
   const [leccionesPorCurso, setLeccionesPorCurso] = useState<Record<string, number>>({});
   const [contactForm, setContactForm] = useState({ nombre: "", email: "", mensaje: "" });
   const [sendingContact, setSendingContact] = useState(false);
@@ -161,46 +168,20 @@ const Landing = () => {
         .order("creado_en", { ascending: false });
 
       if (!error && data) {
-        // La Landing es la vidriera pública: se muestra una sola tarjeta por
-        // curso, sin importar cuántas ediciones (copias) tenga. Se agrupan
-        // por grupo_id (no por título, que puede repetirse o editarse) y
-        // dentro de cada grupo se prioriza la edición "Próximamente" (la que
-        // se puede inscribir), luego la "Activo" (cursando ahora mismo), y
-        // recién si todas las ediciones ya terminaron, se muestra la más
-        // reciente "Finalizado" como referencia. Así, a medida que una
-        // edición termina y se crea la siguiente, la Landing va mostrando
-        // automáticamente la que corresponda sin intervención manual.
-        const porGrupo = new Map<string, Course[]>();
-        for (const c of data as Course[]) {
-          const key = c.grupo_id || c.id;
-          if (!porGrupo.has(key)) porGrupo.set(key, []);
-          porGrupo.get(key)!.push(c);
-        }
-        const deduplicados = Array.from(porGrupo.values()).map((ediciones) => {
-          const proxima = ediciones.find((c) => c.estado === "proximamente");
-          if (proxima) return proxima;
-          const cursando = ediciones.find((c) => c.estado === "activo");
-          if (cursando) return cursando;
-          return [...ediciones].sort((a, b) => (b.fecha_fin || "").localeCompare(a.fecha_fin || ""))[0];
-        });
-        // Prioriza "Próximamente" (se pueden inscribir) y después "Activo"
-        // (cursando ahora); "Finalizado" queda al final. Es un sort estable,
-        // así que dentro de cada estado se mantiene el orden por creación
-        // que ya trae la query.
-        const prioridadEstado: Record<Course["estado"], number> = { proximamente: 0, activo: 1, finalizado: 2 };
-        deduplicados.sort((a, b) => prioridadEstado[a.estado] - prioridadEstado[b.estado]);
-        setCourses(deduplicados);
+        // La Landing es la vidriera pública: se clasifica el catálogo en 3
+        // secciones (en vivo / grabado / finalizado, ver clasificarCursos en
+        // src/lib/courseGrouping.ts). Las ediciones en vivo de un mismo
+        // grupo_id se deduplican en una sola tarjeta (prioridad Próximamente
+        // > Activo > Finalizado más reciente); los cursos grabados nunca se
+        // agrupan entre sí. Acá solo se guarda el listado combinado (el
+        // render arma las 3 secciones a partir de él).
+        const { enVivo, grabado, finalizado } = clasificarCursos(data as Course[]);
+        setCourses([...enVivo, ...grabado, ...finalizado]);
       }
       setLoading(false);
 
-      // Estadísticas reales para el hero y las tarjetas de curso (vía funciones públicas,
-      // ya que un visitante anónimo no tiene permiso para leer las tablas directamente)
-      const { data: alumnos } = await supabase.rpc("contar_alumnos_totales");
-      if (typeof alumnos === "number") setTotalAlumnos(alumnos);
-
-      const { data: registrados } = await supabase.rpc("contar_registrados_totales");
-      if (typeof registrados === "number") setTotalRegistrados(registrados);
-
+      // Cantidad de clases por curso, para las tarjetas (vía función pública,
+      // ya que un visitante anónimo no tiene permiso para leer "lecciones" directamente)
       const { data: lecciones } = await supabase.rpc("contar_lecciones_por_curso");
       if (lecciones) {
         const map: Record<string, number> = {};
@@ -227,6 +208,11 @@ const Landing = () => {
     setIsModalOpen(false);
     setSelectedCourseMedia(null);
   };
+
+  const { enVivo: cursosEnVivo, grabado: cursosGrabados, finalizado: cursosFinalizados } = useMemo(
+    () => clasificarCursos(courses),
+    [courses]
+  );
 
   const handleScrollTo = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
@@ -265,6 +251,196 @@ const Landing = () => {
   // al entrar en pantalla, pero podía dejar el contenido con opacidad 0 de forma
   // permanente si el "reveal" no llegaba a dispararse (ver clases .reveal-up /
   // .reveal-fade, ahora reemplazadas por animate-fade-in vía CSS, sin ese riesgo).
+
+  // Tarjeta de curso — se reutiliza igual en las 3 secciones (en vivo / grabado / finalizado).
+  const renderCourseCard = (course: Course, index: number) => (
+    <Tilt
+      key={course.id}
+      tiltMaxAngleX={8}
+      tiltMaxAngleY={8}
+      glareEnable
+      glareMaxOpacity={0.12}
+      glareColor="#818cf8"
+      glarePosition="all"
+      glareBorderRadius="24px"
+      scale={1.02}
+      transitionSpeed={1500}
+      className="reveal-card"
+    >
+      <Card
+        className="group bg-transparent border-slate-200 dark:border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
+        style={{ animationDelay: `${index * 100}ms` }}
+      >
+        {/* Flyer/Imagen/Video: sin proporción fija — la tarjeta toma
+            la altura que le da el propio archivo (w-full h-auto),
+            así se ve completa, a todo el ancho, sin recortarse y
+            sin dejar espacio vacío. Solo el estado "sin imagen"
+            necesita una proporción fija propia. */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
+          {course.url_flyer || course.url_imagen ? (
+            course.tipo_flyer === "video" ||
+            course.url_flyer?.endsWith(".mp4") ? (
+              <button
+                type="button"
+                onClick={() => openMediaModal(course)}
+                className="relative w-full block cursor-pointer"
+                aria-label="Ver video del curso en grande"
+              >
+                <video
+                  src={course.url_flyer || ""}
+                  className="w-full h-auto block"
+                  muted
+                  loop
+                  autoPlay
+                  playsInline
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
+                  <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
+                    <Play className="w-7 h-7 text-black ml-1" fill="black" />
+                  </div>
+                </div>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => openMediaModal(course)}
+                className="relative w-full block cursor-pointer"
+                aria-label="Ver imagen del curso en grande"
+              >
+                <img
+                  src={course.url_flyer || course.url_imagen || ""}
+                  alt={course.titulo}
+                  className="w-full h-auto block group-hover:scale-105 transition-transform duration-700"
+                />
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
+                  <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
+                    <Maximize2 className="w-6 h-6 text-black" />
+                  </div>
+                </div>
+              </button>
+            )
+          ) : (
+            <div className="aspect-[4/3] flex items-center justify-center">
+              <GraduationCap className="w-20 h-20 text-slate-400 dark:text-white/20" />
+            </div>
+          )}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
+
+          {/* Banner diagonal: grabado vs en vivo, en colores distintos */}
+          <div
+            className={`absolute -right-11 top-6 z-20 w-40 rotate-45 text-white text-[11px] font-black uppercase tracking-widest text-center py-1 shadow-lg ${
+              course.modalidad === "grabado"
+                ? "bg-gradient-to-r from-fuchsia-600 to-purple-600"
+                : "bg-gradient-to-r from-emerald-500 to-teal-500"
+            }`}
+          >
+            {course.modalidad === "grabado" ? "Grabado" : "En vivo"}
+          </div>
+
+          {/* Badge de estado */}
+          <div className="absolute top-4 left-4">
+            {course.estado === "proximamente" ? (
+              <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none font-bold">
+                <Clock className="w-3 h-3 mr-1" /> Próximamente
+              </Badge>
+            ) : course.estado === "finalizado" ? (
+              <Badge className="bg-white/20 backdrop-blur-sm text-white border-none font-bold">
+                <GraduationCap className="w-3 h-3 mr-1" /> Última edición dictada
+              </Badge>
+            ) : (
+              <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none font-bold">
+                <Zap className="w-3 h-3 mr-1" /> Activo
+              </Badge>
+            )}
+          </div>
+
+          {/* Badge de clases (más abajo, para no chocar con el banner diagonal de arriba) */}
+          <div className="absolute right-4 top-14">
+            <Badge className="bg-amber-400 text-black border-none font-black text-sm px-3 py-1 shadow-lg">
+              <BookOpen className="w-3.5 h-3.5 mr-1.5" />
+              {leccionesPorCurso[course.id] || 0} clases
+            </Badge>
+          </div>
+        </div>
+
+        <CardContent className="p-6 space-y-4 bg-white dark:bg-[#0f0f15]">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
+              {course.titulo}
+            </h3>
+            <p className="text-slate-600 dark:text-white/50 text-sm line-clamp-2 leading-relaxed">
+              {course.descripcion ||
+                "Próximamente más información sobre este curso."}
+            </p>
+            <div className={`mt-3 flex items-center gap-2 text-xs font-semibold ${course.modalidad === "grabado" ? "text-slate-500 dark:text-white/40" : "text-emerald-600 dark:text-emerald-400"}`}>
+              {course.modalidad === "grabado" ? (
+                <><Film className="w-3.5 h-3.5 shrink-0" /> 100% grabado, sin clases en vivo</>
+              ) : (
+                <><Video className="w-3.5 h-3.5 shrink-0" /> Incluye clases en vivo</>
+              )}
+            </div>
+            {(course.fecha_inicio || course.horarios || course.duracion) && (
+              <div className="mt-3 space-y-1.5">
+                {course.fecha_inicio && (
+                  <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
+                    <Calendar className="w-3.5 h-3.5 shrink-0" />
+                    <span>
+                      Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
+                    </span>
+                  </div>
+                )}
+                {course.horarios && (
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
+                    <Clock className="w-3.5 h-3.5 shrink-0" />
+                    <span>{course.horarios}</span>
+                  </div>
+                )}
+                {course.duracion && (
+                  <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
+                    <Hourglass className="w-3.5 h-3.5 shrink-0" />
+                    <span>{course.duracion}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-white/10">
+            {course.precio ? (
+              <div className="flex items-baseline gap-1">
+                {course.tipo_precio === "cuotas" && (
+                  <span className="text-slate-600 dark:text-white/50 text-xs font-semibold">{course.cantidad_cuotas}x</span>
+                )}
+                {course.tipo_precio === "clase" && (
+                  <span className="text-slate-600 dark:text-white/50 text-xs font-semibold">{course.cantidad_cuotas} clases x</span>
+                )}
+                <PriceTag
+                  usdAmount={course.precio}
+                  suffix={course.tipo_precio === "mensual" ? "/mes" : ""}
+                  className="text-slate-900 dark:text-white font-bold text-lg"
+                  arsRate={course.cotizacion_ars}
+                />
+              </div>
+            ) : (
+              <span className="text-xs text-slate-400 dark:text-white/30">Consultar precio</span>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </Tilt>
+  );
+
+  // Sección de catálogo (en vivo / grabado / finalizado) — solo se renderiza si tiene cursos.
+  const renderCourseSection = (titulo: string, subtitulo: string, cursos: Course[]) =>
+    cursos.length > 0 && (
+      <div className="mb-16 last:mb-0">
+        <h3 className="text-2xl md:text-3xl font-black tracking-tight mb-6">{titulo}</h3>
+        <p className="text-slate-600 dark:text-white/50 mb-8">{subtitulo}</p>
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {cursos.map((course, index) => renderCourseCard(course, index))}
+        </div>
+      </div>
+    );
 
   return (
     <div className="min-h-screen bg-white dark:bg-[#0a0a0f] text-slate-900 dark:text-white overflow-hidden">
@@ -384,7 +560,7 @@ const Landing = () => {
             <div className="flex items-center justify-center gap-8 pt-12 animate-fade-in">
               <div className="text-center">
                 <p className="text-3xl font-black text-slate-900 dark:text-white">
-                  {totalAlumnos !== null ? `${totalAlumnos}+` : "—"}
+                  {ALUMNOS_DESTACADOS}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-white/40 font-medium uppercase tracking-wider">
                   Alumnos
@@ -402,7 +578,7 @@ const Landing = () => {
               <div className="w-px h-10 bg-slate-200 dark:bg-white/10" />
               <div className="text-center">
                 <p className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
-                  {totalRegistrados !== null ? totalRegistrados : "—"}
+                  {INSCRIPCIONES_DESTACADAS}
                 </p>
                 <p className="text-xs text-slate-500 dark:text-white/40 font-medium uppercase tracking-wider">
                   Inscripciones
@@ -486,183 +662,10 @@ const Landing = () => {
               </p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {courses.map((course, index) => (
-                <Tilt
-                  key={course.id}
-                  tiltMaxAngleX={8}
-                  tiltMaxAngleY={8}
-                  glareEnable
-                  glareMaxOpacity={0.12}
-                  glareColor="#818cf8"
-                  glarePosition="all"
-                  glareBorderRadius="24px"
-                  scale={1.02}
-                  transitionSpeed={1500}
-                  className="reveal-card"
-                >
-                <Card
-                  className="group bg-transparent border-slate-200 dark:border-white/10 hover:border-indigo-500/50 rounded-3xl overflow-hidden transition-all duration-500 hover:shadow-2xl hover:shadow-indigo-500/10"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  {/* Flyer/Imagen/Video: sin proporción fija — la tarjeta toma
-                      la altura que le da el propio archivo (w-full h-auto),
-                      así se ve completa, a todo el ancho, sin recortarse y
-                      sin dejar espacio vacío. Solo el estado "sin imagen"
-                      necesita una proporción fija propia. */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20">
-                    {course.url_flyer || course.url_imagen ? (
-                      course.tipo_flyer === "video" ||
-                      course.url_flyer?.endsWith(".mp4") ? (
-                        <button
-                          type="button"
-                          onClick={() => openMediaModal(course)}
-                          className="relative w-full block cursor-pointer"
-                          aria-label="Ver video del curso en grande"
-                        >
-                          <video
-                            src={course.url_flyer || ""}
-                            className="w-full h-auto block"
-                            muted
-                            loop
-                            autoPlay
-                            playsInline
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
-                            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
-                              <Play className="w-7 h-7 text-black ml-1" fill="black" />
-                            </div>
-                          </div>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => openMediaModal(course)}
-                          className="relative w-full block cursor-pointer"
-                          aria-label="Ver imagen del curso en grande"
-                        >
-                          <img
-                            src={course.url_flyer || course.url_imagen || ""}
-                            alt={course.titulo}
-                            className="w-full h-auto block group-hover:scale-105 transition-transform duration-700"
-                          />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 hover:opacity-100 transition-opacity">
-                            <div className="w-16 h-16 rounded-full bg-white/90 flex items-center justify-center shadow-2xl">
-                              <Maximize2 className="w-6 h-6 text-black" />
-                            </div>
-                          </div>
-                        </button>
-                      )
-                    ) : (
-                      <div className="aspect-[4/3] flex items-center justify-center">
-                        <GraduationCap className="w-20 h-20 text-slate-400 dark:text-white/20" />
-                      </div>
-                    )}
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none" />
-
-                    {/* Banner diagonal: grabado vs en vivo, en colores distintos */}
-                    <div
-                      className={`absolute -right-11 top-6 z-20 w-40 rotate-45 text-white text-[11px] font-black uppercase tracking-widest text-center py-1 shadow-lg ${
-                        course.modalidad === "grabado"
-                          ? "bg-gradient-to-r from-fuchsia-600 to-purple-600"
-                          : "bg-gradient-to-r from-emerald-500 to-teal-500"
-                      }`}
-                    >
-                      {course.modalidad === "grabado" ? "Grabado" : "En vivo"}
-                    </div>
-
-                    {/* Badge de estado */}
-                    <div className="absolute top-4 left-4">
-                      {course.estado === "proximamente" ? (
-                        <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none font-bold">
-                          <Clock className="w-3 h-3 mr-1" /> Próximamente
-                        </Badge>
-                      ) : course.estado === "finalizado" ? (
-                        <Badge className="bg-white/20 backdrop-blur-sm text-white border-none font-bold">
-                          <GraduationCap className="w-3 h-3 mr-1" /> Última edición dictada
-                        </Badge>
-                      ) : (
-                        <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none font-bold">
-                          <Zap className="w-3 h-3 mr-1" /> Activo
-                        </Badge>
-                      )}
-                    </div>
-
-                    {/* Badge de clases (más abajo, para no chocar con el banner diagonal de arriba) */}
-                    <div className="absolute right-4 top-14">
-                      <Badge className="bg-amber-400 text-black border-none font-black text-sm px-3 py-1 shadow-lg">
-                        <BookOpen className="w-3.5 h-3.5 mr-1.5" />
-                        {leccionesPorCurso[course.id] || 0} clases
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <CardContent className="p-6 space-y-4 bg-white dark:bg-[#0f0f15]">
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2 group-hover:text-indigo-500 dark:group-hover:text-indigo-400 transition-colors">
-                        {course.titulo}
-                      </h3>
-                      <p className="text-slate-600 dark:text-white/50 text-sm line-clamp-2 leading-relaxed">
-                        {course.descripcion ||
-                          "Próximamente más información sobre este curso."}
-                      </p>
-                      <div className={`mt-3 flex items-center gap-2 text-xs font-semibold ${course.modalidad === "grabado" ? "text-slate-500 dark:text-white/40" : "text-emerald-600 dark:text-emerald-400"}`}>
-                        {course.modalidad === "grabado" ? (
-                          <><Film className="w-3.5 h-3.5 shrink-0" /> 100% grabado, sin clases en vivo</>
-                        ) : (
-                          <><Video className="w-3.5 h-3.5 shrink-0" /> Incluye clases en vivo</>
-                        )}
-                      </div>
-                      {(course.fecha_inicio || course.horarios || course.duracion) && (
-                        <div className="mt-3 space-y-1.5">
-                          {course.fecha_inicio && (
-                            <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
-                              <Calendar className="w-3.5 h-3.5 shrink-0" />
-                              <span>
-                                Próxima edición: {new Date(`${course.fecha_inicio}T00:00:00`).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" })}
-                              </span>
-                            </div>
-                          )}
-                          {course.horarios && (
-                            <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
-                              <Clock className="w-3.5 h-3.5 shrink-0" />
-                              <span>{course.horarios}</span>
-                            </div>
-                          )}
-                          {course.duracion && (
-                            <div className="flex items-center gap-2 text-slate-500 dark:text-white/40 text-xs font-semibold">
-                              <Hourglass className="w-3.5 h-3.5 shrink-0" />
-                              <span>{course.duracion}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-slate-200 dark:border-white/10">
-                      {course.precio ? (
-                        <div className="flex items-baseline gap-1">
-                          {course.tipo_precio === "cuotas" && (
-                            <span className="text-slate-600 dark:text-white/50 text-xs font-semibold">{course.cantidad_cuotas}x</span>
-                          )}
-                          {course.tipo_precio === "clase" && (
-                            <span className="text-slate-600 dark:text-white/50 text-xs font-semibold">{course.cantidad_cuotas} clases x</span>
-                          )}
-                          <PriceTag
-                            usdAmount={course.precio}
-                            suffix={course.tipo_precio === "mensual" ? "/mes" : ""}
-                            className="text-slate-900 dark:text-white font-bold text-lg"
-                            arsRate={course.cotizacion_ars}
-                          />
-                        </div>
-                      ) : (
-                        <span className="text-xs text-slate-400 dark:text-white/30">Consultar precio</span>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-                </Tilt>
-              ))}
+            <div>
+              {renderCourseSection("Cursos en vivo", "Con clases en vivo, horarios y una cursada grupal.", cursosEnVivo)}
+              {renderCourseSection("Cursos grabados", "Acceso inmediato y a tu ritmo — mirá la primera clase gratis.", cursosGrabados)}
+              {renderCourseSection("Ediciones finalizadas", "Ya no se pueden inscribir, quedan como referencia del catálogo.", cursosFinalizados)}
             </div>
           )}
         </div>

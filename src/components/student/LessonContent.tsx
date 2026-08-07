@@ -39,7 +39,9 @@ interface Props {
   userId: string;
   courseTitle?: string;
   courseCargaHoraria?: number | null;
+  courseModalidad?: "en_vivo" | "grabado" | null;
   isPreview?: boolean;
+  isTeaser?: boolean;
   isLastLesson?: boolean;
 }
 
@@ -51,7 +53,7 @@ const getDriveEmbedUrl = (url: string): string | null => {
   return `https://drive.google.com/file/d/${match[1]}/preview`;
 };
 
-const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria, isPreview, isLastLesson }: Props) => {
+const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria, courseModalidad, isPreview, isTeaser, isLastLesson }: Props) => {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
   const [showJitsi, setShowJitsi] = useState(false);
@@ -232,24 +234,30 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
               <p className="text-muted-foreground font-medium text-lg mt-1">{lesson.descripcion || "Material de estudio"}</p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            onClick={exportToPdf}
-            disabled={exporting}
-            className="rounded-2xl shrink-0 font-bold"
-            title="Descarga el material de esta clase en PDF (el video embebido y la consola interactiva quedan como un link/nota, no se pueden incluir tal cual)"
-          >
-            <FileDown className="w-4 h-4 mr-2" />
-            {exporting ? "Generando..." : "Exportar PDF"}
-          </Button>
+          {!isTeaser && (
+            <Button
+              variant="outline"
+              onClick={exportToPdf}
+              disabled={exporting}
+              className="rounded-2xl shrink-0 font-bold"
+              title="Descarga el material de esta clase en PDF (el video embebido y la consola interactiva quedan como un link/nota, no se pueden incluir tal cual)"
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              {exporting ? "Generando..." : "Exportar PDF"}
+            </Button>
+          )}
         </div>
       </div>
 
       {/* TODOS LOS BLOQUES DINÁMICOS */}
-      <LessonBlocks content={lesson.content} />
+      <LessonBlocks content={lesson.content} restringido={isTeaser} />
 
-      {/* CLASE EN VIVO O GRABACIÓN */}
-      {isClassOver ? (
+      {/* CLASE EN VIVO O GRABACIÓN — solo tiene sentido para cursos en vivo.
+          Los cursos grabados traen sala_jitsi seteada por default desde la
+          lógica de creación de cursos (para poder pasar un curso de grabado
+          a en vivo sin reconfigurar nada), así que acá se oculta nomás por
+          modalidad en vez de tocar esa lógica. */}
+      {courseModalidad !== "grabado" && (isClassOver ? (
         lesson.grabacion_url ? (
           <div className="pt-16">
             <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
@@ -314,10 +322,10 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
             </Card>
           </div>
         )
-      )}
+      ))}
 
       {/* TRABAJO FINAL: solo en la última clase configurada del curso, y hasta que el profesor la apruebe */}
-      {isLastLesson && !isPreview && !isCompleted && (
+      {isLastLesson && !isPreview && !isTeaser && !isCompleted && (
         <div className="pt-16">
           <Card className="border-2 border-primary/20 shadow-elevated rounded-[2rem] overflow-hidden">
             <CardContent className="p-8 space-y-6">
@@ -391,12 +399,14 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
           <DialogTitle className="sr-only">Grabación de la clase</DialogTitle>
           <DialogDescription className="sr-only">Video de la grabación de esta clase</DialogDescription>
           {driveEmbedUrl ? (
-            <iframe
-              src={driveEmbedUrl}
-              className="w-full aspect-video rounded-xl"
-              allow="autoplay"
-              allowFullScreen
-            />
+            <div onContextMenu={(e) => e.preventDefault()}>
+              <iframe
+                src={driveEmbedUrl}
+                className="w-full aspect-video rounded-xl"
+                allow="autoplay"
+                allowFullScreen
+              />
+            </div>
           ) : (
             <div className="p-10 text-center text-white space-y-3">
               <p>No pudimos mostrar la grabación acá adentro.</p>
@@ -415,6 +425,16 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
         {isPreview ? (
           <div className="bg-indigo-50 dark:bg-indigo-950/30 border-2 border-indigo-100 dark:border-indigo-900 rounded-[2.5rem] p-10 text-center space-y-2">
             <p className="text-indigo-700 dark:text-indigo-400 font-bold">Estás en modo vista previa: así es como un alumno ve esta clase.</p>
+          </div>
+        ) : isTeaser ? (
+          <div className="bg-fuchsia-50 dark:bg-fuchsia-950/30 border-2 border-fuchsia-100 dark:border-fuchsia-900 rounded-[2.5rem] p-10 text-center space-y-4">
+            <Lock className="w-12 h-12 text-fuchsia-500 mx-auto" />
+            <div className="space-y-2">
+              <h3 className="text-2xl font-black tracking-tight text-fuchsia-900 dark:text-fuchsia-300">Esto fue solo una muestra</h3>
+              <p className="text-fuchsia-700 dark:text-fuchsia-400 max-w-md mx-auto">
+                Comprá el curso para llevar tu progreso y desbloquear el resto de las clases.
+              </p>
+            </div>
           </div>
         ) : isLastLesson && !isCompleted ? (
           // La última clase no se auto-completa: la aprueba el profesor después de

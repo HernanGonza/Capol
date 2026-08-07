@@ -15,6 +15,7 @@ import {
 const AdminSolicitudes = () => {
   const queryClient = useQueryClient();
   const [modalAlumno, setModalAlumno] = useState<any>(null);
+  const [tab, setTab] = useState<"en_vivo" | "grabado">("en_vivo");
 
   const { data: solicitudes, isLoading } = useQuery({
     queryKey: ["admin-solicitudes"],
@@ -27,7 +28,7 @@ const AdminSolicitudes = () => {
             id, nombre_completo, url_avatar, telefono, biografia,
             dni, direccion, localidad, provincia, pais, email
           ),
-          cursos:curso_id (titulo, precio, tipo_precio, cantidad_cuotas, moneda)
+          cursos:curso_id (titulo, precio, tipo_precio, cantidad_cuotas, moneda, modalidad)
         `)
         .order("creado_en", { ascending: false });
       if (error) throw error;
@@ -92,8 +93,11 @@ const AdminSolicitudes = () => {
     return <Badge className="bg-red-100 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-none"><XCircle className="w-3 h-3 mr-1" />Rechazada</Badge>;
   };
 
-  const pendientes = solicitudes?.filter(s => s.estado === "pendiente") || [];
-  const resueltas = solicitudes?.filter(s => s.estado !== "pendiente") || [];
+  const solicitudesTab = solicitudes?.filter((s: any) => (s.cursos?.modalidad || "en_vivo") === tab) || [];
+  const pendientes = solicitudesTab.filter(s => s.estado === "pendiente") || [];
+  const resueltas = solicitudesTab.filter(s => s.estado !== "pendiente") || [];
+  const countEnVivo = solicitudes?.filter((s: any) => (s.cursos?.modalidad || "en_vivo") === "en_vivo").length || 0;
+  const countGrabado = solicitudes?.filter((s: any) => s.cursos?.modalidad === "grabado").length || 0;
 
   const InfoRow = ({ icon: Icon, label, value }: { icon: any; label: string; value?: string | null }) => {
     if (!value) return null;
@@ -120,6 +124,28 @@ const AdminSolicitudes = () => {
               ? `${pendientes.length} solicitud${pendientes.length > 1 ? "es" : ""} pendiente${pendientes.length > 1 ? "s" : ""} de revisión`
               : "Todo al día — no hay solicitudes pendientes"}
           </p>
+        </div>
+
+        {/* Tabs En vivo / Grabados */}
+        <div className="flex gap-2 border-b">
+          <button
+            type="button"
+            onClick={() => setTab("en_vivo")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === "en_vivo" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            En vivo ({countEnVivo})
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("grabado")}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tab === "grabado" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Grabados ({countGrabado})
+          </button>
         </div>
 
         {isLoading ? (

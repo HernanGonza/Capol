@@ -5,11 +5,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare, Users } from "lucide-react";
+import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare, Users, ArrowLeft } from "lucide-react";
 import { useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
 import CourseForumDialog from "@/components/CourseForumDialog";
+import EnrollmentDialog from "@/components/student/EnrollmentDialog";
 import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
 import { DIA_LIMITE_PAGO } from "@/lib/paymentCutoff";
@@ -20,6 +21,7 @@ const CourseView = () => {
   const navigate = useNavigate();
   const [selectedLessonId, setSelectedLessonId] = useState<string | null>(null);
   const [forumOpen, setForumOpen] = useState(false);
+  const [showPurchase, setShowPurchase] = useState(false);
 
   // 1. Verificar suscripción activa y si el pago del mes en curso está al
   // día (regla: hay que pagar antes del día 10 de cada mes; si no, el
@@ -81,7 +83,17 @@ const CourseView = () => {
     enabled: !!courseId,
   });
 
-  // 3. Obtener lecciones
+  // Bloqueado = no hay suscripción activa, o sí la hay pero no se registró el
+  // pago de este mes y ya pasó el día 10 (ver src/lib/paymentCutoff.ts).
+  const bloqueadoPorPago = !!courseStatus?.bloqueado;
+  const hasFullAccess = isStaffPreview || (!!subscription && !bloqueadoPorPago);
+  // Un curso grabado sin comprar no se bloquea del todo: se deja pasar en
+  // modo "muestra gratis" (primera clase desbloqueada, resto con candado).
+  const isGrabadoTeaser = !hasFullAccess && course?.modalidad === "grabado";
+
+  // 3. Obtener lecciones — con la RLS actual, si es un alumno en modo teaser
+  // esta consulta solo va a traer la fila completa de la primera clase (la
+  // única que la policy de Supabase le deja ver sin estar suscripto).
   const { data: lessons } = useQuery({
     queryKey: ["course-lessons", courseId],
     queryFn: async () => {
@@ -94,6 +106,19 @@ const CourseView = () => {
       return data;
     },
     enabled: !!courseId,
+  });
+
+  // 3b. Temario completo (solo título/orden, sin contenido) — solo para el
+  // modo teaser, para poder mostrar el candado del resto de las clases sin
+  // exponer su contenido por la API.
+  const { data: syllabus } = useQuery({
+    queryKey: ["course-syllabus", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("obtener_temario_curso", { curso_id_param: courseId! });
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: isGrabadoTeaser && !!courseId,
   });
 
   // 4. Obtener progreso de lecciones (Persistencia)
@@ -112,20 +137,34 @@ const CourseView = () => {
     enabled: !!lessons && !!user,
   });
 
+  // En modo teaser (grabado sin comprar), el temario viene de la RPC
+  // obtener_temario_curso, que ya trae las clases ordenadas por "orden" —
+  // la primera del array es la única desbloqueada.
+  const primerOrdenTemario = syllabus && syllabus.length > 0 ? syllabus[0].orden : undefined;
+
   const isLessonUnlocked = (lesson: any) => {
     if (isStaffPreview) return true;
-    // Los cursos grabados son de acceso libre: el alumno entra cuando
-    // quiere, así que no tiene sentido escalonar el desbloqueo por fecha.
-    if (course?.modalidad === "grabado") return true;
-    if (!lesson.fecha_desbloqueo) return true;
-    return new Date(lesson.fecha_desbloqueo) <= new Date();
+    if (hasFullAccess) {
+      // Los cursos grabados son de acceso libre: el alumno entra cuando
+      // quiere, así que no tiene sentido escalonar el desbloqueo por fecha.
+      if (course?.modalidad === "grabado") return true;
+      if (!lesson.fecha_desbloqueo) return true;
+      return new Date(lesson.fecha_desbloqueo) <= new Date();
+    }
+    // Teaser: solo la primera clase del temario (muestra gratis).
+    return isGrabadoTeaser && lesson.orden === primerOrdenTemario;
   };
+
+  // Lista a mostrar en el programa del curso: en modo teaser es el temario
+  // completo (para que se vea todo lo que incluye, con candado), en el resto
+  // de los casos son las lecciones reales.
+  const displayLessons = isGrabadoTeaser ? syllabus : lessons;
 
   const isLessonCompleted = (lessonId: string) => {
     return progress?.some((p) => p.leccion_id === lessonId && p.completado);
   };
 
-  const isCourseCompleted = !!lessons && lessons.length > 0 && lessons.every((l) => isLessonCompleted(l.id));
+  const isCourseCompleted = !isGrabadoTeaser && !!lessons && lessons.length > 0 && lessons.every((l) => isLessonCompleted(l.id));
   // Fecha de finalización del curso = cuando se completó la última clase.
   const courseCompletedAt = isCourseCompleted
     ? progress?.reduce((max: string | null, p: any) => (!max || (p.completado_en || "") > max ? p.completado_en : max), null)
@@ -145,12 +184,9 @@ const CourseView = () => {
   }
 
   // Barrera de acceso (no aplica si es un profesor asignado o un admin: ellos
-  // pueden previsualizar el curso sin estar suscriptos). Bloqueado = no hay
-  // suscripción activa, o sí la hay pero no se registró el pago de este mes
-  // y ya pasó el día 10 (ver src/lib/paymentCutoff.ts).
-  const bloqueadoPorPago = !!courseStatus?.bloqueado;
-
-  if (!isStaffPreview && (!subscription || bloqueadoPorPago)) {
+  // pueden previsualizar el curso sin estar suscriptos, ni si es un curso
+  // grabado en modo teaser: ahí se deja pasar para mostrar la muestra gratis).
+  if (!hasFullAccess && !isGrabadoTeaser) {
     return (
       <AppLayout>
         <div className="max-w-md mx-auto mt-20 text-center space-y-6 animate-fade-in">
@@ -192,8 +228,10 @@ const CourseView = () => {
           userId={user!.id}
           courseTitle={course?.titulo}
           courseCargaHoraria={course?.carga_horaria}
+          courseModalidad={course?.modalidad}
           isPreview={isStaffPreview}
-          isLastLesson={!!lessons && lessons.length > 0 && lessons[lessons.length - 1].id === selectedLesson.id}
+          isTeaser={isGrabadoTeaser}
+          isLastLesson={!isGrabadoTeaser && !!lessons && lessons.length > 0 && lessons[lessons.length - 1].id === selectedLesson.id}
         />
       </AppLayout>
     );
@@ -203,6 +241,9 @@ const CourseView = () => {
   return (
     <AppLayout>
       <div className="max-w-5xl mx-auto space-y-8 animate-fade-in pb-20">
+        <Button variant="ghost" onClick={() => navigate(-1)} className="text-muted-foreground hover:text-foreground -ml-3">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Volver
+        </Button>
         {isStaffPreview && (
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-900 text-indigo-700 dark:text-indigo-400 text-sm font-semibold rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
@@ -226,15 +267,33 @@ const CourseView = () => {
             </Button>
           </div>
         )}
+        {isGrabadoTeaser && (
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-fuchsia-50 dark:bg-fuchsia-950/30 border border-fuchsia-200 dark:border-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-400 text-sm font-semibold rounded-xl px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Video className="w-4 h-4 shrink-0" />
+              Estás viendo la muestra gratis de este curso — comprá para desbloquear todas las clases.
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              className="shrink-0 bg-fuchsia-600 hover:bg-fuchsia-700 text-white"
+              onClick={() => setShowPurchase(true)}
+            >
+              Comprar curso
+            </Button>
+          </div>
+        )}
         <header className="border-b pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
             <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <Button variant="outline" onClick={() => setForumOpen(true)}>
-              <Users className="w-4 h-4 mr-2" /> Foro del Curso
-            </Button>
+            {!isGrabadoTeaser && (
+              <Button variant="outline" onClick={() => setForumOpen(true)}>
+                <Users className="w-4 h-4 mr-2" /> Foro del Curso
+              </Button>
+            )}
             {!isStaffPreview && !!courseTeachers?.length && (
               <Button
                 variant="outline"
@@ -261,9 +320,9 @@ const CourseView = () => {
         </header>
 
         <div className="grid gap-4">
-          {lessons?.map((lesson, index) => {
+          {displayLessons?.map((lesson: any, index) => {
             const unlocked = isLessonUnlocked(lesson);
-            const completado = isLessonCompleted(lesson.id);
+            const completado = !isGrabadoTeaser && isLessonCompleted(lesson.id);
 
             return (
               <Card
@@ -327,7 +386,7 @@ const CourseView = () => {
             );
           })}
 
-          {lessons?.length === 0 && (
+          {displayLessons?.length === 0 && (
             <div className="text-center py-20 bg-muted rounded-3xl border-2 border-dashed">
               <p className="text-muted-foreground font-medium">Próximamente se añadirán lecciones a este curso.</p>
             </div>
@@ -341,6 +400,8 @@ const CourseView = () => {
         courseId={courseId!}
         courseTitle={course?.titulo}
       />
+
+      <EnrollmentDialog course={showPurchase ? course : null} onClose={() => setShowPurchase(false)} />
     </AppLayout>
   );
 };

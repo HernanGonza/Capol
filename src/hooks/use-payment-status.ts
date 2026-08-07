@@ -20,7 +20,7 @@ export const usePaymentStatus = (userId: string | undefined) =>
     queryFn: async (): Promise<EstadoPagoCurso[]> => {
       const { data: subs, error } = await supabase
         .from("suscripciones")
-        .select("curso_id, cursos:curso_id(titulo)")
+        .select("curso_id, cursos:curso_id(titulo, modalidad)")
         .eq("usuario_id", userId!)
         .eq("estado", "active");
       if (error) throw error;
@@ -36,13 +36,17 @@ export const usePaymentStatus = (userId: string | undefined) =>
       const pagaronEsteMes = new Set((pagos || []).map((p) => p.curso_id));
 
       return subs.map((s: any) => {
-        const pagoEsteMes = pagaronEsteMes.has(s.curso_id);
+        // Los cursos grabados se compran una sola vez, sin pago recurrente
+        // — no tiene sentido exigirles "el pago de este mes", o perderían
+        // el acceso al mes de haber comprado.
+        const esGrabado = s.cursos?.modalidad === "grabado";
+        const pagoEsteMes = esGrabado || pagaronEsteMes.has(s.curso_id);
         return {
           cursoId: s.curso_id,
           cursoTitulo: s.cursos?.titulo || "Curso",
           pagoEsteMes,
-          bloqueado: estaVencidoEsteMes(pagoEsteMes),
-          porVencer: estaPorVencer(pagoEsteMes),
+          bloqueado: !esGrabado && estaVencidoEsteMes(pagoEsteMes),
+          porVencer: !esGrabado && estaPorVencer(pagoEsteMes),
         };
       });
     },

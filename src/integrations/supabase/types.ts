@@ -56,6 +56,50 @@ export type Database = {
         }
         Relationships: []
       }
+      cortes_plataforma: {
+        Row: {
+          curso_id: string
+          id: string
+          monto_plataforma: number
+          monto_profesor: number
+          notas: string | null
+          pagado_en: string
+          periodo_fin: string
+          periodo_inicio: string
+          periodo_mes: string
+        }
+        Insert: {
+          curso_id: string
+          id?: string
+          monto_plataforma?: number
+          monto_profesor?: number
+          notas?: string | null
+          pagado_en?: string
+          periodo_fin: string
+          periodo_inicio: string
+          periodo_mes: string
+        }
+        Update: {
+          curso_id?: string
+          id?: string
+          monto_plataforma?: number
+          monto_profesor?: number
+          notas?: string | null
+          pagado_en?: string
+          periodo_fin?: string
+          periodo_inicio?: string
+          periodo_mes?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cortes_plataforma_curso_id_fkey"
+            columns: ["curso_id"]
+            isOneToOne: false
+            referencedRelation: "cursos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cursos: {
         Row: {
           actualizado_en: string | null
@@ -987,6 +1031,14 @@ export type Database = {
           nombre_completo: string
           rol: string
           url_avatar: string
+        }[]
+      }
+      obtener_temario_curso: {
+        Args: { curso_id_param: string }
+        Returns: {
+          id: string
+          orden: number
+          titulo: string
         }[]
       }
       perfiles_publicos: {

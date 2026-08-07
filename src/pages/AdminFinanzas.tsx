@@ -9,8 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Wallet, Megaphone, Server, Building2, GraduationCap, AlertTriangle, Settings, TrendingUp } from "lucide-react";
+import { Wallet, Megaphone, Server, Building2, GraduationCap, AlertTriangle, Settings, TrendingUp, CheckCircle2, Receipt } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
 import CurrencyConverter from "@/components/CurrencyConverter";
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
@@ -37,17 +38,24 @@ type Suscripcion = {
   perfiles: { nombre_completo: string | null } | null;
 };
 
-// Desglose de un pago según la fórmula: precio - publicidad - plataforma =
-// resto, que se reparte 50/50 entre academia y profesor.
-const desglosar = (monto: number, publicidad: number, plataforma: number) => {
+// Desglose de un pago. Para cursos en_vivo la fórmula es la de siempre:
+// precio - publicidad - plataforma = resto, que se reparte 50/50 entre
+// academia y profesor. Para cursos grabados no hay profesor ni publicidad
+// que pagar (es contenido ya grabado, sin costo recurrente de dictado) —
+// solo se le paga la plataforma, y el resto queda entero para la academia.
+const desglosar = (monto: number, publicidad: number, plataforma: number, modalidad: "en_vivo" | "grabado" = "en_vivo") => {
+  if (modalidad === "grabado") {
+    const resto = monto - plataforma;
+    return { publicidad: 0, plataforma, resto, academia: resto, profesor: 0 };
+  }
   const resto = monto - publicidad - plataforma;
   return { publicidad, plataforma, resto, academia: resto / 2, profesor: resto / 2 };
 };
 
-const sumarDesgloses = (items: { monto: number; publicidad: number; plataforma: number }[]) =>
+const sumarDesgloses = (items: { monto: number; publicidad: number; plataforma: number; modalidad?: "en_vivo" | "grabado" }[]) =>
   items.reduce(
     (acc, it) => {
-      const d = desglosar(it.monto, it.publicidad, it.plataforma);
+      const d = desglosar(it.monto, it.publicidad, it.plataforma, it.modalidad);
       acc.recaudado += it.monto;
       acc.publicidad += d.publicidad;
       acc.plataforma += d.plataforma;
@@ -60,6 +68,7 @@ const sumarDesgloses = (items: { monto: number; publicidad: number; plataforma: 
 
 const AdminFinanzas = () => {
   const queryClient = useQueryClient();
+  const [tabModalidad, setTabModalidad] = useState<"en_vivo" | "grabado">("en_vivo");
   const [cursoFiltro, setCursoFiltro] = useState("todos");
   const [mes, setMes] = useState(format(new Date(), "yyyy-MM"));
   const [configForm, setConfigForm] = useState<{ publicidad: string; plataforma: string; corte: string } | null>(null);
@@ -74,12 +83,22 @@ const AdminFinanzas = () => {
   });
 
   const { data: cursos } = useQuery({
-    queryKey: ["admin-courses-list"],
+    queryKey: ["admin-courses-list-modalidad"],
     queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, titulo").order("titulo");
+      const { data } = await supabase.from("cursos").select("id, titulo, modalidad").order("titulo");
       return data || [];
     },
   });
+
+  const modalidadPorCurso = useMemo(
+    () => new Map((cursos || []).map((c) => [c.id, c.modalidad as "en_vivo" | "grabado"])),
+    [cursos]
+  );
+
+  const cursosTab = useMemo(
+    () => (cursos || []).filter((c) => (c.modalidad || "en_vivo") === tabModalidad),
+    [cursos, tabModalidad]
+  );
 
   // Profesor(es) asignado(s) a cada curso (admin bypasea la RLS de perfiles, así que este join funciona directo)
   const { data: docentesCursos } = useQuery({
@@ -116,6 +135,29 @@ const AdminFinanzas = () => {
     },
   });
 
+  // Pagos ya liquidados a cada curso (profesor + plataforma) por período —
+  // a diferencia del resto de las métricas de acá (que son todas calculadas
+  // en caliente), esto SÍ queda como un registro persistente y es POR
+  // CURSO: saber si a "n8n" ya se le pagó el período de julio es
+  // independiente de si se pagó cualquier otro curso ese mismo mes.
+  const { data: cortesPlataforma } = useQuery({
+    queryKey: ["cortes-plataforma"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cortes_plataforma")
+        .select("*")
+        .order("periodo_mes", { ascending: false });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  const corteKey = (cursoId: string, periodoMes: string) => `${cursoId}::${periodoMes}`;
+  const cortesPorCursoYPeriodo = useMemo(
+    () => new Map((cortesPlataforma || []).map((c) => [corteKey(c.curso_id, c.periodo_mes), c])),
+    [cortesPlataforma]
+  );
+
   const configMutation = useMutation({
     mutationFn: async () => {
       if (!configForm) return;
@@ -137,6 +179,39 @@ const AdminFinanzas = () => {
     onError: (e: any) => toast.error(e.message),
   });
 
+  const marcarCortePagadoMutation = useMutation({
+    mutationFn: async ({
+      cursoId,
+      periodoMes,
+      periodoInicio,
+      periodoFin,
+      montoPlataforma,
+      montoProfesor,
+    }: {
+      cursoId: string;
+      periodoMes: string;
+      periodoInicio: Date;
+      periodoFin: Date;
+      montoPlataforma: number;
+      montoProfesor: number;
+    }) => {
+      const { error } = await supabase.from("cortes_plataforma").insert({
+        curso_id: cursoId,
+        periodo_mes: periodoMes,
+        periodo_inicio: format(periodoInicio, "yyyy-MM-dd"),
+        periodo_fin: format(periodoFin, "yyyy-MM-dd"),
+        monto_plataforma: montoPlataforma,
+        monto_profesor: montoProfesor,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cortes-plataforma"] });
+      toast.success("Pago registrado como liquidado");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const diaCorte = config?.dia_corte ?? 25;
 
   // Período seleccionado: del corte del mes anterior (exclusivo) al corte del mes elegido (inclusivo).
@@ -147,22 +222,27 @@ const AdminFinanzas = () => {
     return { start, end };
   }, [mes, diaCorte]);
 
+  // Todos los filtros de pagos/pendientes respetan la pestaña de modalidad
+  // (en_vivo/grabado) además del curso puntual elegido — un curso grabado
+  // nunca se mezcla con el reporte de en vivo, ni al revés.
+  const esDeLaTab = (cursoId: string) => (modalidadPorCurso.get(cursoId) || "en_vivo") === tabModalidad;
+
   const pagosPeriodo = useMemo(() => {
     if (!pagos) return [];
     return pagos.filter((p) => {
       const fecha = parseISO(p.pagado_en);
-      return fecha > periodo.start && fecha <= periodo.end && (cursoFiltro === "todos" || p.curso_id === cursoFiltro);
+      return fecha > periodo.start && fecha <= periodo.end && (cursoFiltro === "todos" || p.curso_id === cursoFiltro) && esDeLaTab(p.curso_id);
     });
-  }, [pagos, periodo, cursoFiltro]);
+  }, [pagos, periodo, cursoFiltro, tabModalidad, modalidadPorCurso]);
 
   const pagosFiltrados = useMemo(
-    () => (pagos || []).filter((p) => cursoFiltro === "todos" || p.curso_id === cursoFiltro),
-    [pagos, cursoFiltro]
+    () => (pagos || []).filter((p) => (cursoFiltro === "todos" || p.curso_id === cursoFiltro) && esDeLaTab(p.curso_id)),
+    [pagos, cursoFiltro, tabModalidad, modalidadPorCurso]
   );
 
   const pendientesFiltrados = useMemo(
-    () => (pendientes || []).filter((s) => cursoFiltro === "todos" || s.curso_id === cursoFiltro),
-    [pendientes, cursoFiltro]
+    () => (pendientes || []).filter((s) => (cursoFiltro === "todos" || s.curso_id === cursoFiltro) && esDeLaTab(s.curso_id)),
+    [pendientes, cursoFiltro, tabModalidad, modalidadPorCurso]
   );
 
   const pendientePeriodo = useMemo(
@@ -179,26 +259,26 @@ const AdminFinanzas = () => {
   const resumenPeriodo = useMemo(
     () =>
       sumarDesgloses(
-        pagosPeriodo.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars }))
+        pagosPeriodo.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))
       ),
-    [pagosPeriodo]
+    [pagosPeriodo, tabModalidad]
   );
 
   const resumenTotal = useMemo(
     () =>
       sumarDesgloses(
-        pagosFiltrados.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars }))
+        pagosFiltrados.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))
       ),
-    [pagosFiltrados]
+    [pagosFiltrados, tabModalidad]
   );
 
   const pendienteMontoPeriodo = pendientePeriodo.reduce((acc, s) => acc + (s.price || 0), 0);
   const pendienteMontoTotal = pendientesFiltrados.reduce((acc, s) => acc + (s.price || 0), 0);
 
-  // Desglose por curso (para la vista "Todos")
+  // Desglose por curso (para la vista "Todos"), solo de la modalidad activa
   const porCurso = useMemo(() => {
-    if (!cursos) return [];
-    return cursos.map((c) => {
+    if (!cursosTab) return [];
+    return cursosTab.map((c) => {
       const propios = (pagos || []).filter((p) => p.curso_id === c.id);
       const propiosPeriodo = propios.filter((p) => {
         const fecha = parseISO(p.pagado_en);
@@ -212,20 +292,34 @@ const AdminFinanzas = () => {
       return {
         curso: c,
         profesores,
-        periodo: sumarDesgloses(propiosPeriodo.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars }))),
-        total: sumarDesgloses(propios.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars }))),
+        periodo: sumarDesgloses(propiosPeriodo.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))),
+        total: sumarDesgloses(propios.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))),
         pendienteMonto: propiosPendientes.reduce((acc, s) => acc + (s.price || 0), 0),
         pendienteCount: propiosPendientes.length,
+        // Si a este curso ya se le liquidó (profesor + plataforma) el
+        // período que se está mirando ahora mismo.
+        corte: cortesPorCursoYPeriodo.get(corteKey(c.id, mes)),
       };
     });
-  }, [cursos, pagos, pendientes, docentesCursos, periodo]);
+  }, [cursosTab, pagos, pendientes, docentesCursos, periodo, tabModalidad, cortesPorCursoYPeriodo, mes]);
+
+  // Cursos de la pestaña activa con plata para liquidar este período que
+  // todavía no se marcaron como pagados — el "cuadro" de pendientes.
+  const pendientesDeLiquidar = useMemo(
+    () => porCurso.filter((c) => c.periodo.recaudado > 0 && !c.corte),
+    [porCurso]
+  );
 
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
         <div>
           <h1 className="text-2xl font-bold">Panel Financiero</h1>
-          <p className="text-muted-foreground">Reparto por alumno: precio - publicidad - plataforma = resto (50% academia / 50% profesor)</p>
+          <p className="text-muted-foreground">
+            {tabModalidad === "en_vivo"
+              ? "Reparto por alumno: precio - publicidad - plataforma = resto (50% academia / 50% profesor)"
+              : "Los cursos grabados no tienen profesor ni publicidad recurrente: precio - plataforma = academia"}
+          </p>
         </div>
 
         <CurrencyConverter className="shadow-card" />
@@ -294,6 +388,82 @@ const AdminFinanzas = () => {
           </CardContent>
         </Card>
 
+        {/* Pagos pendientes a profesores y plataforma — este período, de la
+            pestaña activa. Cada curso se liquida (profesor + plataforma)
+            por separado, así que esto lista solo los que todavía no se
+            marcaron como pagados. */}
+        {pendientesDeLiquidar.length > 0 && (
+          <Card className="shadow-card overflow-hidden border-amber-300 dark:border-amber-800">
+            <CardHeader className="bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900">
+              <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                <Receipt className="w-4 h-4" /> Pendientes de liquidar — {format(periodo.end, "MMMM yyyy", { locale: es })} ({pendientesDeLiquidar.length})
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y">
+                {pendientesDeLiquidar.map((c) => (
+                  <div key={c.curso.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-bold">{c.curso.titulo}</p>
+                      <p className="text-xs text-muted-foreground truncate">
+                        {c.profesores.length ? c.profesores.join(", ") : "Sin profesor asignado"}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4 shrink-0">
+                      <div className="text-right text-sm">
+                        <p className="font-bold text-indigo-600 dark:text-indigo-400">{fmt(c.periodo.plataforma)} plataforma</p>
+                        {tabModalidad === "en_vivo" && (
+                          <p className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(c.periodo.profesor)} profesor</p>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        className="gradient-primary text-primary-foreground"
+                        disabled={marcarCortePagadoMutation.isPending}
+                        onClick={() =>
+                          marcarCortePagadoMutation.mutate({
+                            cursoId: c.curso.id,
+                            periodoMes: mes,
+                            periodoInicio: periodo.start,
+                            periodoFin: periodo.end,
+                            montoPlataforma: c.periodo.plataforma,
+                            montoProfesor: c.periodo.profesor,
+                          })
+                        }
+                      >
+                        Marcar pagado
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Tabs En vivo / Grabados — los grabados no le pagan nada al
+            profesor ni a publicidad, así que conviene no mezclar el reporte. */}
+        <div className="flex gap-2 border-b">
+          <button
+            type="button"
+            onClick={() => { setTabModalidad("en_vivo"); setCursoFiltro("todos"); }}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tabModalidad === "en_vivo" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            En vivo
+          </button>
+          <button
+            type="button"
+            onClick={() => { setTabModalidad("grabado"); setCursoFiltro("todos"); }}
+            className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+              tabModalidad === "grabado" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            Grabados
+          </button>
+        </div>
+
         {/* Filtros */}
         <Card className="bg-muted/30 border-none shadow-none">
           <CardContent className="p-4 flex flex-col md:flex-row gap-4">
@@ -303,7 +473,7 @@ const AdminFinanzas = () => {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todos">Todos los cursos</SelectItem>
-                {cursos?.map((c) => (
+                {cursosTab?.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.titulo}
                   </SelectItem>
@@ -322,7 +492,7 @@ const AdminFinanzas = () => {
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
             <TrendingUp className="w-4 h-4" /> Este período
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${tabModalidad === "en_vivo" ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
             <Card className="border-none shadow-card">
               <CardContent className="p-4">
                 <Wallet className="w-4 h-4 text-primary mb-1" />
@@ -330,13 +500,15 @@ const AdminFinanzas = () => {
                 <p className="text-[11px] text-muted-foreground">Recaudado</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-card">
-              <CardContent className="p-4">
-                <Megaphone className="w-4 h-4 text-orange-500 mb-1" />
-                <p className="text-lg font-bold">{fmt(resumenPeriodo.publicidad)}</p>
-                <p className="text-[11px] text-muted-foreground">Publicidad</p>
-              </CardContent>
-            </Card>
+            {tabModalidad === "en_vivo" && (
+              <Card className="border-none shadow-card">
+                <CardContent className="p-4">
+                  <Megaphone className="w-4 h-4 text-orange-500 mb-1" />
+                  <p className="text-lg font-bold">{fmt(resumenPeriodo.publicidad)}</p>
+                  <p className="text-[11px] text-muted-foreground">Publicidad</p>
+                </CardContent>
+              </Card>
+            )}
             <Card className="border-none shadow-card">
               <CardContent className="p-4">
                 <Server className="w-4 h-4 text-indigo-500 mb-1" />
@@ -351,13 +523,15 @@ const AdminFinanzas = () => {
                 <p className="text-[11px] text-muted-foreground">Academia</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-card">
-              <CardContent className="p-4">
-                <GraduationCap className="w-4 h-4 text-emerald-500 mb-1" />
-                <p className="text-lg font-bold">{fmt(resumenPeriodo.profesor)}</p>
-                <p className="text-[11px] text-muted-foreground">Profesor</p>
-              </CardContent>
-            </Card>
+            {tabModalidad === "en_vivo" && (
+              <Card className="border-none shadow-card">
+                <CardContent className="p-4">
+                  <GraduationCap className="w-4 h-4 text-emerald-500 mb-1" />
+                  <p className="text-lg font-bold">{fmt(resumenPeriodo.profesor)}</p>
+                  <p className="text-[11px] text-muted-foreground">Profesor</p>
+                </CardContent>
+              </Card>
+            )}
             <Card className="border-none shadow-card">
               <CardContent className="p-4">
                 <AlertTriangle className="w-4 h-4 text-destructive mb-1" />
@@ -371,19 +545,21 @@ const AdminFinanzas = () => {
         {/* Acumulado histórico */}
         <div>
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground mb-3">Acumulado histórico</h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${tabModalidad === "en_vivo" ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
             <Card className="border-none shadow-card bg-muted/30">
               <CardContent className="p-4">
                 <p className="text-lg font-bold">{fmt(resumenTotal.recaudado)}</p>
                 <p className="text-[11px] text-muted-foreground">Recaudado</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-card bg-muted/30">
-              <CardContent className="p-4">
-                <p className="text-lg font-bold">{fmt(resumenTotal.publicidad)}</p>
-                <p className="text-[11px] text-muted-foreground">Publicidad</p>
-              </CardContent>
-            </Card>
+            {tabModalidad === "en_vivo" && (
+              <Card className="border-none shadow-card bg-muted/30">
+                <CardContent className="p-4">
+                  <p className="text-lg font-bold">{fmt(resumenTotal.publicidad)}</p>
+                  <p className="text-[11px] text-muted-foreground">Publicidad</p>
+                </CardContent>
+              </Card>
+            )}
             <Card className="border-none shadow-card bg-muted/30">
               <CardContent className="p-4">
                 <p className="text-lg font-bold">{fmt(resumenTotal.plataforma)}</p>
@@ -396,12 +572,14 @@ const AdminFinanzas = () => {
                 <p className="text-[11px] text-muted-foreground">Academia</p>
               </CardContent>
             </Card>
-            <Card className="border-none shadow-card bg-muted/30">
-              <CardContent className="p-4">
-                <p className="text-lg font-bold">{fmt(resumenTotal.profesor)}</p>
-                <p className="text-[11px] text-muted-foreground">Profesor</p>
-              </CardContent>
-            </Card>
+            {tabModalidad === "en_vivo" && (
+              <Card className="border-none shadow-card bg-muted/30">
+                <CardContent className="p-4">
+                  <p className="text-lg font-bold">{fmt(resumenTotal.profesor)}</p>
+                  <p className="text-[11px] text-muted-foreground">Profesor</p>
+                </CardContent>
+              </Card>
+            )}
             <Card className="border-none shadow-card bg-muted/30">
               <CardContent className="p-4">
                 <p className="text-lg font-bold">{fmt(pendienteMontoTotal)}</p>
@@ -440,15 +618,41 @@ const AdminFinanzas = () => {
                         <p className="font-bold text-blue-600 dark:text-blue-400">{fmt(c.periodo.academia)}</p>
                         <p className="text-[10px] text-muted-foreground uppercase">Academia</p>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(c.periodo.profesor)}</p>
-                        <p className="text-[10px] text-muted-foreground uppercase">Profesor</p>
-                      </div>
+                      {tabModalidad === "en_vivo" && (
+                        <div className="text-right">
+                          <p className="font-bold text-emerald-600 dark:text-emerald-400">{fmt(c.periodo.profesor)}</p>
+                          <p className="text-[10px] text-muted-foreground uppercase">Profesor</p>
+                        </div>
+                      )}
                       {c.pendienteCount > 0 && (
                         <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900">
                           {c.pendienteCount} pendiente{c.pendienteCount > 1 ? "s" : ""} · {fmt(c.pendienteMonto)}
                         </Badge>
                       )}
+                      {c.corte ? (
+                        <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900">
+                          <CheckCircle2 className="w-3 h-3 mr-1" /> Pagado el {format(parseISO(c.corte.pagado_en), "dd/MM/yyyy")}
+                        </Badge>
+                      ) : c.periodo.recaudado > 0 ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+                          disabled={marcarCortePagadoMutation.isPending}
+                          onClick={() =>
+                            marcarCortePagadoMutation.mutate({
+                              cursoId: c.curso.id,
+                              periodoMes: mes,
+                              periodoInicio: periodo.start,
+                              periodoFin: periodo.end,
+                              montoPlataforma: c.periodo.plataforma,
+                              montoProfesor: c.periodo.profesor,
+                            })
+                          }
+                        >
+                          Marcar pagado
+                        </Button>
+                      ) : null}
                     </div>
                   </div>
                 ))}
@@ -463,6 +667,45 @@ const AdminFinanzas = () => {
         {/* Detalle de pagos del período (cuando se filtra un curso puntual) */}
         {cursoFiltro !== "todos" && (
           <>
+            {(() => {
+              const c = porCurso.find((pc) => pc.curso.id === cursoFiltro);
+              if (!c) return null;
+              return (
+                <Card className={`shadow-card ${c.corte ? "border-emerald-200 dark:border-emerald-900" : "border-amber-300 dark:border-amber-800"}`}>
+                  <CardContent className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div>
+                      <p className="font-bold">{c.curso.titulo} — {format(periodo.end, "MMMM yyyy", { locale: es })}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {fmt(c.periodo.plataforma)} plataforma{tabModalidad === "en_vivo" ? ` + ${fmt(c.periodo.profesor)} profesor` : ""}
+                      </p>
+                    </div>
+                    {c.corte ? (
+                      <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900 w-fit">
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Pagado el {format(parseISO(c.corte.pagado_en), "dd/MM/yyyy")}
+                      </Badge>
+                    ) : (
+                      <Button
+                        className="gradient-primary text-primary-foreground w-fit"
+                        disabled={marcarCortePagadoMutation.isPending || c.periodo.recaudado === 0}
+                        onClick={() =>
+                          marcarCortePagadoMutation.mutate({
+                            cursoId: c.curso.id,
+                            periodoMes: mes,
+                            periodoInicio: periodo.start,
+                            periodoFin: periodo.end,
+                            montoPlataforma: c.periodo.plataforma,
+                            montoProfesor: c.periodo.profesor,
+                          })
+                        }
+                      >
+                        Marcar pagado
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })()}
+
             <Card className="shadow-card overflow-hidden">
               <CardHeader className="bg-muted/30 border-b">
                 <CardTitle className="text-base">Pagos de este período ({pagosPeriodo.length})</CardTitle>
@@ -470,7 +713,7 @@ const AdminFinanzas = () => {
               <CardContent className="p-0">
                 <div className="divide-y">
                   {pagosPeriodo.map((p) => {
-                    const d = desglosar(p.monto, p.costo_publicidad_ars, p.costo_plataforma_ars);
+                    const d = desglosar(p.monto, p.costo_publicidad_ars, p.costo_plataforma_ars, tabModalidad);
                     return (
                       <div key={p.id} className="p-4 flex flex-col md:flex-row md:items-center justify-between gap-2">
                         <div>
@@ -480,7 +723,9 @@ const AdminFinanzas = () => {
                         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
                           <span>Pagó: <strong className="text-foreground">{fmt(p.monto)}</strong></span>
                           <span>Academia: <strong className="text-foreground">{fmt(d.academia)}</strong></span>
-                          <span>Profesor: <strong className="text-foreground">{fmt(d.profesor)}</strong></span>
+                          {tabModalidad === "en_vivo" && (
+                            <span>Profesor: <strong className="text-foreground">{fmt(d.profesor)}</strong></span>
+                          )}
                         </div>
                       </div>
                     );

@@ -364,7 +364,13 @@ const AdminStudents = () => {
                     <div className="min-w-0">
                       <p className="font-bold truncate">{s.nombre_completo || "Sin nombre"}</p>
                       <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{s.telefono || "Sin teléfono cargado"}</p>
                       <p className="text-xs text-muted-foreground">{s.dni ? `DNI ${s.dni}` : "Sin DNI cargado"}</p>
+                      {s.creado_en && (
+                        <p className="text-xs text-muted-foreground">
+                          Registrado el {new Date(s.creado_en).toLocaleDateString("es-AR")} a las {new Date(s.creado_en).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
@@ -501,6 +507,7 @@ const AdminStudents = () => {
                     <div className="min-w-0">
                       <p className="font-bold truncate">{e.perfiles?.nombre_completo}</p>
                       <p className="text-xs text-muted-foreground truncate">{e.perfiles?.email}</p>
+                      <p className="text-xs text-muted-foreground truncate">{e.perfiles?.telefono || "Sin teléfono cargado"}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1 truncate"><BookOpen className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{e.cursos?.titulo}</span></p>
                     </div>
                   </div>
