@@ -9,7 +9,10 @@
 const RATES_CACHE_KEY = "capol_exchange_rates_v1";
 const RATES_TTL_MS = 6 * 60 * 60 * 1000; // 6 horas
 const GEO_CACHE_KEY = "capol_user_currency_v1";
-const GEO_COUNTRY_CACHE_KEY = "capol_user_country_v1";
+// v2: el objeto cacheado ahora también incluye "ip" — se cambia la clave
+// para que los navegadores que ya tenían el v1 guardado (sin ese campo) no
+// lo reusen durante 24hs y se queden sin IP hasta que expire solo.
+const GEO_COUNTRY_CACHE_KEY = "capol_user_country_v2";
 const GEO_TTL_MS = 24 * 60 * 60 * 1000; // 1 día (la ubicación no cambia seguido)
 
 // Cotización fija para el precio automático que ve un visitante de
