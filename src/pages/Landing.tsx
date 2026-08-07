@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import PriceTag from "@/components/PriceTag";
-import { detectCountryCode } from "@/lib/currency";
+import { detectCountryCode, detectVisitorIp } from "@/lib/currency";
+import { getOrCreateVisitorId } from "@/lib/visitor";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import Tilt from "react-parallax-tilt";
 import ScrollReveal from "scrollreveal";
@@ -94,14 +95,20 @@ const Landing = () => {
   }, []);
 
   // Contador de visitas para las métricas del admin — un registro por carga
-  // de la Landing, sin importar si el visitante está logueado o no. Se
-  // manda el país (mismo detectCountryCode que usa el precio automático)
-  // para poder separar después "Argentina" vs "resto del mundo" en Métricas
-  // — no bloquea el insert si la geolocalización falla, la visita se
-  // cuenta igual, solo queda sin país conocido.
+  // de la Landing, sin importar si el visitante está logueado o no. Además
+  // del país (mismo detectCountryCode que usa el precio automático), suma
+  // ip, user-agent y un id de visitante anónimo (ver src/lib/visitor.ts)
+  // para el monitoreo de seguridad — detectar ráfagas de visitas desde el
+  // mismo origen. No bloquea el insert si algo de esto falla, la visita se
+  // cuenta igual, solo queda con menos datos.
   useEffect(() => {
-    detectCountryCode().then((pais_code) => {
-      supabase.from("landing_visits").insert({ pais_code }).then(({ error }) => {
+    Promise.all([detectCountryCode(), detectVisitorIp()]).then(([pais_code, ip]) => {
+      supabase.from("landing_visits").insert({
+        pais_code,
+        ip,
+        visitor_id: getOrCreateVisitorId(),
+        user_agent: navigator.userAgent,
+      }).then(({ error }) => {
         if (error) console.error("No se pudo registrar la visita:", error);
       });
     });

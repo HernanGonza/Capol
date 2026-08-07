@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      alertas_seguridad: {
+        Row: {
+          creado_en: string
+          datos: Json | null
+          detalle: string
+          id: string
+          resuelta: boolean
+          resuelta_en: string | null
+          tipo: string
+        }
+        Insert: {
+          creado_en?: string
+          datos?: Json | null
+          detalle: string
+          id?: string
+          resuelta?: boolean
+          resuelta_en?: string | null
+          tipo: string
+        }
+        Update: {
+          creado_en?: string
+          datos?: Json | null
+          detalle?: string
+          id?: string
+          resuelta?: boolean
+          resuelta_en?: string | null
+          tipo?: string
+        }
+        Relationships: []
+      }
       configuracion_financiera: {
         Row: {
           actualizado_en: string
@@ -431,18 +461,27 @@ export type Database = {
       landing_visits: {
         Row: {
           id: string
+          ip: string | null
           pais_code: string | null
+          user_agent: string | null
           visited_at: string
+          visitor_id: string | null
         }
         Insert: {
           id?: string
+          ip?: string | null
           pais_code?: string | null
+          user_agent?: string | null
           visited_at?: string
+          visitor_id?: string | null
         }
         Update: {
           id?: string
+          ip?: string | null
           pais_code?: string | null
+          user_agent?: string | null
           visited_at?: string
+          visitor_id?: string | null
         }
         Relationships: []
       }

@@ -136,6 +136,19 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     refetchInterval: 30000,
   });
 
+  const { data: alertasSeguridadPendientes } = useQuery({
+    queryKey: ["alertas-seguridad-pendientes-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("alertas_seguridad")
+        .select("*", { count: "exact", head: true })
+        .eq("resuelta", false);
+      return count || 0;
+    },
+    enabled: isAdmin,
+    refetchInterval: 30000,
+  });
+
   const { data: mensajesNoLeidos } = useQuery({
     queryKey: ["mensajes-no-leidos-count", user?.id],
     queryFn: async () => {
@@ -444,6 +457,34 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
           <NotificationBell id="tour-notifications" porCurso={foroPorCurso} collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
           <ThemeToggle id="tour-theme-toggle" collapsed={collapsed} className="text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent" />
+
+          {isAdmin && (
+            <Button
+              variant="ghost"
+              size={collapsed ? "icon" : "sm"}
+              asChild
+              title={collapsed ? "Seguridad" : undefined}
+              className={`relative rounded-lg font-semibold transition-colors text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent ${
+                collapsed ? "w-9 h-9" : "w-full justify-start"
+              } ${location.pathname === "/admin/seguridad" ? "bg-sidebar-accent text-sidebar-foreground" : ""}`}
+            >
+              <Link to="/admin/seguridad" onClick={() => setSidebarOpen(false)}>
+                <Shield className="w-4 h-4" />
+                {!collapsed && <span className="ml-2 flex-1 text-left">Seguridad</span>}
+                {!!alertasSeguridadPendientes && (
+                  collapsed ? (
+                    <span className="absolute top-0.5 right-0.5 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center">
+                      {alertasSeguridadPendientes}
+                    </span>
+                  ) : (
+                    <span className="bg-red-500 text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center shrink-0">
+                      {alertasSeguridadPendientes}
+                    </span>
+                  )
+                )}
+              </Link>
+            </Button>
+          )}
 
           <Button
             variant="ghost"

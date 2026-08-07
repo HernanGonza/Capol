@@ -93,24 +93,42 @@ export async function detectUserCurrency(): Promise<string | null> {
   }
 }
 
-// País del visitante según su IP (código crudo, sin mapear a moneda) — lo
-// único que le importa al precio automático es si es "AR" o no. Reusa la
-// misma llamada a ipwho.is que detectUserCurrency, pero con su propia
-// entrada de caché para no interferir con esa.
-export async function detectCountryCode(): Promise<string | null> {
-  const cached = readCache<{ countryCode: string | null; fetchedAt: number }>(GEO_COUNTRY_CACHE_KEY);
-  if (cached && Date.now() - cached.fetchedAt < GEO_TTL_MS) return cached.countryCode;
+// País (y de paso, IP) del visitante según ipwho.is — lo único que le
+// importa al precio automático es si es "AR" o no. Comparte una sola
+// entrada de caché entre detectCountryCode() y detectVisitorIp() para no
+// duplicar la llamada a la API (el plan gratuito de ipwho.is tiene límite).
+interface GeoCacheEntry {
+  countryCode: string | null;
+  ip: string | null;
+  fetchedAt: number;
+}
+
+async function fetchGeoInfo(): Promise<GeoCacheEntry> {
+  const cached = readCache<GeoCacheEntry>(GEO_COUNTRY_CACHE_KEY);
+  if (cached && Date.now() - cached.fetchedAt < GEO_TTL_MS) return cached;
 
   try {
     const res = await fetch("https://ipwho.is/");
     if (!res.ok) throw new Error("No se pudo geolocalizar");
     const data = await res.json();
     if (!data.success || !data.country_code) throw new Error("Respuesta inválida de geolocalización");
-    writeCache(GEO_COUNTRY_CACHE_KEY, { countryCode: data.country_code, fetchedAt: Date.now() });
-    return data.country_code as string;
+    const entry: GeoCacheEntry = { countryCode: data.country_code, ip: data.ip || null, fetchedAt: Date.now() };
+    writeCache(GEO_COUNTRY_CACHE_KEY, entry);
+    return entry;
   } catch {
-    return cached?.countryCode ?? null;
+    return cached ?? { countryCode: null, ip: null, fetchedAt: 0 };
   }
+}
+
+export async function detectCountryCode(): Promise<string | null> {
+  return (await fetchGeoInfo()).countryCode;
+}
+
+// IP pública del visitante — se usa solo para el monitoreo de seguridad
+// (detectar ráfagas de visitas/registros desde el mismo origen), nunca
+// para identificar a una persona en particular.
+export async function detectVisitorIp(): Promise<string | null> {
+  return (await fetchGeoInfo()).ip;
 }
 
 export const convertUsdToCurrency = (

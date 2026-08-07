@@ -31,6 +31,7 @@ const AdminFinanzas = lazy(() => import("./pages/AdminFinanzas"));
 const AdminTeachers = lazy(() => import("./pages/AdminTeachers"));
 const AdminSolicitudes = lazy(() => import("./pages/AdminSolicitudes"));
 const AdminMetricas = lazy(() => import("./pages/AdminMetricas"));
+const AdminSeguridad = lazy(() => import("./pages/AdminSeguridad"));
 const TeacherDashboard = lazy(() => import("./pages/TeacherDashboard"));
 const TeacherLessons = lazy(() => import("./pages/TeacherLessons"));
 const CourseView = lazy(() => import("./pages/CourseView"));
@@ -110,6 +111,7 @@ const App = () => (
             <Route path="/admin/finanzas" element={<ProtectedRoute adminOnly><AdminFinanzas /></ProtectedRoute>} />
             <Route path="/admin/solicitudes" element={<ProtectedRoute adminOnly><AdminSolicitudes /></ProtectedRoute>} />
             <Route path="/admin/metricas" element={<ProtectedRoute adminOnly><AdminMetricas /></ProtectedRoute>} />
+            <Route path="/admin/seguridad" element={<ProtectedRoute adminOnly><AdminSeguridad /></ProtectedRoute>} />
             <Route path="/admin/teachers" element={<ProtectedRoute adminOnly><AdminTeachers /></ProtectedRoute>} />
             
             {/* Rutas de Profesor */}
