@@ -131,6 +131,11 @@ const AdminMetricas = () => {
       description: "Cuentas creadas en la plataforma",
       icon: UserPlus,
       color: "bg-card",
+      extra: (
+        <p className="text-[11px] text-muted-foreground/80 mt-2 pt-2 border-t border-border/50">
+          {stats?.registradosAlumnos || 0} alumnos · {stats?.registradosProfesores || 0} profesores · {stats?.registradosAdmins || 0} admins
+        </p>
+      ),
     },
     {
       title: "Registrados con curso",
@@ -179,6 +184,7 @@ const AdminMetricas = () => {
               <CardContent>
                 <div className="text-2xl font-bold">{card.value}</div>
                 <p className="text-xs opacity-70 mt-1">{card.description}</p>
+                {card.extra}
               </CardContent>
             </Card>
           ))}
