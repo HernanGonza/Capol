@@ -78,6 +78,7 @@ const WELCOME_HTML = (nombre: string) => `
                     </p>
                     <p style="color:rgba(255,255,255,0.65);font-size:15px;line-height:1.7;margin:0 0 28px;">
                       Para inscribirse a un curso, ingrese a la plataforma y haga clic en el botón "Inscribirme" (o "Comprar", si es un curso grabado) de la tarjeta del curso que desea, y luego en "Confirmar solicitud de inscripción" ✍️
+                      Nosotros nos encargaremos de revisar su solicitud y aprobarla en un plazo máximo de 24 horas, para que pueda acceder al curso y comenzar a aprender 🏫
                     </p>
                     <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
                       <tr>
