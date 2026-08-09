@@ -38,6 +38,26 @@ const EnrollmentDialog = ({ course, onClose }: Props) => {
     setYaSolicitado(false);
   }, [course?.id]);
 
+  // Un alumno solo puede tener una solicitud por curso (hay un unique
+  // constraint en la tabla). Antes de dejarlo mandar otra, nos fijamos si
+  // ya tiene una para no depender solo de que el insert falle.
+  const { data: solicitudExistente, isLoading: cargandoSolicitud } = useQuery({
+    queryKey: ["solicitud-existente", course?.id, user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("solicitudes_inscripcion")
+        .select("id")
+        .eq("usuario_id", user!.id)
+        .eq("curso_id", course!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!course && !!user,
+  });
+
+  const solicitudYaEnviada = yaSolicitado || !!solicitudExistente;
+
   const { data: mediosDePago } = useQuery({
     queryKey: ["config-medios-pago"],
     queryFn: async () => {
@@ -57,13 +77,12 @@ const EnrollmentDialog = ({ course, onClose }: Props) => {
       });
       if (error) {
         if (error.code === "23505") {
-          toast.info("Ya enviaste una solicitud para este curso. Te contactaremos pronto.");
+          setYaSolicitado(true);
         } else throw error;
       } else {
         toast.success("¡Solicitud enviada! Te contactaremos para coordinar el pago.");
         setYaSolicitado(true);
       }
-      onClose();
     } catch (e: any) {
       toast.error(e.message);
     } finally {
@@ -136,17 +155,21 @@ const EnrollmentDialog = ({ course, onClose }: Props) => {
               </div>
             )}
 
-            {yaSolicitado ? (
+            {solicitudYaEnviada ? (
               <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-4 text-emerald-700 dark:text-emerald-400 font-semibold text-sm">
-                <CheckCircle className="w-5 h-5" /> Solicitud enviada — te contactaremos pronto
+                <CheckCircle className="w-5 h-5 shrink-0" /> Ya enviaste la solicitud para este curso, te estaremos contactando a la brevedad.
               </div>
             ) : (
               <button
                 onClick={handleSolicitar}
-                disabled={solicitando}
+                disabled={solicitando || cargandoSolicitud}
                 className="w-full h-12 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-xl transition-all disabled:opacity-50"
               >
-                {solicitando ? "Enviando solicitud..." : course.modalidad === "grabado" ? "Confirmar compra" : "Confirmar solicitud de inscripción"}
+                {solicitando
+                  ? "Enviando solicitud..."
+                  : cargandoSolicitud
+                  ? "Verificando..."
+                  : course.modalidad === "grabado" ? "Confirmar compra" : "Confirmar solicitud de inscripción"}
               </button>
             )}
           </div>

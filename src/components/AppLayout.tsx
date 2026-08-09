@@ -285,11 +285,11 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
         { to: "/admin/courses", label: "Cursos", icon: BookOpen },
         { to: "/admin/students", label: "Alumnos", icon: Users },
+        { to: "/admin/solicitudes", label: "Solicitudes", icon: ClipboardList, badge: solicitudesPendientes },
         { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
         { to: "/admin/finanzas", label: "Finanzas", icon: Wallet },
         { to: "/admin/metricas", label: "Métricas de Acceso", icon: BarChart3 },
         { to: "/admin/teachers", label: "Profesores", icon: UserPlus },
-        { to: "/admin/solicitudes", label: "Solicitudes", icon: ClipboardList, badge: solicitudesPendientes },
         // El admin también puede estar asignado como docente a algún curso
         // (docentes_cursos) — necesita el mismo acceso que un profesor a sus
         // clases en vivo, no solo la gestión administrativa.

@@ -271,7 +271,9 @@ const CourseView = () => {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-fuchsia-50 dark:bg-fuchsia-950/30 border border-fuchsia-200 dark:border-fuchsia-900 text-fuchsia-700 dark:text-fuchsia-400 text-sm font-semibold rounded-xl px-4 py-3">
             <div className="flex items-center gap-2">
               <Video className="w-4 h-4 shrink-0" />
-              Estás viendo la muestra gratis de este curso — comprá para desbloquear todas las clases.
+              {syllabus && syllabus.length > 0
+                ? `Estás viendo la primera clase gratis de las ${syllabus.length} que tiene este curso — comprá el curso completo para desbloquear todas las clases.`
+                : "Estás viendo la primera clase gratis de este curso — comprá el curso completo para desbloquear todas las clases."}
             </div>
             <Button
               type="button"
