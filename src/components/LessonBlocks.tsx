@@ -108,13 +108,17 @@ const LessonBlocks = ({ content, restringido }: Props) => {
               className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-muted"
               onContextMenu={(e) => e.preventDefault()}
             >
-              <div className="aspect-video">
+              <div className="relative aspect-video">
                 <iframe
                   src={getEmbedUrl(block.value)}
                   className="w-full h-full"
                   allowFullScreen
                   allow="autoplay; encrypted-media"
                 />
+                {/* Tapa el ícono de "abrir en ventana nueva" que Drive dibuja
+                    en la esquina: al ser contenido de otro origen no se puede
+                    quitar, así que lo cubrimos y bloqueamos el click ahí. */}
+                <div className="absolute top-0 right-0 w-14 h-14" />
               </div>
             </Card>
           )}

@@ -399,13 +399,17 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
           <DialogTitle className="sr-only">Grabación de la clase</DialogTitle>
           <DialogDescription className="sr-only">Video de la grabación de esta clase</DialogDescription>
           {driveEmbedUrl ? (
-            <div onContextMenu={(e) => e.preventDefault()}>
+            <div className="relative" onContextMenu={(e) => e.preventDefault()}>
               <iframe
                 src={driveEmbedUrl}
                 className="w-full aspect-video rounded-xl"
                 allow="autoplay"
                 allowFullScreen
               />
+              {/* Tapa el ícono de "abrir en ventana nueva" que Drive dibuja
+                  en la esquina: al ser contenido de otro origen no se puede
+                  quitar, así que lo cubrimos y bloqueamos el click ahí. */}
+              <div className="absolute top-0 right-0 w-14 h-14" />
             </div>
           ) : (
             <div className="p-10 text-center text-white space-y-3">
