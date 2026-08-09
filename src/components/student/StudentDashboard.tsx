@@ -60,7 +60,7 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
       </div>
       <div className="absolute bottom-2 left-3 flex items-center gap-2">
         <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
-          <BookOpen className="w-2.5 h-2.5 mr-1" />{course.lecciones?.[0]?.count || 0} clases
+          <BookOpen className="w-2.5 h-2.5 mr-1" />{course.cantidadClases || 0} clases
         </Badge>
         <Badge className="bg-black/40 backdrop-blur-sm text-white border-none text-[10px] font-bold">
           <Users className="w-2.5 h-2.5 mr-1" />{course.inscripciones?.[0]?.count || 0}
@@ -212,9 +212,18 @@ const StudentDashboard = () => {
     queryFn: async () => {
       const { data: allCourses } = await supabase
         .from("cursos")
-        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, modalidad, fecha_inicio, fecha_fin, horarios, duracion, precio, tipo_precio, cantidad_cuotas, moneda, cotizacion_ars, lecciones (count), inscripciones (count)`)
+        .select(`id, grupo_id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, estado, modalidad, fecha_inicio, fecha_fin, horarios, duracion, precio, tipo_precio, cantidad_cuotas, moneda, cotizacion_ars, inscripciones (count)`)
         .eq("publicado", true)
         .order("creado_en", { ascending: false });
+
+      // La cantidad de clases NO puede salir de un "lecciones (count)"
+      // embebido acá: para un curso al que el alumno todavía no está
+      // suscripto, RLS solo le deja ver la primera clase (muestra gratis de
+      // los grabados), así que ese count quedaría pegado en 1. Usamos la
+      // misma función RPC que la landing (SECURITY DEFINER, cuenta todas las
+      // filas sin pasar por RLS) para tener el número real.
+      const { data: leccionesPorCurso } = await supabase.rpc("contar_lecciones_por_curso");
+      const leccionesMap = new Map((leccionesPorCurso || []).map((r: any) => [r.curso_id, r.cantidad]));
 
       const { data: activeSubs } = await supabase
         .from("suscripciones")
@@ -223,7 +232,9 @@ const StudentDashboard = () => {
         .eq("estado", "active");
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
-      return (allCourses || []).filter((c) => !enrolledIds.has(c.id));
+      return (allCourses || [])
+        .filter((c) => !enrolledIds.has(c.id))
+        .map((c) => ({ ...c, cantidadClases: leccionesMap.get(c.id) || 0 }));
     },
     enabled: !!user,
   });
