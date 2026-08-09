@@ -31,7 +31,12 @@ const getEmbedUrl = (url: string) => {
   if (ytMatch) return `https://www.youtube.com/embed/${ytMatch[1]}`;
   const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
   if (vimeoMatch) return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
-  // Si no es ninguno de los dos, se embebe la URL tal cual (para otros
+  // Un link de Drive "compartir" (.../view?usp=sharing) exige sesión de Google
+  // si se embebe tal cual. Lo reescribimos a la URL de reproductor de Drive
+  // (/preview), que sí funciona sin login para archivos públicos.
+  const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch) return `https://drive.google.com/file/d/${driveMatch[1]}/preview`;
+  // Si no es ninguno de los anteriores, se embebe la URL tal cual (para otros
   // proveedores de video) — pero solo si es http/https, sino un iframe con
   // "javascript:" u otro esquema raro no tiene por qué estar ahí.
   return isSafeUrl(url) ? url : "";
