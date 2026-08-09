@@ -32,6 +32,7 @@ import {
   Youtube,
   Instagram,
   Facebook,
+  MessageCircle,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,6 +41,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import FaqBot from "@/components/FaqBot";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { clasificarCursos } from "@/lib/courseGrouping";
+import { WHATSAPP_NUMBER, buildWhatsappLink } from "@/lib/whatsapp";
 
 interface Course {
   id: string;
@@ -63,11 +65,6 @@ interface Course {
   lecciones: { count: number }[];
   inscripciones: { count: number }[];
 }
-
-// wa.me arma solo el link correcto (app en mobile, WhatsApp Web en
-// desktop) — el número va sin espacios/guiones/+, con el 9 de celular
-// argentino incluido: +54 9 383 447-9734 -> 5493834479734.
-const WHATSAPP_NUMBER = "5493834479734";
 
 // La escuela existe desde antes de esta plataforma, así que estos números
 // del hero son fijos (trayectoria real de CapOL) en vez de salir de la
@@ -221,6 +218,18 @@ const Landing = () => {
     [courses]
   );
 
+  // Dentro de "en vivo", separamos los que tienen inscripción abierta
+  // ("proximamente") de los que ya están cursando ("activo") — antes
+  // compartían una sola sección "Cursos en vivo" y solo se distinguían por el badge.
+  const cursosInscripcionesAbiertas = useMemo(
+    () => cursosEnVivo.filter((c) => c.estado === "proximamente"),
+    [cursosEnVivo]
+  );
+  const cursosEnCurso = useMemo(
+    () => cursosEnVivo.filter((c) => c.estado === "activo"),
+    [cursosEnVivo]
+  );
+
   const handleScrollTo = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -348,7 +357,7 @@ const Landing = () => {
           <div className="absolute top-4 left-4">
             {course.estado === "proximamente" ? (
               <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none font-bold">
-                <Clock className="w-3 h-3 mr-1" /> Próximamente
+                <Clock className="w-3 h-3 mr-1" /> Inscripciones abiertas
               </Badge>
             ) : course.estado === "finalizado" ? (
               <Badge className="bg-white/20 backdrop-blur-sm text-white border-none font-bold">
@@ -432,6 +441,17 @@ const Landing = () => {
               <span className="text-xs text-slate-400 dark:text-white/30">Consultar precio</span>
             )}
           </div>
+
+          {course.estado === "activo" && course.modalidad === "en_vivo" && (
+            <a
+              href={buildWhatsappLink(`Hola! Quiero consultar la nueva fecha de inicio del curso "${course.titulo}".`)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full text-sm font-bold text-white bg-[#25D366] hover:bg-[#20bd5a] transition-colors px-4 py-2.5 rounded-xl"
+            >
+              <MessageCircle className="w-4 h-4" /> Consultar nueva fecha de inicio
+            </a>
+          )}
         </CardContent>
       </Card>
     </Tilt>
@@ -670,7 +690,8 @@ const Landing = () => {
             </div>
           ) : (
             <div>
-              {renderCourseSection("Cursos en vivo", "Con clases en vivo, horarios y una cursada grupal.", cursosEnVivo)}
+              {renderCourseSection("Inscripciones abiertas", "Cursos en vivo con cupo disponible — inscribite ahora.", cursosInscripcionesAbiertas)}
+              {renderCourseSection("Cursando", "Con clases en vivo, horarios y una cursada grupal ya en marcha.", cursosEnCurso)}
               {renderCourseSection("Cursos grabados", "Acceso inmediato y a tu ritmo — mirá la primera clase gratis.", cursosGrabados)}
               {renderCourseSection("Ediciones finalizadas", "Ya no se pueden inscribir, quedan como referencia del catálogo.", cursosFinalizados)}
             </div>

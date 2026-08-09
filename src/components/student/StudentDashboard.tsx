@@ -7,13 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import {
   BookOpen, Clock, CheckCircle, PlayCircle, GraduationCap,
-  ArrowRight, Users, DollarSign, Award, Zap, Calendar, Hourglass, Video, Film, Lock,
+  ArrowRight, Users, DollarSign, Award, Zap, Calendar, Hourglass, Video, Film, Lock, MessageCircle,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { openCertificate, fetchCertificateSignatures } from "@/lib/certificate";
 import PriceTag from "@/components/PriceTag";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
 import { clasificarCursos } from "@/lib/courseGrouping";
+import { buildWhatsappLink } from "@/lib/whatsapp";
 import EnrollmentDialog, { precioPrefijo } from "@/components/student/EnrollmentDialog";
 
 // Tarjeta de catálogo (distinta de "mis cursos"): se usa tanto para los
@@ -45,7 +46,7 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
       <div className="absolute top-2 left-2">
         {course.estado === "proximamente" ? (
           <Badge className="bg-amber-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
-            <Clock className="w-2.5 h-2.5 mr-1" /> Próximamente
+            <Clock className="w-2.5 h-2.5 mr-1" /> Inscripciones abiertas
           </Badge>
         ) : course.estado === "activo" ? (
           <Badge className="bg-indigo-500/90 backdrop-blur-sm text-white border-none text-[10px] font-bold">
@@ -111,9 +112,9 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
           ) : (
             <span className="text-xs text-muted-foreground">Consultar precio</span>
           )}
-          {!canEnroll && (
+          {!canEnroll && course.estado !== "activo" && (
             <span className="text-[11px] text-muted-foreground font-semibold">
-              {course.estado === "activo" ? "Cursando actualmente" : "Edición finalizada"}
+              Edición finalizada
             </span>
           )}
         </div>
@@ -134,6 +135,16 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
               {course.modalidad === "grabado" ? "Comprar" : "Inscribirme"} <ArrowRight className="w-3 h-3" />
             </button>
           </div>
+        )}
+        {!canEnroll && course.estado === "activo" && course.modalidad === "en_vivo" && (
+          <a
+            href={buildWhatsappLink(`Hola! Quiero consultar la nueva fecha de inicio del curso "${course.titulo}".`)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full text-xs font-bold text-white bg-[#25D366] hover:bg-[#20bd5a] transition-colors px-3 py-1.5 rounded-lg"
+          >
+            <MessageCircle className="w-3 h-3" /> Consultar nueva fecha de inicio
+          </a>
         )}
       </div>
     </CardContent>
@@ -220,6 +231,18 @@ const StudentDashboard = () => {
   const { enVivo: cursosEnVivo, grabado: cursosGrabados, finalizado: cursosFinalizados } = useMemo(
     () => clasificarCursos(availableCourses || []),
     [availableCourses]
+  );
+
+  // Dentro de "en vivo", separamos los que tienen inscripción abierta
+  // ("proximamente", los únicos a los que se puede inscribir) de los que ya
+  // están cursando ("activo", solo como referencia, sin botón de inscripción).
+  const cursosInscripcionesAbiertas = useMemo(
+    () => cursosEnVivo.filter((c) => c.estado === "proximamente"),
+    [cursosEnVivo]
+  );
+  const cursosEnCurso = useMemo(
+    () => cursosEnVivo.filter((c) => c.estado === "activo"),
+    [cursosEnVivo]
   );
 
   return (
@@ -334,23 +357,37 @@ const StudentDashboard = () => {
           </div>
         ) : (
           <>
-            {cursosEnVivo.length > 0 && (
+            {cursosInscripcionesAbiertas.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Cursos en Vivo</h2>
+                    <h2 className="text-2xl font-bold tracking-tight">Inscripciones Abiertas</h2>
                     <p className="text-muted-foreground text-sm mt-1">Solicitá tu inscripción y te contactamos para coordinar el pago.</p>
                   </div>
-                  <Badge variant="secondary" className="text-xs font-bold">{cursosEnVivo.length} cursos</Badge>
+                  <Badge variant="secondary" className="text-xs font-bold">{cursosInscripcionesAbiertas.length} cursos</Badge>
                 </div>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {cursosEnVivo.map((course: any) => (
+                  {cursosInscripcionesAbiertas.map((course: any) => (
                     <CourseCatalogCard
                       key={course.id}
                       course={course}
-                      canEnroll={course.estado === "proximamente"}
+                      canEnroll
                       onEnroll={() => setModalCourse(course)}
                     />
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {cursosEnCurso.length > 0 && (
+              <div className="space-y-4">
+                <div>
+                  <h2 className="text-2xl font-bold tracking-tight">Cursando</h2>
+                  <p className="text-muted-foreground text-sm mt-1">Cursada grupal ya en marcha — quedan como referencia, vas a poder inscribirte en la próxima edición.</p>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {cursosEnCurso.map((course: any) => (
+                    <CourseCatalogCard key={course.id} course={course} canEnroll={false} onEnroll={() => {}} />
                   ))}
                 </div>
               </div>
