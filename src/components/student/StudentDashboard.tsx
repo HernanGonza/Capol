@@ -171,7 +171,7 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select(`
           id, estado, curso_id,
-          cursos (id, titulo, descripcion, url_imagen, fecha_inicio, horarios, carga_horaria, lecciones (id))
+          cursos (id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, fecha_inicio, horarios, carga_horaria, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
         .eq("estado", "active");
@@ -279,8 +279,10 @@ const StudentDashboard = () => {
                 <Link key={item.id} to={`/course/${item.course?.id}`}>
                   <Card className="overflow-hidden border-none shadow-card hover:shadow-elevated transition-all duration-300 group bg-card">
                     <div className="h-44 relative overflow-hidden">
-                      {item.course?.url_imagen
-                        ? <img src={item.course.url_imagen} alt={item.course.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                      {item.course?.url_flyer || item.course?.url_imagen
+                        ? item.course?.tipo_flyer === "video"
+                          ? <video src={item.course.url_flyer} className="w-full h-full object-cover" muted loop autoPlay playsInline />
+                          : <img src={item.course.url_flyer || item.course.url_imagen} alt={item.course.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         : <div className="w-full h-full gradient-hero flex items-center justify-center"><BookOpen className="w-12 h-12 text-white/20" /></div>}
                       <div className="absolute inset-0 bg-black/20 group-hover:bg-black/10 transition-colors" />
                       {item.percent === 100 && (
