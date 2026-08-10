@@ -115,7 +115,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
               no nosotros). */}
           {block.type === 'video' && (
             <Card
-              className="overflow-hidden border-none shadow-2xl rounded-[2rem] bg-black ring-8 ring-muted"
+              className="overflow-hidden border-none shadow-2xl rounded-xl bg-black ring-2 ring-muted"
               onContextMenu={(e) => e.preventDefault()}
             >
               <div className="relative aspect-video">
