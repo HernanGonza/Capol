@@ -42,6 +42,16 @@ const getEmbedUrl = (url: string) => {
   return isSafeUrl(url) ? url : "";
 };
 
+// Un link de "compartir" de Drive (.../view?usp=...) no es una URL de imagen
+// válida para un <img src>, así que se ve como rota. Lo reescribimos al
+// formato de Google que sirve el archivo directo (mismo truco que
+// getEmbedUrl para video, pero para imágenes en vez de para iframe).
+const getImageUrl = (url: string) => {
+  const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
+  return isSafeUrl(url) ? url : "";
+};
+
 interface Props {
   content: string | null;
   // true para la muestra gratis de un curso grabado: oculta los recursos
@@ -126,7 +136,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
           {/* 3. IMAGEN */}
           {block.type === 'image' && (
             <div className="flex flex-col items-center group">
-              <img src={block.value} alt="Visual" className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-background" />
+              <img src={getImageUrl(block.value)} alt="Visual" className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-background" />
             </div>
           )}
 
