@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import JitsiMeet from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
+import DriveVideoEmbed from "@/components/DriveVideoEmbed";
 import { useState } from "react";
 import type { Database } from "@/integrations/supabase/types";
 import confetti from "canvas-confetti";
@@ -399,17 +400,8 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
           <DialogTitle className="sr-only">Grabación de la clase</DialogTitle>
           <DialogDescription className="sr-only">Video de la grabación de esta clase</DialogDescription>
           {driveEmbedUrl ? (
-            <div className="relative" onContextMenu={(e) => e.preventDefault()}>
-              <iframe
-                src={driveEmbedUrl}
-                className="w-full aspect-video rounded-xl"
-                allow="autoplay"
-                allowFullScreen
-              />
-              {/* Tapa el ícono de "abrir en ventana nueva" que Drive dibuja
-                  en la esquina: al ser contenido de otro origen no se puede
-                  quitar, así que lo cubrimos y bloqueamos el click ahí. */}
-              <div className="absolute top-0 right-0 w-14 h-14" />
+            <div className="rounded-xl overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
+              <DriveVideoEmbed src={driveEmbedUrl} />
             </div>
           ) : (
             <div className="p-10 text-center text-white space-y-3">

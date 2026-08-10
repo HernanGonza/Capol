@@ -14,6 +14,7 @@ import Terminal from "@/components/Terminal";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import { isSafeUrl } from "@/lib/safeUrl";
+import DriveVideoEmbed from "@/components/DriveVideoEmbed";
 
 marked.setOptions({ breaks: true, gfm: true });
 
@@ -113,25 +114,29 @@ const LessonBlocks = ({ content, restringido }: Props) => {
               vive en un iframe de otro origen — YouTube, Vimeo, Drive —, así
               que la protección real contra la descarga la da ese proveedor,
               no nosotros). */}
-          {block.type === 'video' && (
-            <Card
-              className="overflow-hidden border-none shadow-2xl rounded-xl bg-black ring-2 ring-muted"
-              onContextMenu={(e) => e.preventDefault()}
-            >
-              <div className="relative aspect-video">
-                <iframe
-                  src={getEmbedUrl(block.value)}
-                  className="w-full h-full"
-                  allowFullScreen
-                  allow="autoplay; encrypted-media"
-                />
-                {/* Tapa el ícono de "abrir en ventana nueva" que Drive dibuja
-                    en la esquina: al ser contenido de otro origen no se puede
-                    quitar, así que lo cubrimos y bloqueamos el click ahí. */}
-                <div className="absolute top-0 right-0 w-14 h-14" />
-              </div>
-            </Card>
-          )}
+          {block.type === 'video' && (() => {
+            const embedUrl = getEmbedUrl(block.value);
+            const isDrive = embedUrl.includes('drive.google.com');
+            return (
+              <Card
+                className="overflow-hidden border-none shadow-2xl rounded-none bg-black ring-2 ring-muted"
+                onContextMenu={(e) => e.preventDefault()}
+              >
+                {isDrive ? (
+                  <DriveVideoEmbed src={embedUrl} />
+                ) : (
+                  <div className="relative aspect-video">
+                    <iframe
+                      src={embedUrl}
+                      className="w-full h-full"
+                      allowFullScreen
+                      allow="autoplay; encrypted-media"
+                    />
+                  </div>
+                )}
+              </Card>
+            );
+          })()}
 
           {/* 3. IMAGEN */}
           {block.type === 'image' && (
