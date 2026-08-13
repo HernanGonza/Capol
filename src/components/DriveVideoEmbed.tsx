@@ -17,7 +17,9 @@ interface Props {
 // real disponible, así Drive "ve" siempre su tamaño de referencia.
 const DriveVideoEmbed = ({ src }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const [scale, setScale] = useState(1);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -29,31 +31,59 @@ const DriveVideoEmbed = ({ src }: Props) => {
     return () => observer.disconnect();
   }, []);
 
+  // El "scale(...)" de abajo crea un containing block para los elementos con
+  // position:fixed que haya adentro (spec de CSS transforms). Cuando el
+  // usuario pone el iframe en pantalla completa, el navegador lo posiciona
+  // con position:fixed pensando que va a cubrir toda la pantalla — pero al
+  // quedar contenido dentro de este div transformado (y recortado por el
+  // overflow-hidden, chico en mobile por el scale), termina viéndose
+  // achicado y con controles que quedan fuera del recorte. Mientras esté en
+  // pantalla completa, sacamos el transform/recorte para que el fullscreen
+  // nativo ocupe la pantalla real.
+  useEffect(() => {
+    const handleChange = () => {
+      const fsEl = document.fullscreenElement || (document as any).webkitFullscreenElement;
+      setIsFullscreen(fsEl === iframeRef.current);
+    };
+    document.addEventListener("fullscreenchange", handleChange);
+    document.addEventListener("webkitfullscreenchange", handleChange);
+    return () => {
+      document.removeEventListener("fullscreenchange", handleChange);
+      document.removeEventListener("webkitfullscreenchange", handleChange);
+    };
+  }, []);
+
   return (
     <div
       ref={containerRef}
       className="relative w-full overflow-hidden"
-      style={{ height: DRIVE_BASE_HEIGHT * scale }}
+      style={isFullscreen ? undefined : { height: DRIVE_BASE_HEIGHT * scale }}
     >
       <div
-        style={{
-          width: DRIVE_BASE_WIDTH,
-          height: DRIVE_BASE_HEIGHT,
-          transform: `scale(${scale})`,
-          transformOrigin: "top left",
-        }}
+        style={
+          isFullscreen
+            ? { width: "100%", height: "100%" }
+            : {
+                width: DRIVE_BASE_WIDTH,
+                height: DRIVE_BASE_HEIGHT,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+              }
+        }
       >
         <iframe
+          ref={iframeRef}
           src={src}
           width={DRIVE_BASE_WIDTH}
           height={DRIVE_BASE_HEIGHT}
+          className={isFullscreen ? "w-full h-full" : undefined}
           allowFullScreen
           allow="autoplay; encrypted-media"
         />
         {/* Tapa el ícono de "abrir en ventana nueva" que Drive dibuja en la
             esquina: al ser contenido de otro origen no se puede quitar, así
             que lo cubrimos y bloqueamos el click ahí. */}
-        <div className="absolute top-0 right-0 w-14 h-14" />
+        {!isFullscreen && <div className="absolute top-0 right-0 w-14 h-14" />}
       </div>
     </div>
   );

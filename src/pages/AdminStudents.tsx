@@ -178,7 +178,7 @@ const AdminStudents = () => {
       e.perfiles?.edad ?? "",
       e.perfiles?.ocupacion || "",
       e.cursos?.titulo || "",
-      e.subscription?.estado === "active" ? "Activa" : e.subscription?.estado === "expired" ? "Vencida" : "Pendiente",
+      e.subscription?.estado === "active" ? "Activa" : e.subscription?.estado === "pago_pendiente" ? "Pago pendiente" : e.subscription?.estado === "expired" ? "Vencida" : e.subscription?.estado === "cancelled" ? "Cancelada" : "Sin suscripción",
       e.inscripto_en ? new Date(e.inscripto_en).toLocaleDateString("es-AR") : "",
     ]);
     const escape = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
@@ -204,17 +204,20 @@ const AdminStudents = () => {
         .select("id")
         .eq("usuario_id", selectedStudent)
         .eq("curso_id", selectedCourse)
-        .eq("estado", "active")
+        .in("estado", ["active", "pago_pendiente"])
         .maybeSingle();
 
       if (existente) {
         throw new Error("Este alumno ya tiene una suscripción activa a este curso.");
       }
 
+      // Este flujo habilita el acceso sin registrar un pago real (eso se
+      // carga aparte en el panel de Suscripciones) — arranca en
+      // "pago_pendiente", no "active", para que quede claro que falta cobrar.
       const { error: subError } = await supabase.from("suscripciones").insert({
         usuario_id: selectedStudent,
         curso_id: selectedCourse,
-        estado: "active",
+        estado: "pago_pendiente",
         nombre_plan: "Manual",
         inicio_en: new Date().toISOString(),
       });
@@ -239,7 +242,7 @@ const AdminStudents = () => {
         .update({ estado: "expired" })
         .eq("usuario_id", enrollment.usuario_id)
         .eq("curso_id", enrollment.curso_id)
-        .eq("estado", "active");
+        .in("estado", ["active", "pago_pendiente"]);
       if (subError) throw subError;
 
       const { error: enrError } = await supabase.from("inscripciones").delete().eq("id", enrollment.id);

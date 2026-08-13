@@ -47,14 +47,17 @@ const AdminSolicitudes = () => {
           .select("id")
           .eq("usuario_id", usuarioId)
           .eq("curso_id", cursoId)
-          .eq("estado", "active")
+          .in("estado", ["active", "pago_pendiente"])
           .maybeSingle();
 
         if (!existente) {
+          // Aprobar la solicitud habilita el acceso, pero no implica que ya
+          // se haya registrado un pago — arranca en "pago_pendiente" y el
+          // admin la pasa a "active" cuando carga el cobro real.
           const { error: subError } = await supabase.from("suscripciones").insert({
             usuario_id: usuarioId,
             curso_id: cursoId,
-            estado: "active",
+            estado: "pago_pendiente",
             nombre_plan: "Manual",
             inicio_en: new Date().toISOString(),
           });

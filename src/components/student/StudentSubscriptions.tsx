@@ -8,6 +8,7 @@ import { Calendar, CreditCard, CheckCircle2, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
+import { estadoSuscripcionDisplay } from "@/lib/paymentCutoff";
 
 const StudentSubscriptions = () => {
   const { user } = useAuth();
@@ -45,16 +46,22 @@ const StudentSubscriptions = () => {
           </div>
         ) : subscriptions && subscriptions.length > 0 ? (
           <div className="grid gap-4">
-            {subscriptions.map((sub) => (
+            {subscriptions.map((sub) => {
+              const display = estadoSuscripcionDisplay(sub);
+              const label = { activa: "Activa", pago_pendiente: "Pago pendiente", vencida: "Vencida", cancelada: "Cancelada" }[display];
+              return (
               <Card key={sub.id} className="border-none shadow-card overflow-hidden">
                 <div className="flex flex-col md:flex-row">
-                  <div className={`w-2 md:w-3 ${sub.estado === 'active' ? 'bg-success' : 'bg-destructive'}`} />
+                  <div className={`w-2 md:w-3 ${display === 'activa' ? 'bg-success' : display === 'pago_pendiente' ? 'bg-amber-500' : 'bg-destructive'}`} />
                   <CardContent className="p-6 flex-1 flex flex-col md:flex-row md:items-center justify-between gap-6">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <h3 className="font-bold text-lg">{sub.cursos?.titulo}</h3>
-                        <Badge variant={sub.estado === 'active' ? 'default' : 'destructive'} className={sub.estado === 'active' ? 'bg-success/10 text-success border-none' : ''}>
-                          {sub.estado === 'active' ? 'Activa' : 'Vencida'}
+                        <Badge
+                          variant={display === 'activa' ? 'default' : display === 'pago_pendiente' ? 'outline' : 'destructive'}
+                          className={display === 'activa' ? 'bg-success/10 text-success border-none' : display === 'pago_pendiente' ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900' : ''}
+                        >
+                          {label}
                         </Badge>
                       </div>
                       <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-4 text-sm text-muted-foreground">
@@ -79,20 +86,25 @@ const StudentSubscriptions = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {sub.estado === 'active' ? (
+                      {display === 'activa' ? (
                         <div className="flex items-center gap-2 text-success font-semibold text-sm bg-success/5 px-4 py-2 rounded-full">
                           <CheckCircle2 className="w-4 h-4" /> Al día
                         </div>
+                      ) : display === 'pago_pendiente' ? (
+                        <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-semibold text-sm bg-amber-500/10 px-4 py-2 rounded-full">
+                          <AlertCircle className="w-4 h-4" /> Pago pendiente
+                        </div>
                       ) : (
                         <div className="flex items-center gap-2 text-destructive font-semibold text-sm bg-destructive/5 px-4 py-2 rounded-full">
-                          <AlertCircle className="w-4 h-4" /> Pago pendiente
+                          <AlertCircle className="w-4 h-4" /> {display === 'cancelada' ? 'Cancelada' : 'Vencida'}
                         </div>
                       )}
                     </div>
                   </CardContent>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <Card className="p-12 text-center border-dashed border-2 bg-transparent">

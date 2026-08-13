@@ -120,7 +120,7 @@ const TeacherLessons = () => {
         .from("suscripciones")
         .select("usuario_id")
         .eq("curso_id", courseId!)
-        .eq("estado", "active");
+        .in("estado", ["active", "pago_pendiente"]);
       if (error) throw error;
       return data || [];
     },

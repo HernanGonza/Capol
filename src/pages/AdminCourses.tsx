@@ -70,7 +70,7 @@ const AdminCourses = () => {
         .order("creado_en", { ascending: false });
       if (error) throw error;
       const { data: activeSubs } = await supabase
-        .from("suscripciones").select("curso_id").eq("estado", "active");
+        .from("suscripciones").select("curso_id").in("estado", ["active", "pago_pendiente"]);
       return data.map((course: any) => ({
         ...course,
         active_count: activeSubs?.filter((s: any) => s.curso_id === course.id).length || 0,

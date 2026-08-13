@@ -174,7 +174,7 @@ const StudentDashboard = () => {
           cursos (id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, fecha_inicio, horarios, carga_horaria, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
-        .eq("estado", "active");
+        .in("estado", ["active", "pago_pendiente"]);
       if (error) throw error;
 
       const { data: progress } = await supabase
@@ -229,7 +229,7 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select("curso_id")
         .eq("usuario_id", user!.id)
-        .eq("estado", "active");
+        .in("estado", ["active", "pago_pendiente"]);
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
       return (allCourses || [])
@@ -297,7 +297,7 @@ const StudentDashboard = () => {
                       )}
                       {!pago?.bloqueado && pago?.porVencer && (
                         <div className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg animate-pulse">
-                          <Clock className="w-3 h-3" /> VENCE EL 10
+                          <Clock className="w-3 h-3" /> VENCE PRONTO
                         </div>
                       )}
                     </div>

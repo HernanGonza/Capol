@@ -12,9 +12,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { BookOpen, Plus, Search, Filter, Calendar, Edit2, RefreshCw, AlertTriangle, MessageSquare, Wallet, ExternalLink } from "lucide-react";
-import { format, parseISO, addDays, startOfMonth } from "date-fns";
+import { format, parseISO, addDays } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
-import { DIA_LIMITE_PAGO, DIAS_AVISO_PREVIO } from "@/lib/paymentCutoff";
+import { estaVencido, estaPorVencer, estadoSuscripcionDisplay, type EstadoSuscripcionDisplay } from "@/lib/paymentCutoff";
 
 const AdminSubscriptions = () => {
   const queryClient = useQueryClient();
@@ -66,55 +66,42 @@ const AdminSubscriptions = () => {
     queryClient.invalidateQueries({ queryKey: ["pagos"] });
   };
 
-  // --- LÓGICA DE AUTO-BLOQUEO POR FALTA DE PAGO ---
-  // Regla: hay que pagar antes del día 10 de cada mes. Si llega el día 11 y
-  // no hay un pago registrado (tabla "pagos") dentro del mes en curso para
-  // esa suscripción, se marca "expired" — CourseView además hace su propio
-  // chequeo en vivo con la misma regla, así que el corte real de acceso no
-  // depende de que este panel se haya abierto ese día.
+  // --- LÓGICA DE SINCRONIZACIÓN AUTOMÁTICA DE ESTADOS POR FECHA ---
+  // Una suscripción "en vivo" recorre 3 estados según sus propias fechas
+  // (las mismas que se editan acá como "Próx. Cobro" y "Vence Acceso"):
+  //   active --(pasó proxima_fecha_pago)--> pago_pendiente --(pasó fin_en)--> expired
+  // CourseView hace el mismo chequeo de fin_en en vivo (ver paymentCutoff.ts),
+  // así que el corte real de acceso no depende de que este panel se haya
+  // abierto — esto solo mantiene "estado" al día para mostrarlo bien acá y
+  // en "Mi Suscripción".
+  //
+  // Si "proxima_fecha_pago"/"fin_en" están vacíos (por ejemplo, una
+  // suscripción creada al aprobar una solicitud sin fechas cargadas) no se
+  // mueve sola: hay que asignarle fechas a mano para que esta regla aplique.
   //
   // Esto SOLO aplica a cursos en_vivo: los grabados se compran una sola vez
-  // (sin pago recurrente), así que no tiene sentido exigirles un "pago de
-  // este mes" — si se les aplicara esta regla, perderían el acceso al mes
-  // de haber comprado, aunque ya hayan pagado todo el curso.
-  const checkAndBlockUnpaidSubscriptions = async (subs: any[]) => {
-    if (new Date().getDate() <= DIA_LIMITE_PAGO) return;
+  // (sin pago recurrente), así que no tiene sentido exigirles vencimiento
+  // mensual — si se les aplicara esta regla, perderían el acceso al mes de
+  // haber comprado, aunque ya hayan pagado todo el curso.
+  const checkAndSyncSubscriptionStatuses = async (subs: any[]) => {
+    const ahora = new Date();
+    const enVivoActivas = subs.filter((sub) => sub.cursos?.modalidad === "en_vivo" && (sub.estado === "active" || sub.estado === "pago_pendiente"));
 
-    const activos = subs.filter((sub) => sub.estado === "active" && sub.cursos?.modalidad === "en_vivo");
-    if (!activos.length) return;
+    const aExpirar = enVivoActivas.filter((sub) => estaVencido(sub.fin_en, ahora)).map((s) => s.id);
+    const aPagoPendiente = enVivoActivas
+      .filter((sub) => sub.estado === "active" && !estaVencido(sub.fin_en, ahora) && sub.proxima_fecha_pago && new Date(sub.proxima_fecha_pago) <= ahora)
+      .map((s) => s.id);
 
-    const { data: pagos } = await supabase
-      .from("pagos")
-      .select("suscripcion_id")
-      .gte("pagado_en", startOfMonth(new Date()).toISOString());
-    const pagaronEsteMes = new Set((pagos || []).map((p) => p.suscripcion_id));
-
-    const toBlock = activos.filter((sub) => !pagaronEsteMes.has(sub.id)).map((s) => s.id);
-    if (toBlock.length > 0) {
-      const { error } = await supabase
-        .from("suscripciones")
-        .update({ estado: 'expired' })
-        .in("id", toBlock);
-
-      if (!error) {
-        queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
-      }
+    if (aExpirar.length > 0) {
+      await supabase.from("suscripciones").update({ estado: 'expired' }).in("id", aExpirar);
+    }
+    if (aPagoPendiente.length > 0) {
+      await supabase.from("suscripciones").update({ estado: 'pago_pendiente' }).in("id", aPagoPendiente);
+    }
+    if (aExpirar.length > 0 || aPagoPendiente.length > 0) {
+      queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
     }
   };
-
-  // Pagos del mes en curso (por suscripción) — se usa tanto para el
-  // auto-bloqueo de arriba como para el badge "COBRAR PRONTO" de cada tarjeta.
-  const { data: pagosEsteMes } = useQuery({
-    queryKey: ["pagos-mes-actual"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("pagos")
-        .select("suscripcion_id")
-        .gte("pagado_en", startOfMonth(new Date()).toISOString());
-      if (error) throw error;
-      return new Set((data || []).map((p) => p.suscripcion_id));
-    },
-  });
 
   // Queries
   const { data: students } = useQuery({
@@ -160,7 +147,7 @@ const AdminSubscriptions = () => {
         .order("creado_en", { ascending: false });
       
       if (error) throw error;
-      if (data) checkAndBlockUnpaidSubscriptions(data);
+      if (data) checkAndSyncSubscriptionStatuses(data);
       return data || [];
     },
   });
@@ -209,13 +196,13 @@ const AdminSubscriptions = () => {
       // Si estamos creando una suscripción activa nueva, chequeamos antes que no
       // haya ya otra activa para el mismo alumno + curso (la base también lo
       // impide con una restricción, pero acá damos un mensaje más claro).
-      if (!editingId && form.estado === "active") {
+      if (!editingId && (form.estado === "active" || form.estado === "pago_pendiente")) {
         const { data: existente } = await supabase
           .from("suscripciones")
           .select("id")
           .eq("usuario_id", form.usuario_id)
           .eq("curso_id", form.curso_id)
-          .eq("estado", "active")
+          .in("estado", ["active", "pago_pendiente"])
           .maybeSingle();
         if (existente) {
           throw new Error("Este alumno ya tiene una suscripción activa a este curso.");
@@ -310,10 +297,18 @@ const AdminSubscriptions = () => {
     setForm({ usuario_id: "", curso_id: "", nombre_plan: "Mensual", price: "", estado: "active", inicio_en: format(new Date(), "yyyy-MM-dd"), proxima_fecha_pago: "", fin_en: "", proveedor_pago: "" });
   };
 
-  const statusColor: Record<string, string> = {
-    active: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
-    cancelled: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
-    expired: "bg-muted text-muted-foreground border-border",
+  const statusColor: Record<EstadoSuscripcionDisplay, string> = {
+    activa: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
+    pago_pendiente: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+    vencida: "bg-muted text-muted-foreground border-border",
+    cancelada: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
+  };
+
+  const statusLabel: Record<EstadoSuscripcionDisplay, string> = {
+    activa: "AL DÍA",
+    pago_pendiente: "PAGO PENDIENTE",
+    vencida: "VENCIDA",
+    cancelada: "CANCELADA",
   };
 
   return (
@@ -397,6 +392,7 @@ const AdminSubscriptions = () => {
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="active">Activo (Pagado)</SelectItem>
+                        <SelectItem value="pago_pendiente">Pago pendiente</SelectItem>
                         <SelectItem value="expired">Expirado (Deuda)</SelectItem>
                         <SelectItem value="cancelled">Cancelado</SelectItem>
                       </SelectContent>
@@ -459,6 +455,7 @@ const AdminSubscriptions = () => {
                 <SelectContent>
                   <SelectItem value="all">Todos los estados</SelectItem>
                   <SelectItem value="active">Al día</SelectItem>
+                  <SelectItem value="pago_pendiente">Pago pendiente</SelectItem>
                   <SelectItem value="expired">Expirados</SelectItem>
                   <SelectItem value="cancelled">Cancelados</SelectItem>
                 </SelectContent>
@@ -470,10 +467,8 @@ const AdminSubscriptions = () => {
         <div className="grid gap-4">
           {filteredSubs.map((sub: any) => {
             const esGrabado = sub.cursos?.modalidad === "grabado";
-            const pagoEsteMes = pagosEsteMes?.has(sub.id) ?? false;
-            const diaHoy = new Date().getDate();
-            const isNearExp = !esGrabado && sub.estado === 'active' && !pagoEsteMes &&
-                             diaHoy >= DIA_LIMITE_PAGO - DIAS_AVISO_PREVIO && diaHoy <= DIA_LIMITE_PAGO;
+            const display = estadoSuscripcionDisplay(sub);
+            const isNearExp = !esGrabado && sub.estado === 'active' && estaPorVencer(sub.fin_en);
 
             return (
               <Card key={sub.id} className={`overflow-hidden transition-all shadow-card ${isNearExp ? 'border-amber-500 ring-1 ring-amber-500' : ''}`}>
@@ -482,8 +477,8 @@ const AdminSubscriptions = () => {
                     <div className="flex flex-wrap items-center gap-3 mb-1">
                       <h3 className="font-bold text-lg">{(sub.perfiles as any)?.nombre_completo}</h3>
                       <span className="text-sm text-muted-foreground">{(sub.perfiles as any)?.email}</span>
-                      <Badge variant="outline" className={statusColor[sub.estado || "expired"]}>
-                        {sub.estado === 'active' ? (esGrabado ? 'COMPRADO' : 'AL DÍA') : (sub.estado || "sin estado").toUpperCase()}
+                      <Badge variant="outline" className={statusColor[display]}>
+                        {display === 'activa' && esGrabado ? 'COMPRADO' : statusLabel[display]}
                       </Badge>
                       {isNearExp && (
                         <Badge className="bg-amber-500 text-white border-none animate-pulse">
@@ -527,7 +522,7 @@ const AdminSubscriptions = () => {
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Vencimiento</span>
-                        <span className={sub.estado === 'expired' ? 'text-destructive font-bold' : 'font-bold'}>
+                        <span className={display === 'vencida' ? 'text-destructive font-bold' : 'font-bold'}>
                           {sub.fin_en ? format(parseISO(sub.fin_en), "dd/MM/yyyy") : "-"}
                         </span>
                       </div>

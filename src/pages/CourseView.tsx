@@ -6,14 +6,13 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare, Users, ArrowLeft } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
 import CourseForumDialog from "@/components/CourseForumDialog";
 import EnrollmentDialog from "@/components/student/EnrollmentDialog";
 import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
-import { DIA_LIMITE_PAGO } from "@/lib/paymentCutoff";
 
 const CourseView = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -23,9 +22,8 @@ const CourseView = () => {
   const [forumOpen, setForumOpen] = useState(false);
   const [showPurchase, setShowPurchase] = useState(false);
 
-  // 1. Verificar suscripción activa y si el pago del mes en curso está al
-  // día (regla: hay que pagar antes del día 10 de cada mes; si no, el
-  // acceso se corta a partir del día 11 — ver src/lib/paymentCutoff.ts).
+  // 1. Verificar suscripción activa y si sigue vigente (no venció la fecha
+  // "fin_en" que el admin le cargó a la suscripción — ver src/lib/paymentCutoff.ts).
   const { data: paymentStatus, isLoading: isLoadingSub } = usePaymentStatus(user?.id);
   const courseStatus = paymentStatus?.find((p) => p.cursoId === courseId);
   const subscription = courseStatus ? { estado: "active" } : null;
@@ -83,8 +81,8 @@ const CourseView = () => {
     enabled: !!courseId,
   });
 
-  // Bloqueado = no hay suscripción activa, o sí la hay pero no se registró el
-  // pago de este mes y ya pasó el día 10 (ver src/lib/paymentCutoff.ts).
+  // Bloqueado = no hay suscripción activa, o sí la hay pero ya pasó su fecha
+  // de vencimiento (fin_en) sin haberse renovado (ver src/lib/paymentCutoff.ts).
   const bloqueadoPorPago = !!courseStatus?.bloqueado;
   const hasFullAccess = isStaffPreview || (!!subscription && !bloqueadoPorPago);
   // Un curso grabado sin comprar no se bloquea del todo: se deja pasar en
@@ -172,6 +170,13 @@ const CourseView = () => {
 
   const selectedLesson = lessons?.find((l) => l.id === selectedLessonId);
 
+  // Al abrir una clase, arrancar con el scroll arriba de todo: como no
+  // cambia la URL (es el mismo componente, solo cambia el estado), sin esto
+  // hereda el scroll que traía el listado de lecciones.
+  useEffect(() => {
+    if (selectedLessonId) window.scrollTo(0, 0);
+  }, [selectedLessonId]);
+
   // Pantalla de carga
   if (isLoadingSub || isLoadingCourse || isLoadingTeacherAccess) {
     return (
@@ -197,7 +202,7 @@ const CourseView = () => {
             <h1 className="text-2xl font-bold">Acceso no autorizado</h1>
             <p className="text-muted-foreground">
               {bloqueadoPorPago
-                ? `No se registró tu pago de este mes. El acceso se desactiva automáticamente si no se paga antes del día ${DIA_LIMITE_PAGO}.`
+                ? "Tu suscripción venció. El acceso se reactiva automáticamente al registrarse un nuevo pago."
                 : "No tienes una suscripción activa vinculada a este curso."}
             </p>
           </div>
