@@ -772,6 +772,7 @@ export type Database = {
         Row: {
           activo: boolean
           actualizado_en: string | null
+          bienvenida_vista: boolean
           biografia: string | null
           creado_en: string | null
           direccion: string | null
@@ -793,6 +794,7 @@ export type Database = {
         Insert: {
           activo?: boolean
           actualizado_en?: string | null
+          bienvenida_vista?: boolean
           biografia?: string | null
           creado_en?: string | null
           direccion?: string | null
@@ -814,6 +816,7 @@ export type Database = {
         Update: {
           activo?: boolean
           actualizado_en?: string | null
+          bienvenida_vista?: boolean
           biografia?: string | null
           creado_en?: string | null
           direccion?: string | null
@@ -1042,6 +1045,7 @@ export type Database = {
         Args: { p_remitente: string }
         Returns: boolean
       }
+      detectar_anomalias_seguridad: { Args: never; Returns: undefined }
       editar_mensaje_propio: {
         Args: { p_contenido: string; p_mensaje_id: string }
         Returns: undefined
@@ -1091,6 +1095,10 @@ export type Database = {
           nombre_completo: string
           url_avatar: string
         }[]
+      }
+      primer_orden_leccion: {
+        Args: { curso_id_param: string }
+        Returns: number
       }
     }
     Enums: {

@@ -27,6 +27,7 @@ import NotificationBell, { type ForoActividadCurso } from "@/components/Notifica
 import PaymentDueBanner from "@/components/student/PaymentDueBanner";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
 import { startOnboardingTour } from "@/lib/onboardingTour";
+import WelcomeModal from "@/components/WelcomeModal";
 
 // Cada página envuelve su propio contenido en <AppLayout>, así que este
 // componente (y con él, el <nav> del sidebar) se remonta en cada cambio de
@@ -77,6 +78,16 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     if (navRef.current) navRef.current.scrollTop = sidebarScrollTop;
   }, []);
 
+  // Modal de bienvenida: se muestra una sola vez por usuario, antes que
+  // nada (incluido el tour de driver.js de abajo, que solo arranca una vez
+  // que "bienvenida_vista" ya quedó en true).
+  const showWelcome = !!user && !!profile && !profile.bienvenida_vista;
+  const handleCloseWelcome = async () => {
+    if (!user) return;
+    await supabase.from("perfiles").update({ bienvenida_vista: true }).eq("id", user.id);
+    refreshProfile();
+  };
+
   // Tour de bienvenida: se muestra una sola vez por usuario NUEVO (o hasta
   // que llegue al final y toque "Finalizar Tour"). Apunta solo a elementos
   // que están siempre en el sidebar (sin depender de navegar de página en
@@ -84,6 +95,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   // se abre solo para el tour y se vuelve a cerrar al terminar.
   useEffect(() => {
     if (!user || !role || !profile) return;
+    if (!profile.bienvenida_vista) return; // primero el modal de bienvenida
     if (profile.tour_completado) return;
     if (tourStartedForUserId === user.id) return;
     tourStartedForUserId = user.id;
@@ -121,7 +133,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, role, profile?.tour_completado]);
+  }, [user?.id, role, profile?.tour_completado, profile?.bienvenida_vista]);
 
   const { data: solicitudesPendientes } = useQuery({
     queryKey: ["solicitudes-pendientes-count"],
@@ -354,6 +366,8 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
 
   return (
     <div className="h-screen flex bg-background font-sans overflow-hidden">
+      <WelcomeModal open={showWelcome} nombre={profile?.nombre_completo} onClose={handleCloseWelcome} />
+
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div 
