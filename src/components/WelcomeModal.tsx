@@ -23,7 +23,7 @@ const WelcomeModal = ({ open, nombre, onClose }: Props) => {
             {primerNombre ? `¡Bienvenido/a, ${primerNombre}!` : "¡Bienvenido/a a CapOL!"}
           </DialogTitle>
           <DialogDescription className="text-center">
-            Nos alegra tenerte en la plataforma. Acá vas a encontrar tus cursos, clases en vivo y grabadas, y todo el contacto con tus profesores y compañeros. Te mostramos rápido cómo movete.
+            Nos alegra tenerte en la plataforma. Acá vas a encontrar tus cursos, clases en vivo y grabadas, y todo el contacto con tus profesores y compañeros. Te mostramos rápido cómo moverte.
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="sm:justify-center">
