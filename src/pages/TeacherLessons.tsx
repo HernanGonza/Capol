@@ -233,6 +233,8 @@ const TeacherLessons = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
       toast.success("Clase eliminada");
     },
     onError: (e: any) => toast.error(e.message),
@@ -795,6 +797,7 @@ const TeacherLessons = () => {
         courseTitle={course?.titulo}
       />
       {endClassDialog}
+      {deleteLessonDialog}
     </AppLayout>
   );
 };

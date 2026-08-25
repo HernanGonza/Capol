@@ -7,6 +7,16 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   Plus,
@@ -71,13 +81,14 @@ interface LessonEditorDialogProps {
   lesson?: any | null;
   nextOrder: number;
   onSaved: () => void;
+  onDeleted?: () => void;
 }
 
 // Editor de contenido de una clase (bloques + configuración de acceso/video llamada).
 // Se usa tanto desde la gestión de cursos del admin como desde "Gestionar Clases"
 // del profesor — antes el profesor tenía que salir a una pantalla aparte
 // (/admin/courses/:id/lessons) para esto y perdía el contexto de su propia lista.
-const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, onSaved }: LessonEditorDialogProps) => {
+const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, onSaved, onDeleted }: LessonEditorDialogProps) => {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [lessonTitle, setLessonTitle] = useState("");
   const [unlockDate, setUnlockDate] = useState("");
@@ -85,6 +96,7 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
   const [salaJitsi, setSalaJitsi] = useState("");
   const [editingLessonId, setEditingLessonId] = useState<string | null>(null);
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -131,6 +143,21 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
       onSaved();
     },
     onError: (err: any) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      toast.success("Clase eliminada");
+      setConfirmDelete(false);
+      onOpenChange(false);
+      onDeleted?.();
+      onSaved();
+    },
+    onError: (err: any) => toast.error(err.message || "No se pudo eliminar la clase"),
   });
 
   const addBlock = (type: string) => {
@@ -276,7 +303,8 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <>
+    <Dialog open={open} onOpenChange={(o) => { if (confirmDelete) return; onOpenChange(o); }}>
       <DialogContent className="max-w-4xl xl:max-w-7xl max-h-[90vh] overflow-y-auto border-none shadow-2xl rounded-3xl">
         <DialogHeader>
           <DialogTitle className="text-2xl font-black">{editingLessonId ? "Editar Clase" : "Crear Nueva Clase"}</DialogTitle>
@@ -559,12 +587,50 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
           </div>
           </div>
 
-          <Button onClick={() => saveMutation.mutate()} className="w-full h-14 gradient-primary text-white font-black text-lg shadow-xl" disabled={!lessonTitle || blocks.length === 0 || saveMutation.isPending}>
-            {saveMutation.isPending ? "GUARDANDO..." : "GUARDAR CLASE"}
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {editingLessonId && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-14 sm:w-auto text-destructive hover:bg-destructive/10 font-bold"
+                disabled={deleteMutation.isPending || saveMutation.isPending}
+                onClick={() => setConfirmDelete(true)}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar clase
+              </Button>
+            )}
+            <Button onClick={() => saveMutation.mutate()} className="flex-1 h-14 gradient-primary text-white font-black text-lg shadow-xl" disabled={!lessonTitle || blocks.length === 0 || saveMutation.isPending}>
+              {saveMutation.isPending ? "GUARDANDO..." : "GUARDAR CLASE"}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
+
+      <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta clase?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {lessonTitle ? `"${lessonTitle}" se va a eliminar. ` : ""}Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={deleteMutation.isPending}
+              onClick={() => {
+                if (editingLessonId) deleteMutation.mutate(editingLessonId);
+              }}
+            >
+              {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 };
 

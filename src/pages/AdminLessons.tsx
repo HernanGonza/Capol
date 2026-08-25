@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Calendar, LockOpen, ArrowLeft, Users, MessageSquare } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
+import { Plus, Calendar, LockOpen, ArrowLeft, Users, MessageSquare, Trash2 } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 
 // Clases viejas guardaban el contenido como texto plano/HTML, no como el JSON
@@ -29,6 +40,7 @@ const AdminLessons = () => {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<any>(null);
+  const [deleteLessonConfirm, setDeleteLessonConfirm] = useState<any>(null);
 
   const { data: course } = useQuery({
     queryKey: ["course-details-admin", courseId],
@@ -82,6 +94,20 @@ const AdminLessons = () => {
     setOpen(true);
   };
 
+  const deleteMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
+      queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      toast.success("Clase eliminada");
+    },
+    onError: (e: any) => toast.error(e.message || "No se pudo eliminar la clase"),
+  });
+
   // Si llegamos con ?edit=<id> (por ejemplo desde el listado de clases del profesor),
   // abrimos directamente esa clase apenas cargan las lecciones.
   useEffect(() => {
@@ -134,6 +160,30 @@ const AdminLessons = () => {
           nextOrder={lessons?.length || 0}
           onSaved={() => queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] })}
         />
+
+        <AlertDialog open={!!deleteLessonConfirm} onOpenChange={(o) => !o && setDeleteLessonConfirm(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Eliminar esta clase?</AlertDialogTitle>
+              <AlertDialogDescription>
+                {deleteLessonConfirm?.titulo ? `"${deleteLessonConfirm.titulo}" se va a eliminar. ` : ""}Esta acción no se puede deshacer.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                disabled={deleteMutation.isPending}
+                onClick={() => {
+                  if (deleteLessonConfirm) deleteMutation.mutate(deleteLessonConfirm.id);
+                  setDeleteLessonConfirm(null);
+                }}
+              >
+                {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         {/* ALUMNOS INSCRIPTOS */}
         <Card className="shadow-card overflow-hidden">
@@ -202,7 +252,21 @@ const AdminLessons = () => {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="sm" className="shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 font-bold">EDITAR</Button>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button variant="ghost" size="sm" className="opacity-100 md:opacity-0 md:group-hover:opacity-100 font-bold">EDITAR</Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="text-destructive hover:bg-destructive/10"
+                      title="Eliminar clase"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteLessonConfirm(lesson);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </CardContent>
               </Card>
             );
