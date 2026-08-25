@@ -19,6 +19,7 @@ import {
 import { toast } from "sonner";
 import { Plus, Calendar, LockOpen, ArrowLeft, Users, MessageSquare, Trash2 } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
+import { deleteLessonCompletely } from "@/lib/deleteLesson";
 
 // Clases viejas guardaban el contenido como texto plano/HTML, no como el JSON
 // de bloques actual (ver el mismo caso ya contemplado en LessonBlocks.tsx) —
@@ -96,10 +97,10 @@ const AdminLessons = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (lessonId: string) => {
-      const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
-      if (error) throw error;
+      return deleteLessonCompletely(lessonId);
     },
     onSuccess: () => {
+      setDeleteLessonConfirm(null);
       queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] });
       queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
       queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
@@ -166,7 +167,7 @@ const AdminLessons = () => {
             <AlertDialogHeader>
               <AlertDialogTitle>¿Eliminar esta clase?</AlertDialogTitle>
               <AlertDialogDescription>
-                {deleteLessonConfirm?.titulo ? `"${deleteLessonConfirm.titulo}" se va a eliminar. ` : ""}Esta acción no se puede deshacer.
+                {deleteLessonConfirm?.titulo ? `"${deleteLessonConfirm.titulo}" se va a eliminar. ` : ""}También se eliminarán sus recursos, ejercicios, entregas y progreso de alumnos. Esta acción no se puede deshacer.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -176,7 +177,6 @@ const AdminLessons = () => {
                 disabled={deleteMutation.isPending}
                 onClick={() => {
                   if (deleteLessonConfirm) deleteMutation.mutate(deleteLessonConfirm.id);
-                  setDeleteLessonConfirm(null);
                 }}
               >
                 {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}

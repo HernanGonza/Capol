@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { deleteLessonCompletely } from "@/lib/deleteLesson";
 import {
   Plus,
   Video,
@@ -147,11 +148,11 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
 
   const deleteMutation = useMutation({
     mutationFn: async (lessonId: string) => {
-      const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
-      if (error) throw error;
+      return deleteLessonCompletely(lessonId);
     },
-    onSuccess: () => {
-      toast.success("Clase eliminada");
+    onSuccess: (result) => {
+      const filesDeleted = result.lessonResourcesDeleted + result.submissionFilesDeleted;
+      toast.success(`Clase eliminada${filesDeleted ? ` junto con ${filesDeleted} archivo${filesDeleted === 1 ? "" : "s"}` : ""}`);
       setConfirmDelete(false);
       onOpenChange(false);
       onDeleted?.();
@@ -613,7 +614,7 @@ const LessonEditorDialog = ({ open, onOpenChange, courseId, lesson, nextOrder, o
           <AlertDialogHeader>
             <AlertDialogTitle>¿Eliminar esta clase?</AlertDialogTitle>
             <AlertDialogDescription>
-              {lessonTitle ? `"${lessonTitle}" se va a eliminar. ` : ""}Esta acción no se puede deshacer.
+              {lessonTitle ? `"${lessonTitle}" se va a eliminar. ` : ""}También se eliminarán sus recursos, ejercicios, entregas y progreso de alumnos. Esta acción no se puede deshacer.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

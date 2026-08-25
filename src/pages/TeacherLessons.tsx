@@ -48,6 +48,7 @@ import LessonBlocks from "@/components/LessonBlocks";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 import RevisarEntregasDialog from "@/components/RevisarEntregasDialog";
 import CourseForumDialog from "@/components/CourseForumDialog";
+import { deleteLessonCompletely } from "@/lib/deleteLesson";
 
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
@@ -229,14 +230,14 @@ const TeacherLessons = () => {
 
   const deleteMutation = useMutation({
     mutationFn: async (lessonId: string) => {
-      const { error } = await supabase.from("lecciones").delete().eq("id", lessonId);
-      if (error) throw error;
+      return deleteLessonCompletely(lessonId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
       queryClient.invalidateQueries({ queryKey: ["lecciones", courseId] });
       queryClient.invalidateQueries({ queryKey: ["admin-courses-full-list"] });
-      toast.success("Clase eliminada");
+      setDeleteLessonConfirm(null);
+      toast.success("Clase y archivos asociados eliminados");
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -294,7 +295,7 @@ const TeacherLessons = () => {
         <AlertDialogHeader>
           <AlertDialogTitle>¿Eliminar esta clase?</AlertDialogTitle>
           <AlertDialogDescription>
-            {deleteLessonConfirm?.titulo ? `"${deleteLessonConfirm.titulo}" se va a eliminar. ` : ""}Esta acción no se puede deshacer.
+            {deleteLessonConfirm?.titulo ? `"${deleteLessonConfirm.titulo}" se va a eliminar. ` : ""}También se eliminarán sus recursos, ejercicios, entregas y progreso de alumnos. Esta acción no se puede deshacer.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -304,10 +305,9 @@ const TeacherLessons = () => {
             disabled={deleteMutation.isPending}
             onClick={() => {
               if (deleteLessonConfirm) deleteMutation.mutate(deleteLessonConfirm.id);
-              setDeleteLessonConfirm(null);
             }}
           >
-            Eliminar
+            {deleteMutation.isPending ? "Eliminando..." : "Eliminar"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
