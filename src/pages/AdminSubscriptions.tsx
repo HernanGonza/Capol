@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
+import { ARS_FIXED_RATE } from "@/lib/currency";
 import {
   estaVencido,
   estaPorVencer,
@@ -76,6 +77,15 @@ const AdminSubscriptions = () => {
     proveedor_pago: "",
     estado: "pago_pendiente",
   });
+
+  const precioCursoArs = (course: any) => {
+    const precioUsd = Number(course?.precio);
+    const cotizacionArs = Number(course?.cotizacion_ars) || ARS_FIXED_RATE;
+
+    return Number.isFinite(precioUsd) && precioUsd > 0
+      ? Math.round(precioUsd * cotizacionArs * 100) / 100
+      : null;
+  };
 
   const { data: students } = useQuery({
     queryKey: ["all-students"],
@@ -110,7 +120,7 @@ const AdminSubscriptions = () => {
       const { data, error } = await supabase
         .from("cursos")
         .select(
-          "id, titulo, modalidad, fecha_inicio, precio, moneda, tipo_precio"
+          "id, titulo, modalidad, fecha_inicio, precio, moneda, tipo_precio, cotizacion_ars"
         )
         .order("titulo");
 
@@ -188,7 +198,8 @@ const AdminSubscriptions = () => {
             fecha_inicio,
             precio,
             moneda,
-            tipo_precio
+            tipo_precio,
+            cotizacion_ars
           )
         `)
         .order("creado_en", {
@@ -295,12 +306,7 @@ const AdminSubscriptions = () => {
       setForm({
         usuario_id: sub.usuario_id,
         curso_id: sub.curso_id,
-        price:
-          sub.price != null
-            ? String(sub.price)
-            : sub.cursos?.precio != null
-              ? String(sub.cursos.precio)
-              : "",
+        price: String(precioCursoArs(sub.cursos) ?? ""),
         proveedor_pago:
           sub.proveedor_pago || "",
         estado: sub.estado,
@@ -367,12 +373,26 @@ const AdminSubscriptions = () => {
         const monto =
           Number(form.price);
 
+        const montoEsperado = precioCursoArs(selectedCourse);
+
         if (
           !Number.isFinite(monto) ||
-          monto < 0
+          monto <= 0
         ) {
           throw new Error(
             "Ingresá un monto válido."
+          );
+        }
+
+        if (montoEsperado == null) {
+          throw new Error(
+            "El curso no tiene un precio válido configurado."
+          );
+        }
+
+        if (Math.abs(monto - montoEsperado) > 0.009) {
+          throw new Error(
+            `El pago debe ser exactamente $${montoEsperado.toLocaleString("es-AR")} ARS.`
           );
         }
 
@@ -667,13 +687,11 @@ const AdminSubscriptions = () => {
                             curso_id:
                               value,
                             price:
-                              curso
-                                ?.precio !=
-                              null
-                                ? String(
-                                    curso.precio
-                                  )
-                                : form.price,
+                              String(
+                                precioCursoArs(
+                                  curso
+                                ) ?? ""
+                              ),
                           });
                         }}
                         disabled={
@@ -745,11 +763,13 @@ const AdminSubscriptions = () => {
                       )}
 
                     <div className="space-y-2">
-                      <Label>Monto</Label>
+                      <Label>
+                        {editingId ? "Monto" : "Monto exacto (ARS)"}
+                      </Label>
 
                       <Input
                         type="number"
-                        min="0"
+                        min="0.01"
                         step="0.01"
                         value={form.price}
                         onChange={(e) =>
@@ -760,7 +780,13 @@ const AdminSubscriptions = () => {
                                 .value,
                           })
                         }
+                        readOnly={!editingId}
                       />
+                      {!editingId && selectedCourse && (
+                        <p className="text-xs text-muted-foreground">
+                          USD {Number(selectedCourse.precio || 0).toLocaleString("es-AR")} × ${Number(selectedCourse.cotizacion_ars || ARS_FIXED_RATE).toLocaleString("es-AR")} por USD. El importe se valida también en Supabase.
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">

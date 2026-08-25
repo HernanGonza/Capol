@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Wallet, Megaphone, Server, Building2, GraduationCap, AlertTriangle, Settings, TrendingUp, CheckCircle2, Receipt } from "lucide-react";
-import { format, parseISO } from "date-fns";
+import { addMonths, differenceInCalendarMonths, format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import CurrencyConverter from "@/components/CurrencyConverter";
+import { ARS_FIXED_RATE } from "@/lib/currency";
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
 
@@ -20,6 +21,7 @@ type Pago = {
   id: string;
   usuario_id: string;
   curso_id: string;
+  suscripcion_id: string | null;
   monto: number;
   costo_publicidad_ars: number;
   costo_plataforma_ars: number;
@@ -35,7 +37,41 @@ type Suscripcion = {
   estado: string | null;
   fin_en: string | null;
   proxima_fecha_pago: string | null;
+  creado_en: string | null;
   perfiles: { nombre_completo: string | null } | null;
+  cursos: {
+    fecha_inicio: string | null;
+    precio: number | null;
+    cotizacion_ars: number | null;
+  } | null;
+};
+
+const montoPendienteArs = (suscripcion: Suscripcion) => {
+  const precioUsd = Number(suscripcion.cursos?.precio);
+  if (!Number.isFinite(precioUsd) || precioUsd <= 0) return 0;
+  const cotizacion = Number(suscripcion.cursos?.cotizacion_ars) || ARS_FIXED_RATE;
+  return Math.round(precioUsd * cotizacion * 100) / 100;
+};
+
+const fechaPendiente = (suscripcion: Suscripcion, pagos: Pago[]) => {
+  const fechaGuardada = suscripcion.proxima_fecha_pago || suscripcion.fin_en;
+  if (fechaGuardada) return parseISO(fechaGuardada);
+
+  const inicioCurso = suscripcion.cursos?.fecha_inicio;
+  if (!inicioCurso) return null;
+
+  const inicio = parseISO(inicioCurso);
+  const tuvoPagos = pagos.some(
+    (p) =>
+      p.suscripcion_id === suscripcion.id ||
+      (p.usuario_id === suscripcion.usuario_id && p.curso_id === suscripcion.curso_id)
+  );
+
+  if (!tuvoPagos || inicio > new Date()) return inicio;
+
+  const meses = Math.max(0, differenceInCalendarMonths(new Date(), inicio));
+  const candidato = addMonths(inicio, meses);
+  return candidato > new Date() ? addMonths(candidato, -1) : candidato;
 };
 
 // Desglose de un pago. Para cursos en_vivo la fórmula es la de siempre:
@@ -85,7 +121,7 @@ const AdminFinanzas = () => {
   const { data: cursos } = useQuery({
     queryKey: ["admin-courses-list-modalidad"],
     queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, titulo, modalidad").order("titulo");
+      const { data } = await supabase.from("cursos").select("id, titulo, modalidad, fecha_inicio, precio, cotizacion_ars").order("titulo");
       return data || [];
     },
   });
@@ -122,14 +158,14 @@ const AdminFinanzas = () => {
     },
   });
 
-  // Alumnos con la suscripción vencida a ese curso: dinero que se esperaba y todavía no entró
+  // Suscripciones que todavía deben su primer pago o una mensualidad.
   const { data: pendientes } = useQuery({
-    queryKey: ["suscripciones-vencidas"],
+    queryKey: ["suscripciones-pago-pendiente"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("*, perfiles:usuario_id(nombre_completo)")
-        .eq("estado", "expired");
+        .select("*, perfiles:usuario_id(nombre_completo), cursos:curso_id(fecha_inicio, precio, cotizacion_ars)")
+        .eq("estado", "pago_pendiente");
       if (error) throw error;
       return (data || []) as unknown as Suscripcion[];
     },
@@ -214,11 +250,12 @@ const AdminFinanzas = () => {
 
   const diaCorte = config?.dia_corte ?? 25;
 
-  // Período seleccionado: del corte del mes anterior (exclusivo) al corte del mes elegido (inclusivo).
+  // Período seleccionado: desde el día posterior al corte anterior hasta el
+  // cierre del día de corte elegido. Ningún instante pertenece a dos períodos.
   const periodo = useMemo(() => {
     const [y, m] = mes.split("-").map(Number);
     const end = new Date(y, m - 1, diaCorte, 23, 59, 59, 999);
-    const start = new Date(y, m - 2, diaCorte, 0, 0, 0, 0);
+    const start = new Date(y, m - 2, diaCorte + 1, 0, 0, 0, 0);
     return { start, end };
   }, [mes, diaCorte]);
 
@@ -231,7 +268,7 @@ const AdminFinanzas = () => {
     if (!pagos) return [];
     return pagos.filter((p) => {
       const fecha = parseISO(p.pagado_en);
-      return fecha > periodo.start && fecha <= periodo.end && (cursoFiltro === "todos" || p.curso_id === cursoFiltro) && esDeLaTab(p.curso_id);
+      return fecha >= periodo.start && fecha <= periodo.end && (cursoFiltro === "todos" || p.curso_id === cursoFiltro) && esDeLaTab(p.curso_id);
     });
   }, [pagos, periodo, cursoFiltro, tabModalidad, modalidadPorCurso]);
 
@@ -248,12 +285,10 @@ const AdminFinanzas = () => {
   const pendientePeriodo = useMemo(
     () =>
       pendientesFiltrados.filter((s) => {
-        const vencimiento = s.fin_en || s.proxima_fecha_pago;
-        if (!vencimiento) return false;
-        const fecha = parseISO(vencimiento);
-        return fecha > periodo.start && fecha <= periodo.end;
+        const fecha = fechaPendiente(s, pagos || []);
+        return fecha != null && fecha >= periodo.start && fecha <= periodo.end;
       }),
-    [pendientesFiltrados, periodo]
+    [pendientesFiltrados, periodo, pagos]
   );
 
   const resumenPeriodo = useMemo(
@@ -272,8 +307,8 @@ const AdminFinanzas = () => {
     [pagosFiltrados, tabModalidad]
   );
 
-  const pendienteMontoPeriodo = pendientePeriodo.reduce((acc, s) => acc + (s.price || 0), 0);
-  const pendienteMontoTotal = pendientesFiltrados.reduce((acc, s) => acc + (s.price || 0), 0);
+  const pendienteMontoPeriodo = pendientePeriodo.reduce((acc, s) => acc + montoPendienteArs(s), 0);
+  const pendienteMontoTotal = pendientesFiltrados.reduce((acc, s) => acc + montoPendienteArs(s), 0);
 
   // Desglose por curso (para la vista "Todos"), solo de la modalidad activa
   const porCurso = useMemo(() => {
@@ -282,9 +317,9 @@ const AdminFinanzas = () => {
       const propios = (pagos || []).filter((p) => p.curso_id === c.id);
       const propiosPeriodo = propios.filter((p) => {
         const fecha = parseISO(p.pagado_en);
-        return fecha > periodo.start && fecha <= periodo.end;
+        return fecha >= periodo.start && fecha <= periodo.end;
       });
-      const propiosPendientes = (pendientes || []).filter((s) => s.curso_id === c.id);
+      const propiosPendientes = pendientePeriodo.filter((s) => s.curso_id === c.id);
       const profesores = (docentesCursos || [])
         .filter((dc) => dc.curso_id === c.id)
         .map((dc: any) => dc.perfiles?.nombre_completo)
@@ -294,14 +329,14 @@ const AdminFinanzas = () => {
         profesores,
         periodo: sumarDesgloses(propiosPeriodo.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))),
         total: sumarDesgloses(propios.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))),
-        pendienteMonto: propiosPendientes.reduce((acc, s) => acc + (s.price || 0), 0),
+        pendienteMonto: propiosPendientes.reduce((acc, s) => acc + montoPendienteArs(s), 0),
         pendienteCount: propiosPendientes.length,
         // Si a este curso ya se le liquidó (profesor + plataforma) el
         // período que se está mirando ahora mismo.
         corte: cortesPorCursoYPeriodo.get(corteKey(c.id, mes)),
       };
     });
-  }, [cursosTab, pagos, pendientes, docentesCursos, periodo, tabModalidad, cortesPorCursoYPeriodo, mes]);
+  }, [cursosTab, pagos, pendientePeriodo, docentesCursos, periodo, tabModalidad, cortesPorCursoYPeriodo, mes]);
 
   // Cursos de la pestaña activa con plata para liquidar este período que
   // todavía no se marcaron como pagados — el "cuadro" de pendientes.
@@ -749,7 +784,7 @@ const AdminFinanzas = () => {
                     {pendientesFiltrados.map((s) => (
                       <div key={s.id} className="p-4 flex items-center justify-between gap-3">
                         <p className="font-medium">{s.perfiles?.nombre_completo || "Alumno"}</p>
-                        <span className="text-sm font-bold">{fmt(s.price || 0)}</span>
+                        <span className="text-sm font-bold">{fmt(montoPendienteArs(s))}</span>
                       </div>
                     ))}
                   </div>
