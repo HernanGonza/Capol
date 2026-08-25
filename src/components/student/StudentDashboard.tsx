@@ -174,7 +174,7 @@ const StudentDashboard = () => {
           cursos (id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, fecha_inicio, horarios, carga_horaria, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
-        .in("estado", ["active", "pago_pendiente"]);
+.eq("estado", "active");
       if (error) throw error;
 
       const { data: progress } = await supabase

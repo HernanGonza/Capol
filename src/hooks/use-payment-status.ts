@@ -10,27 +10,34 @@ export interface EstadoPagoCurso {
   porVencer: boolean;
 }
 
-// Estado de vencimiento de cada suscripción activa del alumno — lo usa tanto
-// CourseView (para cortar el acceso) como el banner de aviso en AppLayout
-// (para avisar antes del corte). Se basa en "fin_en" de la suscripción, el
-// mismo campo que edita el admin en el panel de Suscripciones.
+// Solo una suscripción ACTIVE da acceso.
+//
+// "pago_pendiente" significa:
+// - solicitud aprobada;
+// - alumno autorizado;
+// - todavía no abonó;
+// - NO tiene acceso al curso.
+//
+// Para cursos en vivo además verificamos fin_en.
+// Para cursos grabados, una vez active, el acceso no vence.
 export const usePaymentStatus = (userId: string | undefined) =>
   useQuery({
     queryKey: ["payment-status", userId],
     queryFn: async (): Promise<EstadoPagoCurso[]> => {
       const { data: subs, error } = await supabase
         .from("suscripciones")
-        .select("curso_id, fin_en, cursos:curso_id(titulo, modalidad)")
+        .select(
+          "curso_id, fin_en, cursos:curso_id(titulo, modalidad)"
+        )
         .eq("usuario_id", userId!)
-        .in("estado", ["active", "pago_pendiente"]);
+        .eq("estado", "active");
+
       if (error) throw error;
       if (!subs?.length) return [];
 
       return subs.map((s: any) => {
-        // Los cursos grabados se compran una sola vez, sin pago recurrente
-        // — no tiene sentido exigirles vencimiento mensual, o perderían el
-        // acceso al mes de haber comprado.
         const esGrabado = s.cursos?.modalidad === "grabado";
+
         return {
           cursoId: s.curso_id,
           cursoTitulo: s.cursos?.titulo || "Curso",

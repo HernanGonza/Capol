@@ -1041,6 +1041,15 @@ export type Database = {
         }[]
       }
       contar_registrados_totales: { Args: never; Returns: number }
+      registrar_pago_suscripcion: {
+        Args: {
+          p_curso_id: string
+          p_monto: number
+          p_proveedor_pago: string | null
+          p_usuario_id: string
+        }
+        Returns: string
+      }
       dentro_de_cooldown_mensajes: {
         Args: { p_remitente: string }
         Returns: boolean

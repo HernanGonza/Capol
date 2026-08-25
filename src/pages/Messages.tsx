@@ -223,7 +223,7 @@ const Messages = () => {
         .from("suscripciones")
         .select("cursos (id, titulo)")
         .eq("usuario_id", user!.id)
-        .in("estado", ["active", "pago_pendiente"])
+        .eq("estado", "active")
         .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
       if (error) throw error;
       return (data || []).map((d: any) => d.cursos).filter(Boolean);

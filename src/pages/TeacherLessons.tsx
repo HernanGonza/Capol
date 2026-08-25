@@ -120,7 +120,8 @@ const TeacherLessons = () => {
         .from("suscripciones")
         .select("usuario_id")
         .eq("curso_id", courseId!)
-        .in("estado", ["active", "pago_pendiente"]);
+        .eq("estado", "active")
+        .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
       if (error) throw error;
       return data || [];
     },

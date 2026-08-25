@@ -208,24 +208,25 @@ const AdminStudents = () => {
         .maybeSingle();
 
       if (existente) {
-        throw new Error("Este alumno ya tiene una suscripción activa a este curso.");
+        throw new Error("Este alumno ya tiene una suscripción activa o pendiente para este curso.");
       }
 
-      // Este flujo habilita el acceso sin registrar un pago real (eso se
-      // carga aparte en el panel de Suscripciones) — arranca en
-      // "pago_pendiente", no "active", para que quede claro que falta cobrar.
+      // La asignación manual crea únicamente la solicitud de cobro. El acceso
+      // se habilita después, al registrar el pago desde Suscripciones.
       const { error: subError } = await supabase.from("suscripciones").insert({
         usuario_id: selectedStudent,
         curso_id: selectedCourse,
         estado: "pago_pendiente",
         nombre_plan: "Manual",
-        inicio_en: new Date().toISOString(),
+        inicio_en: null,
+        fin_en: null,
+        proxima_fecha_pago: null,
       });
       if (subError) throw subError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
-      toast.success("Alumno inscripto y con acceso habilitado");
+      toast.success("Solicitud creada — pendiente de pago");
       setOpen(false);
       setSelectedStudent("");
       setSelectedCourse("");
