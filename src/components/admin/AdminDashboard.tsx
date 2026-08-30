@@ -47,33 +47,55 @@ const AdminDashboard = () => {
 
       const totalStudents = roles?.length || 0;
       const activeCourses = courses?.filter(c => c.publicado).length || 0;
-      const activeSubs = subs?.filter(s => s.estado === 'active') || [];
-      const expiredSubs = subs?.filter(s => s.estado === 'expired') || [];
-      // Contamos ALUMNOS distintos, no filas de suscripción: un alumno con 2 cursos activos
+
+      // Todas las métricas de alumnos son solo de cuentas con rol 'student':
+      // un profesor/admin con una suscripción no debe inflar los conteos. Al
+      // promover a alguien a profesor, su fila de "roles_usuario" deja de ser
+      // 'student' y sale solo de estas cuentas.
+      const studentIds = new Set((roles || []).map((r) => r.usuario_id));
+      const subsAlumnos = (subs || []).filter((s) => studentIds.has(s.usuario_id));
+
+      // OJO con los estados de "suscripciones":
+      //  - 'active'        = inscripto Y con el pago hecho / al día
+      //  - 'pago_pendiente'= inscripto pero todavía sin pagar (la gran mayoría hoy)
+      //  - 'expired'       = suscripción vencida / de baja
+      // Desde la migración restrict_unpaid_subscription_access, 'active' dejó de
+      // significar "inscripto" y pasó a significar "pagó". Para todo lo que es
+      // "cuántos alumnos tiene un curso" / "cursos más populares" hay que contar
+      // los inscriptos (active + pago_pendiente), no solo los que pagaron.
+      const activeSubs = subsAlumnos.filter((s) => s.estado === 'active');
+      const pendingSubs = subsAlumnos.filter((s) => s.estado === 'pago_pendiente');
+      const expiredSubs = subsAlumnos.filter((s) => s.estado === 'expired');
+      const inscritosSubs = [...activeSubs, ...pendingSubs];
+
+      // Contamos ALUMNOS distintos, no filas de suscripción: un alumno con 2 cursos
       // tiene 2 filas en "suscripciones" pero sigue siendo 1 solo alumno.
-      const alumnosAlDia = new Set(activeSubs.map((s: any) => s.usuario_id)).size;
-      const alumnosVencidos = new Set(expiredSubs.map((s: any) => s.usuario_id)).size;
+      const alumnosInscriptos = new Set(inscritosSubs.map((s) => s.usuario_id)).size;
+      const alumnosAlDia = new Set(activeSubs.map((s) => s.usuario_id)).size;
+      const alumnosVencidos = new Set(expiredSubs.map((s) => s.usuario_id)).size;
+      // "Pagos pendientes" = inscripciones a un curso que todavía no se pagaron
+      // (una por alumno+curso), no alumnos distintos.
+      const pagosPendientes = pendingSubs.length;
       // Agrupamos por moneda: sumar ARS + USD + EUR como si fueran el mismo número sería incorrecto.
-      const revenueByCurrency = activeSubs.reduce((acc: Record<string, number>, curr: any) => {
+      const revenueByCurrency = activeSubs.reduce((acc: Record<string, number>, curr) => {
         const currency = curr.moneda || "ARS";
         acc[currency] = (acc[currency] || 0) + (curr.price || 0);
         return acc;
-      }, {});
+      }, {} as Record<string, number>);
       const completionRate = progress?.length ? (progress.filter(p => p.completado).length / progress.length) * 100 : 0;
 
-      const studentIds = new Set((roles || []).map((r) => r.usuario_id));
       const nuevosEsteMes = (allProfiles || []).filter(
         (p) => studentIds.has(p.id) && p.creado_en && new Date(p.creado_en) >= inicioDeMes
       ).length;
 
       const certificadosEmitidos = (enrollments || []).filter((e) => !!e.completado_en).length;
 
-      // Top cursos por cantidad de alumnos activos
-      const conteoPorCurso = activeSubs.reduce((acc: Record<string, number>, s: any) => {
+      // Top cursos por cantidad de alumnos inscriptos (hayan pagado o no).
+      const conteoPorCurso = inscritosSubs.reduce((acc: Record<string, number>, s) => {
         if (!s.curso_id) return acc;
         acc[s.curso_id] = (acc[s.curso_id] || 0) + 1;
         return acc;
-      }, {});
+      }, {} as Record<string, number>);
       const topCursos = Object.entries(conteoPorCurso)
         .map(([cursoId, cantidad]) => ({
           titulo: courses?.find((c) => c.id === cursoId)?.titulo || "Curso",
@@ -86,11 +108,14 @@ const AdminDashboard = () => {
         totalStudents,
         activeCourses,
         totalCourses: courses?.length || 0,
+        inscriptosCount: alumnosInscriptos,
         activeCount: alumnosAlDia,
         expiredCount: alumnosVencidos,
+        pagosPendientes,
         revenueByCurrency,
         completionRate,
-        healthRatio: totalStudents > 0 ? (alumnosAlDia / totalStudents) * 100 : 0,
+        // Salud de cobranza = de los inscriptos, cuántos están al día con el pago.
+        healthRatio: alumnosInscriptos > 0 ? (alumnosAlDia / alumnosInscriptos) * 100 : 0,
         totalTeachers: teacherRoles?.length || 0,
         nuevosEsteMes,
         certificadosEmitidos,
@@ -121,7 +146,7 @@ const AdminDashboard = () => {
     {
       title: "Alumnos Totales",
       value: stats?.totalStudents,
-      description: `${stats?.activeCount} alumnos al día`,
+      description: `${stats?.inscriptosCount ?? 0} inscriptos a un curso · ${stats?.activeCount ?? 0} con pago al día`,
       icon: Users,
       color: "bg-card",
       path: "/admin/students" // Ajustar según tu ruta de usuarios
@@ -136,11 +161,11 @@ const AdminDashboard = () => {
     },
     {
       title: "Pagos Pendientes",
-      value: stats?.expiredCount,
-      description: "Suscripciones vencidas",
+      value: stats?.pagosPendientes,
+      description: `Inscripciones sin pagar${stats?.expiredCount ? ` · ${stats.expiredCount} vencidas` : ""}`,
       icon: AlertTriangle,
       color: "bg-card text-destructive",
-      path: "/admin/subscriptions?filter=expired"
+      path: "/admin/subscriptions"
     }
   ];
 
@@ -237,7 +262,7 @@ const AdminDashboard = () => {
             <div className="flex justify-between items-end">
               <div>
                 <p className="text-3xl font-bold">{Math.round(stats?.healthRatio || 0)}%</p>
-                <p className="text-xs text-muted-foreground">Ratio alumnos activos vs total</p>
+                <p className="text-xs text-muted-foreground">Inscriptos con el pago al día</p>
               </div>
             </div>
             <Progress value={stats?.healthRatio} className="h-2 bg-muted" />
@@ -252,14 +277,17 @@ const AdminDashboard = () => {
           </CardHeader>
           <CardContent className="space-y-2.5">
             {stats?.topCursos.length ? (
-              stats.topCursos.map((c, idx) => (
-                <div key={idx} className="flex items-center justify-between text-sm">
-                  <span className="truncate flex-1">{idx + 1}. {c.titulo}</span>
-                  <span className="font-bold text-muted-foreground shrink-0 ml-2">{c.cantidad}</span>
-                </div>
-              ))
+              <>
+                {stats.topCursos.map((c, idx) => (
+                  <div key={idx} className="flex items-center justify-between text-sm">
+                    <span className="truncate flex-1">{idx + 1}. {c.titulo}</span>
+                    <span className="font-bold text-muted-foreground shrink-0 ml-2">{c.cantidad}</span>
+                  </div>
+                ))}
+                <p className="text-[11px] text-muted-foreground/80 pt-1.5 mt-1.5 border-t border-border/50">Por alumnos inscriptos (con pago hecho o pendiente)</p>
+              </>
             ) : (
-              <p className="text-xs text-muted-foreground">Todavía no hay alumnos activos.</p>
+              <p className="text-xs text-muted-foreground">Todavía no hay alumnos inscriptos.</p>
             )}
           </CardContent>
         </Card>

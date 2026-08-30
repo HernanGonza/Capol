@@ -25,20 +25,30 @@ const AdminMetricas = () => {
       const [
         { count: visitas },
         { data: visitasPorPais },
-        { count: registrados },
-        { data: perfilesPorPais },
+        { data: perfiles },
         { data: suscripciones },
         { data: pagos },
         { data: roles },
       ] = await Promise.all([
         supabase.from("landing_visits").select("*", { count: "exact", head: true }),
         supabase.from("landing_visits").select("pais_code"),
-        supabase.from("perfiles").select("*", { count: "exact", head: true }),
-        supabase.from("perfiles").select("pais"),
+        supabase.from("perfiles").select("id, pais"),
         supabase.from("suscripciones").select("id, usuario_id, estado, proveedor_pago"),
         supabase.from("pagos").select("suscripcion_id"),
-        supabase.from("roles_usuario").select("rol"),
+        supabase.from("roles_usuario").select("usuario_id, rol"),
       ]);
+
+      // Todas las métricas de "registrados" / "conversión" son SOLO de alumnos:
+      // un profesor o admin no es un visitante convertido en alumno. Además,
+      // cuando alguien se registra siempre entra como 'student' y recién cuando
+      // un admin lo pasa a profesor cambia su fila en "roles_usuario" — así que
+      // filtrar por rol acá hace que la estadística se reacomode sola cuando eso
+      // pasa (deja de contarlo como alumno).
+      const alumnoIds = new Set(
+        (roles || []).filter((r) => r.rol === "student").map((r) => r.usuario_id)
+      );
+      const registrados = alumnoIds.size;
+      const perfilesAlumnos = (perfiles || []).filter((p) => alumnoIds.has(p.id));
 
       // "Registrados con curso" = se inscribió a algún curso, haya pagado o no.
       // OJO: antes esto contaba la tabla "inscripciones", pero desde la migración
@@ -49,13 +59,15 @@ const AdminMetricas = () => {
       // alumno+curso desde que la solicitud queda aprobada. Excluimos 'expired'
       // (bajas / suscripciones vencidas y no renovadas).
       const inscriptosVigentes = (suscripciones || []).filter(
-        (s) => s.estado === "active" || s.estado === "pago_pendiente"
+        (s) => (s.estado === "active" || s.estado === "pago_pendiente") && alumnoIds.has(s.usuario_id)
       );
       // Alumnos distintos, no filas: un alumno inscripto en 3 cursos es 1 solo.
       const registradosConCurso = new Set(inscriptosVigentes.map((s) => s.usuario_id)).size;
       // De esos, cuántos ya tienen el pago hecho (suscripción 'active').
       const registradosConPago = new Set(
-        (suscripciones || []).filter((s) => s.estado === "active").map((s) => s.usuario_id)
+        (suscripciones || [])
+          .filter((s) => s.estado === "active" && alumnoIds.has(s.usuario_id))
+          .map((s) => s.usuario_id)
       ).size;
 
       // "Argentina" vs "resto del mundo": lo único que hoy nos importa para
@@ -65,8 +77,8 @@ const AdminMetricas = () => {
       const visitasOtrosPaises = (visitasPorPais || []).filter((v) => v.pais_code && v.pais_code !== "AR").length;
       const visitasSinPais = (visitasPorPais || []).length - visitasArgentina - visitasOtrosPaises;
 
-      const registradosArgentina = (perfilesPorPais || []).filter((p) => p.pais === "Argentina").length;
-      const registradosOtrosPaises = (perfilesPorPais || []).filter((p) => p.pais && p.pais !== "Argentina").length;
+      const registradosArgentina = perfilesAlumnos.filter((p) => p.pais === "Argentina").length;
+      const registradosOtrosPaises = perfilesAlumnos.filter((p) => p.pais && p.pais !== "Argentina").length;
 
       // Detalle de qué países específicos forman "otros países" — pais_code
       // es un código ISO (viene de la geolocalización), se traduce a nombre
@@ -82,7 +94,7 @@ const AdminMetricas = () => {
         .sort((a, b) => b.cantidad - a.cantidad);
 
       const registradosPorPaisMap = new Map<string, number>();
-      for (const p of perfilesPorPais || []) {
+      for (const p of perfilesAlumnos) {
         if (!p.pais || p.pais === "Argentina") continue;
         registradosPorPaisMap.set(p.pais, (registradosPorPaisMap.get(p.pais) || 0) + 1);
       }
@@ -110,17 +122,13 @@ const AdminMetricas = () => {
         .sort((a, b) => b.cantidad - a.cantidad);
       const totalConMedioPago = medioPagoRanking.reduce((acc, m) => acc + m.cantidad, 0);
 
-      // Una cuenta puede tener más de un rol (ej: admin asignado también
-      // como profesor de algún curso), así que esto cuenta roles otorgados,
-      // no necesariamente personas únicas — mismo criterio que ya usan
-      // AdminStudents/AdminTeachers para listar por rol.
-      const registradosAlumnos = (roles || []).filter((r) => r.rol === "student").length;
+      const registradosAlumnos = alumnoIds.size;
       const registradosProfesores = (roles || []).filter((r) => r.rol === "teacher").length;
       const registradosAdmins = (roles || []).filter((r) => r.rol === "admin").length;
 
       return {
         visitas: visitas || 0,
-        registrados: registrados || 0,
+        registrados,
         registradosConCurso,
         registradosConPago,
         tasaConversion: registrados ? (registradosConCurso / registrados) * 100 : 0,
@@ -151,14 +159,14 @@ const AdminMetricas = () => {
       color: "bg-primary text-primary-foreground",
     },
     {
-      title: "Registrados",
+      title: "Alumnos registrados",
       value: stats?.registrados,
-      description: "Cuentas creadas en la plataforma",
+      description: "Cuentas con rol alumno (sin contar profesores ni admins)",
       icon: UserPlus,
       color: "bg-card",
       extra: (
         <p className="text-[11px] text-muted-foreground/80 mt-2 pt-2 border-t border-border/50">
-          {stats?.registradosAlumnos || 0} alumnos · {stats?.registradosProfesores || 0} profesores · {stats?.registradosAdmins || 0} admins
+          Aparte: {stats?.registradosProfesores || 0} profesores · {stats?.registradosAdmins || 0} admins
         </p>
       ),
     },
@@ -177,7 +185,7 @@ const AdminMetricas = () => {
     {
       title: "Tasa de conversión",
       value: `${Math.round(stats?.tasaConversion || 0)}%`,
-      description: "Registrados que terminaron inscribiéndose",
+      description: "Alumnos registrados que se inscribieron a un curso",
       icon: Percent,
       color: "bg-card",
     },
