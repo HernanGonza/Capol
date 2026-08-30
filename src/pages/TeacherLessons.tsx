@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -55,6 +55,7 @@ import { deleteLessonCompletely } from "@/lib/deleteLesson";
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, role, profile } = useAuth();
   const queryClient = useQueryClient();
   
@@ -392,6 +393,47 @@ const TeacherLessons = () => {
     startLiveClassMutation.mutate(lesson);
   };
 
+  // Entra a la vista de clase en vivo sin abrir la pestaña de Jitsi acá (se
+  // usa cuando NO venimos de un click directo — desde el dashboard o el link
+  // "Dar clase"; el navegador bloquearía un window.open fuera de un gesto).
+  // El profe abre la videollamada con el botón del panel.
+  const entrarADictar = (lesson: any) => {
+    if (!lesson) {
+      toast.error("Este curso todavía no tiene una clase con sala de videollamada.");
+      return;
+    }
+    startLiveClassMutation.mutate(lesson);
+  };
+
+  // "Clase para dictar ahora": la que tiene sala de videollamada, no terminó, y
+  // cuyo horario está más cerca de ahora (la última ya desbloqueada; si no hay
+  // ninguna desbloqueada, la próxima).
+  const claseParaDictar = useMemo(() => {
+    const conSala = (lessons || [])
+      .filter((l) => l.sala_jitsi && !isClassOver(l))
+      .sort(
+        (a, b) => new Date(a.fecha_desbloqueo || 0).getTime() - new Date(b.fecha_desbloqueo || 0).getTime(),
+      );
+    if (conSala.length === 0) return null;
+    const ahora = Date.now();
+    const margen = 2 * 60 * 60 * 1000; // hasta 2h antes del horario ya se puede entrar
+    const empezables = conSala.filter(
+      (l) => !l.fecha_desbloqueo || new Date(l.fecha_desbloqueo).getTime() - margen <= ahora,
+    );
+    return empezables[empezables.length - 1] || conSala[0];
+  }, [lessons]);
+
+  // Link "Dar clase" desde el dashboard: ?dictar=1 (clase de hoy) o ?dictar=<id>.
+  useEffect(() => {
+    const dictar = searchParams.get("dictar");
+    if (!dictar || !lessons || showJitsi) return;
+    const lesson = dictar === "1" ? claseParaDictar : lessons.find((l) => l.id === dictar);
+    searchParams.delete("dictar");
+    setSearchParams(searchParams, { replace: true });
+    entrarADictar(lesson);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, lessons]);
+
   // Vista de "Clase en vivo": contenido de la clase + video llamada juntos
   if (showJitsi) {
     return (
@@ -537,6 +579,16 @@ const TeacherLessons = () => {
           </div>
           
           <div className="flex items-center gap-2 flex-wrap">
+          {claseParaDictar && (
+            <Button
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg"
+              disabled={startLiveClassMutation.isPending}
+              onClick={() => startLiveClass(claseParaDictar)}
+              title={`Dar clase en vivo: ${claseParaDictar.titulo}`}
+            >
+              <Video className="w-4 h-4 mr-2" /> Dar Clase en Vivo
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setForumOpen(true)}>
             <Users className="w-4 h-4 mr-2" /> Foro del Curso
           </Button>

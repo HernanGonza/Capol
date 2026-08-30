@@ -167,20 +167,29 @@ const TeacherDashboard = () => {
                       <p className="text-sm text-muted-foreground">{lesson.cursos?.titulo}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="font-medium text-primary">
-                      {new Date(lesson.fecha_desbloqueo!).toLocaleDateString("es-AR", {
-                        weekday: "short",
-                        day: "numeric",
-                        month: "short"
-                      })}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(lesson.fecha_desbloqueo!).toLocaleTimeString("es-AR", {
-                        hour: "2-digit",
-                        minute: "2-digit"
-                      })}
-                    </p>
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <p className="font-medium text-primary">
+                        {new Date(lesson.fecha_desbloqueo!).toLocaleDateString("es-AR", {
+                          weekday: "short",
+                          day: "numeric",
+                          month: "short"
+                        })}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(lesson.fecha_desbloqueo!).toLocaleTimeString("es-AR", {
+                          hour: "2-digit",
+                          minute: "2-digit"
+                        })}
+                      </p>
+                    </div>
+                    {lesson.sala_jitsi && (
+                      <Link to={`/teacher/course/${lesson.curso_id}/lessons?dictar=${lesson.id}`}>
+                        <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                          <Video className="w-4 h-4 mr-1.5" /> Entrar
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}
@@ -244,17 +253,24 @@ const TeacherDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <Link to={`/teacher/course/${course.id}/lessons`} className="flex-1">
-                        <Button className="w-full bg-slate-900 hover:bg-slate-800 text-white">
-                          <Edit className="w-4 h-4 mr-2" /> Gestionar Clases
+                    <div className="space-y-2">
+                      <Link to={`/teacher/course/${course.id}/lessons?dictar=1`} className="block">
+                        <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold">
+                          <Video className="w-4 h-4 mr-2" /> Dar Clase en Vivo
                         </Button>
                       </Link>
-                      <Link to={`/course/${course.id}`}>
-                        <Button variant="outline" title="Ver como alumno">
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link to={`/teacher/course/${course.id}/lessons`} className="flex-1">
+                          <Button variant="outline" className="w-full">
+                            <Edit className="w-4 h-4 mr-2" /> Gestionar Clases
+                          </Button>
+                        </Link>
+                        <Link to={`/course/${course.id}`}>
+                          <Button variant="outline" title="Ver como alumno">
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>

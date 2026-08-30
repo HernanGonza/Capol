@@ -79,7 +79,7 @@ const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: P
 
       <Button onClick={openCall} className="h-11 bg-primary px-6 font-bold hover:bg-primary/90">
         <ExternalLink className="mr-2 h-4 w-4" />
-        {isTeacher ? "Volver a abrir la videollamada" : "Entrar a la videollamada"}
+        Entrar a la videollamada
       </Button>
       <p className="max-w-xs text-[11px] text-white/40">
         Se abre en una pestaña nueva. Si se cierra, volvé a entrar desde acá.
