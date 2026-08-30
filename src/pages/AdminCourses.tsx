@@ -69,14 +69,38 @@ const AdminCourses = () => {
         .select(`*, inscripciones (count), lecciones (count)`)
         .order("creado_en", { ascending: false });
       if (error) throw error;
-      const { data: activeSubs } = await supabase
-        .from("suscripciones").select("curso_id").in("estado", ["active", "pago_pendiente"]);
-      return data.map((course: any) => ({
-        ...course,
-        active_count: activeSubs?.filter((s: any) => s.curso_id === course.id).length || 0,
-        total_enrollments: course.inscripciones[0]?.count || 0,
-        total_lessons: course.lecciones[0]?.count || 0,
-      }));
+      // Todas las suscripciones (cualquier estado) — de acá salen los contadores
+      // de la tarjeta. Las etiquetas cambian según la modalidad:
+      //  - en vivo: "Inscriptos" (active + pago_pendiente) / "Al día" (active, acceso vigente)
+      //  - grabado: "Compradores" (active, compra única) / "Pendientes" (pago_pendiente)
+      // Antes "Alumnos" salía de la tabla "inscripciones", que desde la migración
+      // restrict_unpaid_subscription_access solo guarda a los que pagaron, así
+      // que mostraba muchos menos de los que realmente se anotaron.
+      const { data: subs } = await supabase
+        .from("suscripciones").select("curso_id, usuario_id, estado");
+      return data.map((course: any) => {
+        const cursoSubs = (subs || []).filter((s) => s.curso_id === course.id);
+        const inscriptos = new Set(
+          cursoSubs.filter((s) => s.estado === "active" || s.estado === "pago_pendiente").map((s) => s.usuario_id)
+        );
+        const alDia = new Set(
+          cursoSubs.filter((s) => s.estado === "active").map((s) => s.usuario_id)
+        );
+        const pendientes = new Set(
+          cursoSubs.filter((s) => s.estado === "pago_pendiente").map((s) => s.usuario_id)
+        );
+        return {
+          ...course,
+          inscriptos_count: inscriptos.size,
+          al_dia_count: alDia.size,
+          pendiente_count: pendientes.size,
+          // Para el candado de "no se puede borrar": cuenta cualquier rastro de
+          // alumnos, actual o histórico (inscripciones viejas o cualquier
+          // suscripción, incluso vencida).
+          tuvo_alumnos: (course.inscripciones[0]?.count || 0) > 0 || cursoSubs.length > 0,
+          total_lessons: course.lecciones[0]?.count || 0,
+        };
+      });
     },
   });
 
@@ -286,7 +310,7 @@ const AdminCourses = () => {
   });
 
   const handleDelete = (course: any) => {
-    if (course.total_enrollments > 0) {
+    if (course.tuvo_alumnos) {
       toast.error(
         "Este curso tiene alumnos (o los tuvo) y no se puede eliminar sin perder ese historial. Usá \"Terminar Curso\" en su lugar."
       );
@@ -619,14 +643,8 @@ const AdminCourses = () => {
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => <div key={i} className="h-64 bg-muted animate-pulse rounded-2xl" />)}
           </div>
-        ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {courses
-              ?.filter((c: any) => (tab === "terminados" ? c.estado === "finalizado" : c.estado !== "finalizado"))
-              .sort((a: any, b: any) =>
-                tab === "terminados" ? (b.fecha_fin || "").localeCompare(a.fecha_fin || "") : 0
-              )
-              .map((course: any) => {
+        ) : (() => {
+          const renderCourseCard = (course: any) => {
               const hasVideoFlyer = isVideoFlyer(course);
               const precioLabel = formatPrecio(course);
               return (
@@ -685,12 +703,20 @@ const AdminCourses = () => {
                   <CardContent className="space-y-6 flex-1">
                     <div className="grid grid-cols-3 gap-2 border-y py-4">
                       <div className="text-center">
-                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Alumnos</p>
-                        <p className="font-bold text-lg">{course.total_enrollments}</p>
+                        <p className="text-[10px] uppercase font-bold text-muted-foreground mb-1">
+                          {course.modalidad === "grabado" ? "Compradores" : "Inscriptos"}
+                        </p>
+                        <p className="font-bold text-lg">
+                          {course.modalidad === "grabado" ? course.al_dia_count : course.inscriptos_count}
+                        </p>
                       </div>
                       <div className="text-center border-x">
-                        <p className="text-[10px] uppercase font-bold text-green-600 dark:text-green-400 mb-1">Activos</p>
-                        <p className="font-bold text-lg text-green-700 dark:text-green-400">{course.active_count}</p>
+                        <p className="text-[10px] uppercase font-bold text-green-600 dark:text-green-400 mb-1">
+                          {course.modalidad === "grabado" ? "Pendientes" : "Al día"}
+                        </p>
+                        <p className="font-bold text-lg text-green-700 dark:text-green-400">
+                          {course.modalidad === "grabado" ? course.pendiente_count : course.al_dia_count}
+                        </p>
                       </div>
                       <div className="text-center">
                         <p className="text-[10px] uppercase font-bold text-blue-600 dark:text-blue-400 mb-1">Clases</p>
@@ -751,9 +777,39 @@ const AdminCourses = () => {
                   </CardContent>
                 </Card>
               );
-            })}
-          </div>
-        )}
+          };
+
+          // Separamos en vivo / grabados en secciones, igual que en la pantalla
+          // de cursos del alumno. La pestaña Actuales/Terminados sigue filtrando
+          // por estado por encima de esto.
+          const visibles = (courses || [])
+            .filter((c: any) => (tab === "terminados" ? c.estado === "finalizado" : c.estado !== "finalizado"))
+            .sort((a: any, b: any) => (tab === "terminados" ? (b.fecha_fin || "").localeCompare(a.fecha_fin || "") : 0));
+          const grupos = [
+            { titulo: "En vivo", lista: visibles.filter((c: any) => c.modalidad !== "grabado") },
+            { titulo: "Grabados", lista: visibles.filter((c: any) => c.modalidad === "grabado") },
+          ].filter((g) => g.lista.length > 0);
+
+          if (grupos.length === 0) {
+            return <p className="text-sm text-muted-foreground py-10 text-center">No hay cursos para mostrar acá.</p>;
+          }
+
+          return (
+            <div className="space-y-10">
+              {grupos.map((g) => (
+                <div key={g.titulo} className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold tracking-tight">{g.titulo}</h2>
+                    <Badge variant="secondary" className="text-xs font-bold">{g.lista.length}</Badge>
+                  </div>
+                  <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                    {g.lista.map(renderCourseCard)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
 
         <AlertDialog open={!!confirmAction} onOpenChange={(o) => { if (!o) setConfirmAction(null); }}>
           <AlertDialogContent>

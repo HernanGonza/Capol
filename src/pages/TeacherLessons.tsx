@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -43,8 +43,10 @@ import {
   Users,
   MessageSquare,
 } from "lucide-react";
-import JitsiMeet from "@/components/JitsiMeet";
+import JitsiMeet, { buildJitsiUrl } from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
+import { useScreenRecorder, screenRecordingSupported } from "@/hooks/use-screen-recorder";
+import { Circle, Download } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 import RevisarEntregasDialog from "@/components/RevisarEntregasDialog";
 import CourseForumDialog from "@/components/CourseForumDialog";
@@ -53,7 +55,7 @@ import { deleteLessonCompletely } from "@/lib/deleteLesson";
 const TeacherLessons = () => {
   const { courseId } = useParams<{ courseId: string }>();
   const navigate = useNavigate();
-  const { user, role } = useAuth();
+  const { user, role, profile } = useAuth();
   const queryClient = useQueryClient();
   
   const [open, setOpen] = useState(false);
@@ -112,6 +114,16 @@ const TeacherLessons = () => {
     },
     enabled: !!courseId && hasAccess,
   });
+
+  // Grabador de pantalla propio para la clase en vivo. El archivo se descarga
+  // en la compu del profesor (no se sube a ningún lado): se lo pasa al admin
+  // para editarlo y armar el curso grabado.
+  const recorder = useScreenRecorder({
+    fileName: [course?.titulo, activeLesson?.titulo].filter(Boolean).join(" - ") || "Clase",
+  });
+  useEffect(() => {
+    if (recorder.error) toast.error(recorder.error);
+  }, [recorder.error]);
 
   // Alumnos con suscripción activa a este curso — para poder mandarles un mensaje
   const { data: studentsInCourse } = useQuery({
@@ -249,7 +261,7 @@ const TeacherLessons = () => {
     mutationFn: async (lessonId: string) => {
       const { error } = await supabase
         .from("lecciones")
-        .update({ fecha_fin_clase: new Date().toISOString() })
+        .update({ fecha_fin_clase: new Date().toISOString(), clase_iniciada_en: null })
         .eq("id", lessonId);
       if (error) throw error;
     },
@@ -342,11 +354,42 @@ const TeacherLessons = () => {
     return !!lesson.fecha_fin_clase && new Date(lesson.fecha_fin_clase) <= new Date();
   };
 
+  // Al iniciar la clase marcamos "clase_iniciada_en": recién ahí los alumnos
+  // pueden entrar a la sala. Así el profesor entra SIEMPRE primero y queda como
+  // moderador de Jitsi (si entra un alumno antes, Jitsi lo hace moderador a él).
+  const startLiveClassMutation = useMutation({
+    mutationFn: async (lesson: any) => {
+      const { error } = await supabase
+        .from("lecciones")
+        .update({ clase_iniciada_en: new Date().toISOString(), fecha_fin_clase: null })
+        .eq("id", lesson.id);
+      if (error) throw error;
+      return lesson;
+    },
+    onSuccess: (lesson) => {
+      queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      setActiveRoom(lesson.sala_jitsi || "");
+      setActiveLesson(lesson);
+      setShowJitsi(true);
+    },
+    onError: (e: any) => toast.error(e.message || "No se pudo iniciar la clase"),
+  });
+
   const startLiveClass = (lesson: any) => {
-    const roomName = lesson.sala_jitsi || "";
-    setActiveRoom(roomName);
-    setActiveLesson(lesson);
-    setShowJitsi(true);
+    // Abrimos la pestaña de la videollamada acá, dentro del click (gesto del
+    // usuario), para que no la bloquee el navegador. Después marcamos la clase
+    // como iniciada.
+    if (lesson.sala_jitsi) {
+      window.open(
+        buildJitsiUrl(lesson.sala_jitsi, profile?.nombre_completo || "Profesor", {
+          courseTitle: course?.titulo,
+          lessonTitle: lesson.titulo,
+        }),
+        "_blank",
+        "noopener,noreferrer",
+      );
+    }
+    startLiveClassMutation.mutate(lesson);
   };
 
   // Vista de "Clase en vivo": contenido de la clase + video llamada juntos
@@ -359,12 +402,42 @@ const TeacherLessons = () => {
             <p className="text-xs text-slate-500 truncate">{course?.titulo}</p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            {screenRecordingSupported() ? (
+              recorder.isRecording ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-red-500 text-red-600 hover:bg-red-50 shadow-sm"
+                  onClick={() => recorder.stop()}
+                  title="Detener grabación y descargar el video"
+                >
+                  <Circle className="w-3 h-3 mr-2 fill-red-500 text-red-500 animate-pulse" />
+                  {String(Math.floor(recorder.durationSec / 60)).padStart(2, "0")}:
+                  {String(recorder.durationSec % 60).padStart(2, "0")}
+                  <Download className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shadow-sm"
+                  onClick={() => recorder.start()}
+                  title="Grabar la pantalla de esta clase (se descarga en tu compu al terminar)"
+                >
+                  <Circle className="w-3 h-3 mr-2 fill-red-500 text-red-500" />
+                  <span className="hidden sm:inline">Grabar</span>
+                </Button>
+              )
+            ) : null}
             <Button
               variant="default"
               size="sm"
               className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg"
               disabled={endClassMutation.isPending}
-              onClick={() => setEndClassConfirmLesson(activeLesson)}
+              onClick={() => {
+                if (recorder.isRecording) recorder.stop();
+                setEndClassConfirmLesson(activeLesson);
+              }}
               title="Terminar Clase"
             >
               <Square className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Terminar Clase</span>
@@ -373,6 +446,7 @@ const TeacherLessons = () => {
               variant="destructive"
               size="sm"
               onClick={() => {
+                if (recorder.isRecording) recorder.stop();
                 setShowJitsi(false);
                 setActiveRoom("");
                 setActiveLesson(null);
@@ -699,12 +773,14 @@ const TeacherLessons = () => {
                         </Button>
                       ) : (
                         <>
-                          <Button 
+                          <Button
                             size="sm"
                             className="bg-green-600 hover:bg-green-700 text-white"
+                            disabled={startLiveClassMutation.isPending}
                             onClick={() => startLiveClass(lesson)}
                           >
-                            <Play className="w-4 h-4 mr-1" /> Iniciar Clase
+                            <Play className="w-4 h-4 mr-1" />
+                            {startLiveClassMutation.isPending ? "Iniciando..." : lesson.clase_iniciada_en ? "Volver a Entrar" : "Iniciar Clase"}
                           </Button>
                           <Button
                             size="sm"

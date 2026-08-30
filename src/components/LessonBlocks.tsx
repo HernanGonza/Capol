@@ -117,9 +117,19 @@ const getChecklistItems = (block: any): string[] => {
 };
 
 const LessonBlocks = ({ content, restringido }: Props) => {
+  // Bloques "vacíos" que se agregaron en el editor y nunca se completaron
+  // (típico: un bloque de Imagen o Video sin URL). Antes renderizaban un
+  // <img>/<iframe> roto o un recuadro de error en el medio de la clase.
+  const esBloqueVacio = (b: { type?: string; value?: unknown }) => {
+    const vacio = typeof b?.value !== "string" || b.value.trim() === "";
+    return vacio && ["image", "video", "snippet", "terminal", "callout", "download"].includes(b?.type ?? "");
+  };
+
   const blocks = (() => {
     try {
-      return JSON.parse(content || "[]");
+      const parsed = JSON.parse(content || "[]");
+      if (!Array.isArray(parsed)) return [];
+      return (parsed as { type?: string; value?: unknown }[]).filter((b) => !esBloqueVacio(b));
     } catch (e) {
       return [{ id: "old-html", type: "text", value: content }];
     }

@@ -488,6 +488,7 @@ export type Database = {
       lecciones: {
         Row: {
           actualizado_en: string | null
+          clase_iniciada_en: string | null
           content: string | null
           creado_en: string | null
           curso_id: string | null
@@ -503,6 +504,7 @@ export type Database = {
         }
         Insert: {
           actualizado_en?: string | null
+          clase_iniciada_en?: string | null
           content?: string | null
           creado_en?: string | null
           curso_id?: string | null
@@ -518,6 +520,7 @@ export type Database = {
         }
         Update: {
           actualizado_en?: string | null
+          clase_iniciada_en?: string | null
           content?: string | null
           creado_en?: string | null
           curso_id?: string | null

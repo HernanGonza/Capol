@@ -1,17 +1,20 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Video, Circle } from "lucide-react";
+import { ExternalLink, Video } from "lucide-react";
+
+const JITSI_DOMAIN = "meet.jit.si";
 
 interface Props {
   roomName: string;
   courseTitle?: string;
   lessonTitle?: string;
   onClose?: () => void;
+  // El profesor entra sin mutear (es moderador: entra primero, ver
+  // "clase_iniciada_en"). El alumno entra con cámara y micrófono apagados.
   isTeacher?: boolean;
 }
 
 // Convierte el nombre de sala elegido por el profesor en un slug válido para Jitsi.
-// Prioriza SIEMPRE el nombre elegido; solo arma uno automático si no hay ninguno.
 const buildSlug = (roomName: string, courseTitle?: string, lessonTitle?: string): string => {
   const base = roomName?.trim()
     ? roomName
@@ -19,7 +22,7 @@ const buildSlug = (roomName: string, courseTitle?: string, lessonTitle?: string)
 
   const clean = base
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "") // saca tildes
+    .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9\s-]/g, "")
     .trim()
     .replace(/\s+/g, "-")
@@ -28,62 +31,59 @@ const buildSlug = (roomName: string, courseTitle?: string, lessonTitle?: string)
   return `CAPOL-${clean}`;
 };
 
-export const buildJitsiUrl = (roomName: string, displayName: string, courseTitle?: string, lessonTitle?: string) => {
-  const slug = buildSlug(roomName, courseTitle, lessonTitle);
-  const params = new URLSearchParams({
-    "config.startWithAudioMuted": "true",
-    "config.startWithVideoMuted": "true",
-    "config.prejoinPageEnabled": "true",
-    // Jitsi permite grabar la clase (grabación local, se guarda en el dispositivo de
-    // quien la inicia). Nos aseguramos de que el botón de grabación esté visible.
-    "config.localRecording.disable": "false",
-    "config.localRecording.notifyAllParticipants": "true",
-  });
-  return `https://meet.jit.si/${slug}#userInfo.displayName="${encodeURIComponent(displayName)}"&${params.toString()}`;
+// meet.jit.si corta las llamadas EMBEBIDAS (iframe / API externa) a los 5
+// minutos. Por eso la videollamada se abre siempre en una pestaña nueva, que
+// no tiene ese límite. Pasamos la config por el hash de la URL.
+export const buildJitsiUrl = (
+  roomName: string,
+  displayName: string,
+  opts: { courseTitle?: string; lessonTitle?: string; muted?: boolean } = {},
+) => {
+  const slug = buildSlug(roomName, opts.courseTitle, opts.lessonTitle);
+  const params = [
+    `userInfo.displayName=%22${encodeURIComponent(displayName)}%22`,
+    "config.prejoinPageEnabled=false",
+    "config.disableDeepLinking=true",
+    "interfaceConfig.MOBILE_APP_PROMO=false",
+    "interfaceConfig.SHOW_JITSI_WATERMARK=false",
+    "interfaceConfig.SHOW_PROMOTIONAL_CLOSE_PAGE=false",
+  ];
+  if (opts.muted) {
+    params.push("config.startWithAudioMuted=true", "config.startWithVideoMuted=true");
+  }
+  return `https://${JITSI_DOMAIN}/${slug}#${params.join("&")}`;
 };
 
 const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: Props) => {
   const { profile } = useAuth();
-
-  const slug = buildSlug(roomName, courseTitle, lessonTitle);
   const userName = profile?.nombre_completo || "Participante";
-  const jitsiUrl = buildJitsiUrl(roomName, userName, courseTitle, lessonTitle);
+  const jitsiUrl = buildJitsiUrl(roomName, userName, {
+    courseTitle,
+    lessonTitle,
+    muted: !isTeacher,
+  });
 
-  const openInNewTab = () => {
-    window.open(jitsiUrl, "_blank", "noopener,noreferrer");
-  };
+  const openCall = () => window.open(jitsiUrl, "_blank", "noopener,noreferrer");
 
   return (
-    <div className="flex flex-col items-center justify-center h-full w-full min-h-0 bg-gradient-to-b from-slate-900 to-slate-950 rounded-2xl p-4 gap-3">
-      <div className="text-center space-y-1.5">
-        <div className="w-11 h-11 mx-auto rounded-full bg-primary/20 flex items-center justify-center">
-          <Video className="w-5 h-5 text-primary" />
-        </div>
+    <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 p-6 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/20">
+        <Video className="h-6 w-6 text-primary" />
+      </div>
+      <div className="space-y-1">
         <h2 className="text-base font-bold text-white">Clase en Vivo</h2>
-        <p className="text-white/60 text-xs max-w-md">
-          {courseTitle && lessonTitle
-            ? `${courseTitle} - ${lessonTitle}`
-            : "Sala de videoconferencia"}
+        <p className="max-w-xs text-xs text-white/60">
+          {courseTitle && lessonTitle ? `${courseTitle} — ${lessonTitle}` : "Sala de videoconferencia"}
         </p>
       </div>
 
-      <Button
-        onClick={openInNewTab}
-        className="h-10 text-sm font-bold bg-primary hover:bg-primary/90 px-6"
-      >
-        <ExternalLink className="w-4 h-4 mr-2" />
-        Abrir Video Llamada en Ventana Nueva
+      <Button onClick={openCall} className="h-11 bg-primary px-6 font-bold hover:bg-primary/90">
+        <ExternalLink className="mr-2 h-4 w-4" />
+        {isTeacher ? "Volver a abrir la videollamada" : "Entrar a la videollamada"}
       </Button>
-
-      {isTeacher && (
-        <div className="flex items-start gap-2 bg-white/5 border border-white/10 rounded-xl p-2.5 max-w-md text-[11px] text-white/60">
-          <Circle className="w-2.5 h-2.5 text-red-500 fill-red-500 shrink-0 mt-0.5" />
-          <p>
-            Para grabar: dentro de Jitsi, abrí <strong className="text-white/80">"Más acciones"</strong> (los tres puntos) y elegí{" "}
-            <strong className="text-white/80">"Iniciar grabación"</strong>. Se guarda en tu dispositivo al finalizar.
-          </p>
-        </div>
-      )}
+      <p className="max-w-xs text-[11px] text-white/40">
+        Se abre en una pestaña nueva. Si se cierra, volvé a entrar desde acá.
+      </p>
 
       {onClose && (
         <Button variant="ghost" size="sm" onClick={onClose} className="text-white/50 hover:text-white">

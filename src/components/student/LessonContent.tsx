@@ -25,7 +25,7 @@ import {
   FileCheck2,
   Award,
 } from "lucide-react";
-import JitsiMeet from "@/components/JitsiMeet";
+import { buildJitsiUrl } from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
 import DriveVideoEmbed from "@/components/DriveVideoEmbed";
 import { useState } from "react";
@@ -57,7 +57,6 @@ const getDriveEmbedUrl = (url: string): string | null => {
 const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria, courseModalidad, isPreview, isTeaser, isLastLesson }: Props) => {
   const queryClient = useQueryClient();
   const { profile } = useAuth();
-  const [showJitsi, setShowJitsi] = useState(false);
   const [showRecording, setShowRecording] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [submissionTab, setSubmissionTab] = useState<"link" | "archivo">("link");
@@ -104,7 +103,27 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
     }
   };
 
-  const isClassOver = !!lesson.fecha_fin_clase && new Date(lesson.fecha_fin_clase) <= new Date();
+  // Estado en vivo de la clase (se refresca solo): el alumno NO puede entrar a
+  // la video llamada hasta que el profesor la haya iniciado. Así el profe entra
+  // siempre primero y queda como moderador de Jitsi.
+  const { data: estadoEnVivo } = useQuery({
+    queryKey: ["clase-estado-en-vivo", lesson.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("lecciones")
+        .select("clase_iniciada_en, fecha_fin_clase")
+        .eq("id", lesson.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: courseModalidad !== "grabado" && !!lesson.sala_jitsi,
+    refetchInterval: 15000,
+  });
+
+  const fechaFinClase = estadoEnVivo?.fecha_fin_clase ?? lesson.fecha_fin_clase;
+  const claseIniciadaEn = estadoEnVivo?.clase_iniciada_en ?? lesson.clase_iniciada_en;
+  const isClassOver = !!fechaFinClase && new Date(fechaFinClase) <= new Date();
+  const claseEnVivoActiva = !!claseIniciadaEn && !isClassOver;
   const driveEmbedUrl = lesson.grabacion_url ? getDriveEmbedUrl(lesson.grabacion_url) : null;
 
   // 1. Consultar progreso para saber si ya está completada
@@ -303,20 +322,33 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
           <div className="pt-16">
             <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
               <CardContent className="p-0">
-                {showJitsi ? (
-                  <div className="h-[700px]">
-                    <JitsiMeet 
-                      roomName={lesson.sala_jitsi}
-                      courseTitle={courseTitle}
-                      lessonTitle={lesson.titulo}
-                      onClose={() => setShowJitsi(false)}
-                    />
+                {claseEnVivoActiva ? (
+                  <div className="text-center py-16 px-10">
+                    <h3 className="text-3xl font-black mb-2 tracking-tighter">Clase en Vivo</h3>
+                    <p className="text-white/50 mb-6 text-sm">El profesor ya está en la sala.</p>
+                    <Button
+                      onClick={() => window.open(
+                        buildJitsiUrl(lesson.sala_jitsi!, profile?.nombre_completo || "Alumno", {
+                          courseTitle,
+                          lessonTitle: lesson.titulo,
+                          muted: true,
+                        }),
+                        "_blank",
+                        "noopener,noreferrer",
+                      )}
+                      className="bg-white text-slate-900 font-black px-12 h-14 rounded-2xl text-lg shadow-2xl"
+                    >
+                      <ExternalLink className="w-5 h-5 mr-2" /> INGRESAR AHORA
+                    </Button>
+                    <p className="text-white/40 text-[11px] mt-4">Se abre en una pestaña nueva.</p>
                   </div>
                 ) : (
                   <div className="text-center py-20 px-10">
-                    <Video className="w-16 h-16 text-primary mx-auto mb-6 animate-pulse" />
+                    <Clock className="w-16 h-16 text-white/30 mx-auto mb-6" />
                     <h3 className="text-3xl font-black mb-4 tracking-tighter">Clase en Vivo</h3>
-                    <Button onClick={() => setShowJitsi(true)} className="bg-white text-slate-900 font-black px-12 h-14 rounded-2xl text-lg shadow-2xl">INGRESAR AHORA</Button>
+                    <p className="text-white/50 max-w-md mx-auto">
+                      El profesor todavía no inició la clase. Cuando la abra, vas a poder entrar desde acá — dejá esta página abierta.
+                    </p>
                   </div>
                 )}
               </CardContent>
