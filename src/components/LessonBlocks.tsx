@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
@@ -9,6 +10,7 @@ import {
   HelpCircle,
   CheckSquare,
   GitCompare,
+  ImageOff,
 } from "lucide-react";
 import Terminal from "@/components/Terminal";
 import { marked } from "marked";
@@ -51,6 +53,35 @@ const getImageUrl = (url: string) => {
   const driveMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (driveMatch) return `https://lh3.googleusercontent.com/d/${driveMatch[1]}`;
   return isSafeUrl(url) ? url : "";
+};
+
+// El bloque de imagen antes renderizaba siempre un <img>, aunque la URL
+// fuera vacía o inválida (p. ej. un link de Drive que Google dejó de
+// servir): quedaba el ícono de "imagen rota" del navegador en medio de la
+// clase. Ahora, si no hay URL válida o la imagen falla al cargar, mostramos
+// un placeholder prolijo en vez del elemento roto.
+const ImageBlock = ({ url }: { url: string }) => {
+  const src = getImageUrl(url);
+  const [failed, setFailed] = useState(false);
+
+  if (!src || failed) {
+    return (
+      <div className="flex flex-col items-center gap-2 rounded-3xl border-2 border-dashed border-border bg-muted/40 px-8 py-12 text-muted-foreground">
+        <ImageOff className="h-8 w-8 opacity-60" />
+        <span className="text-sm font-bold">No se pudo cargar la imagen</span>
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={src}
+      alt="Visual"
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-background"
+    />
+  );
 };
 
 interface Props {
@@ -141,7 +172,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
           {/* 3. IMAGEN */}
           {block.type === 'image' && (
             <div className="flex flex-col items-center group">
-              <img src={getImageUrl(block.value)} alt="Visual" className="rounded-3xl shadow-2xl max-h-[700px] object-contain border-4 border-background" />
+              <ImageBlock url={block.value} />
             </div>
           )}
 

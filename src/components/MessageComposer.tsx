@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Paperclip, Send, X } from "lucide-react";
 import { toast } from "sonner";
 import { ACCEPTED_ATTACHMENT_TYPES, MAX_ATTACHMENT_SIZE } from "@/lib/messageAttachments";
+import EmojiPickerButton from "@/components/EmojiPickerButton";
 
 interface MessageComposerProps {
   value: string;
@@ -23,6 +24,7 @@ const COOLDOWN_MS = 5000;
 
 const MessageComposer = ({ value, onChange, file, onFileChange, onSend, sending, placeholder }: MessageComposerProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [secondsLeft, setSecondsLeft] = useState(0);
 
@@ -43,6 +45,22 @@ const MessageComposer = ({ value, onChange, file, onFileChange, onSend, sending,
       return;
     }
     onFileChange(f);
+  };
+
+  // Inserta el emoji en la posición del cursor (o al final si el textarea
+  // no tiene foco) y deja el cursor justo después del emoji insertado.
+  const handleEmoji = (emoji: string) => {
+    const el = textareaRef.current;
+    const start = el?.selectionStart ?? value.length;
+    const end = el?.selectionEnd ?? value.length;
+    const next = value.slice(0, start) + emoji + value.slice(end);
+    onChange(next);
+    requestAnimationFrame(() => {
+      if (!el) return;
+      el.focus();
+      const pos = start + emoji.length;
+      el.setSelectionRange(pos, pos);
+    });
   };
 
   const handleSend = () => {
@@ -81,7 +99,9 @@ const MessageComposer = ({ value, onChange, file, onFileChange, onSend, sending,
         <Button type="button" variant="outline" size="icon" className="shrink-0" onClick={() => inputRef.current?.click()}>
           <Paperclip className="w-4 h-4" />
         </Button>
+        <EmojiPickerButton onPick={handleEmoji} disabled={sending} />
         <Textarea
+          ref={textareaRef}
           placeholder={placeholder || "Escribí un mensaje..."}
           value={value}
           onChange={(e) => onChange(e.target.value)}
