@@ -52,6 +52,28 @@ const CourseView = () => {
   // prueba para el staff.
   const certSignatures = useCertificateSignatures(courseId, !!courseId);
 
+  // ¿El alumno tiene alguna suscripción a este curso, aunque no esté paga
+  // (pago_pendiente) o esté vencida? Si es así, puede entrar al foro del
+  // curso aunque el contenido de las clases siga bloqueado. El permiso real
+  // lo da la RLS de "mensajes" (ver migración
+  // 20260830120000_foro_curso_visible_para_alumnos_sin_pago); esto es solo
+  // para saber si mostramos el botón de acceso al foro en la pantalla de
+  // "acceso bloqueado".
+  const { data: tieneSuscripcionAlCurso } = useQuery({
+    queryKey: ["tiene-suscripcion-curso", user?.id, courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("suscripciones")
+        .select("id")
+        .eq("usuario_id", user!.id)
+        .eq("curso_id", courseId!)
+        .limit(1);
+      if (error) throw error;
+      return (data?.length ?? 0) > 0;
+    },
+    enabled: !!user && !!courseId && role === "student",
+  });
+
   // Profesor(es) de este curso — para que el alumno le pueda mandar un mensaje
   const { data: courseTeachers } = useQuery({
     queryKey: ["course-teachers", courseId],
@@ -212,10 +234,26 @@ const CourseView = () => {
               <p>Para recuperar el acceso, por favor contacta con administración o realiza el pago correspondiente a <strong>{course?.titulo}</strong>.</p>
             </CardContent>
           </Card>
-          <Button onClick={() => navigate("/dashboard")} variant="outline" className="w-full">
+          {tieneSuscripcionAlCurso && (
+            <Button
+              onClick={() => setForumOpen(true)}
+              variant="outline"
+              className="w-full"
+            >
+              <Users className="w-4 h-4 mr-2" /> Ver foro del curso
+            </Button>
+          )}
+          <Button onClick={() => navigate("/dashboard")} variant={tieneSuscripcionAlCurso ? "ghost" : "outline"} className="w-full">
             Volver a mis cursos
           </Button>
         </div>
+
+        <CourseForumDialog
+          open={forumOpen}
+          onOpenChange={setForumOpen}
+          courseId={courseId!}
+          courseTitle={course?.titulo}
+        />
       </AppLayout>
     );
   }
