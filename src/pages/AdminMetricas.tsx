@@ -27,22 +27,36 @@ const AdminMetricas = () => {
         { data: visitasPorPais },
         { count: registrados },
         { data: perfilesPorPais },
-        { data: inscriptos },
-        { data: pagosPorMedio },
+        { data: suscripciones },
+        { data: pagos },
         { data: roles },
       ] = await Promise.all([
         supabase.from("landing_visits").select("*", { count: "exact", head: true }),
         supabase.from("landing_visits").select("pais_code"),
         supabase.from("perfiles").select("*", { count: "exact", head: true }),
         supabase.from("perfiles").select("pais"),
-        supabase.from("inscripciones").select("usuario_id").not("usuario_id", "is", null),
-        supabase.from("suscripciones").select("proveedor_pago").not("proveedor_pago", "is", null),
+        supabase.from("suscripciones").select("id, usuario_id, estado, proveedor_pago"),
+        supabase.from("pagos").select("suscripcion_id"),
         supabase.from("roles_usuario").select("rol"),
       ]);
 
-      // Contamos alumnos distintos, no filas: un alumno inscripto en 3 cursos
-      // sigue siendo 1 solo alumno "convertido".
-      const registradosConCurso = new Set((inscriptos || []).map((i) => i.usuario_id)).size;
+      // "Registrados con curso" = se inscribió a algún curso, haya pagado o no.
+      // OJO: antes esto contaba la tabla "inscripciones", pero desde la migración
+      // 20260825183614_restrict_unpaid_subscription_access esa tabla solo guarda
+      // a los alumnos con el pago hecho (estado 'active'), así que dejaba afuera
+      // a todos los que se inscribieron y todavía no pagaron (la enorme mayoría).
+      // La fuente real de "quién se inscribió" es "suscripciones": una fila por
+      // alumno+curso desde que la solicitud queda aprobada. Excluimos 'expired'
+      // (bajas / suscripciones vencidas y no renovadas).
+      const inscriptosVigentes = (suscripciones || []).filter(
+        (s) => s.estado === "active" || s.estado === "pago_pendiente"
+      );
+      // Alumnos distintos, no filas: un alumno inscripto en 3 cursos es 1 solo.
+      const registradosConCurso = new Set(inscriptosVigentes.map((s) => s.usuario_id)).size;
+      // De esos, cuántos ya tienen el pago hecho (suscripción 'active').
+      const registradosConPago = new Set(
+        (suscripciones || []).filter((s) => s.estado === "active").map((s) => s.usuario_id)
+      ).size;
 
       // "Argentina" vs "resto del mundo": lo único que hoy nos importa para
       // decidir en qué moneda se muestra el precio (ver PriceTag), así que
@@ -76,10 +90,20 @@ const AdminMetricas = () => {
         .map(([pais, cantidad]) => ({ pais, cantidad }))
         .sort((a, b) => b.cantidad - a.cantidad);
 
+      // Medios de pago: SOLO de pagos reales (tabla "pagos"). El campo
+      // "proveedor_pago" de la suscripción se completa al aprobar la
+      // inscripción con la forma de pago que el alumno eligió, aunque todavía
+      // no haya pagado — contar eso mostraba medios de pago "usados" cuando en
+      // realidad no hubo ninguna plata. Cada pago real se cruza con su
+      // suscripción para saber con qué medio se cobró.
+      const proveedorPorSuscripcion = new Map(
+        (suscripciones || []).map((s) => [s.id, s.proveedor_pago])
+      );
       const medioPagoCounts = new Map<string, number>();
-      for (const s of pagosPorMedio || []) {
-        if (!s.proveedor_pago) continue;
-        medioPagoCounts.set(s.proveedor_pago, (medioPagoCounts.get(s.proveedor_pago) || 0) + 1);
+      for (const p of pagos || []) {
+        const medio = proveedorPorSuscripcion.get(p.suscripcion_id);
+        if (!medio) continue;
+        medioPagoCounts.set(medio, (medioPagoCounts.get(medio) || 0) + 1);
       }
       const medioPagoRanking = Array.from(medioPagoCounts.entries())
         .map(([medio, cantidad]) => ({ medio, cantidad }))
@@ -98,6 +122,7 @@ const AdminMetricas = () => {
         visitas: visitas || 0,
         registrados: registrados || 0,
         registradosConCurso,
+        registradosConPago,
         tasaConversion: registrados ? (registradosConCurso / registrados) * 100 : 0,
         visitasArgentina,
         visitasOtrosPaises,
@@ -140,9 +165,14 @@ const AdminMetricas = () => {
     {
       title: "Registrados con curso",
       value: stats?.registradosConCurso,
-      description: "Se registraron y se inscribieron a algún curso",
+      description: "Se registraron y se inscribieron a algún curso (con pago hecho o pendiente)",
       icon: GraduationCap,
       color: "bg-card",
+      extra: (
+        <p className="text-[11px] text-muted-foreground/80 mt-2 pt-2 border-t border-border/50">
+          {stats?.registradosConPago || 0} con el pago hecho · {(stats?.registradosConCurso || 0) - (stats?.registradosConPago || 0)} con pago pendiente
+        </p>
+      ),
     },
     {
       title: "Tasa de conversión",
@@ -286,7 +316,7 @@ const AdminMetricas = () => {
           </Card>
         </div>
 
-        {/* Medios de pago usados en las suscripciones cargadas por el admin. */}
+        {/* Medios de pago de los pagos reales registrados (tabla "pagos"). */}
         <Card className="border-none shadow-card">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -311,7 +341,7 @@ const AdminMetricas = () => {
               })
             ) : (
               <p className="text-sm text-muted-foreground">
-                Todavía no hay suscripciones con medio de pago cargado. Se completa desde "Suscripciones" al registrar o editar un pago.
+                Todavía no hay pagos registrados. Se completa a medida que se cargan pagos desde "Suscripciones".
               </p>
             )}
           </CardContent>
