@@ -59,7 +59,11 @@ const AdminMetricas = () => {
       // alumno+curso desde que la solicitud queda aprobada. Excluimos 'expired'
       // (bajas / suscripciones vencidas y no renovadas).
       const inscriptosVigentes = (suscripciones || []).filter(
-        (s) => (s.estado === "active" || s.estado === "pago_pendiente") && alumnoIds.has(s.usuario_id)
+        (s) =>
+          (s.estado === "active" ||
+            s.estado === "pago_pendiente" ||
+            s.estado === "pago_diferido") &&
+          alumnoIds.has(s.usuario_id)
       );
       // Alumnos distintos, no filas: un alumno inscripto en 3 cursos es 1 solo.
       const registradosConCurso = new Set(inscriptosVigentes.map((s) => s.usuario_id)).size;

@@ -971,9 +971,12 @@ export type Database = {
           inicio_en: string | null
           moneda: string | null
           nombre_plan: string | null
+          nota_admin: string | null
+          pago_diferido_hasta: string | null
           price: number | null
           proveedor_pago: string | null
           proxima_fecha_pago: string | null
+          suspendida_en: string | null
           usuario_id: string | null
         }
         Insert: {
@@ -986,9 +989,12 @@ export type Database = {
           inicio_en?: string | null
           moneda?: string | null
           nombre_plan?: string | null
+          nota_admin?: string | null
+          pago_diferido_hasta?: string | null
           price?: number | null
           proveedor_pago?: string | null
           proxima_fecha_pago?: string | null
+          suspendida_en?: string | null
           usuario_id?: string | null
         }
         Update: {
@@ -1001,9 +1007,12 @@ export type Database = {
           inicio_en?: string | null
           moneda?: string | null
           nombre_plan?: string | null
+          nota_admin?: string | null
+          pago_diferido_hasta?: string | null
           price?: number | null
           proveedor_pago?: string | null
           proxima_fecha_pago?: string | null
+          suspendida_en?: string | null
           usuario_id?: string | null
         }
         Relationships: [
@@ -1073,6 +1082,15 @@ export type Database = {
       fijar_mensaje_foro: {
         Args: { p_fijar: boolean; p_mensaje_id: string }
         Returns: undefined
+      }
+      habilitar_pago_diferido: {
+        Args: {
+          p_curso_id: string
+          p_fecha_limite: string
+          p_nota?: string | null
+          p_usuario_id: string
+        }
+        Returns: string
       }
       has_role: {
         Args: {

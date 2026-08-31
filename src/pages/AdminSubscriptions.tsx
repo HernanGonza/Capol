@@ -20,8 +20,19 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -37,6 +48,7 @@ import {
   Search,
   Filter,
   Calendar,
+  CalendarClock,
   Edit2,
   RefreshCw,
   AlertTriangle,
@@ -44,6 +56,8 @@ import {
   Wallet,
   ExternalLink,
   CreditCard,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
@@ -51,9 +65,19 @@ import { ARS_FIXED_RATE } from "@/lib/currency";
 import {
   estaVencido,
   estaPorVencer,
+  diferidoVencido,
+  diferidoPorVencer,
   estadoSuscripcionDisplay,
   type EstadoSuscripcionDisplay,
 } from "@/lib/paymentCutoff";
+
+// Fecha mínima (hoy, local) para el input de fecha comprometida del pago diferido.
+const hoyISODate = () => {
+  const d = new Date();
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+};
 
 const AdminSubscriptions = () => {
   const queryClient = useQueryClient();
@@ -77,6 +101,20 @@ const AdminSubscriptions = () => {
     proveedor_pago: "",
     estado: "pago_pendiente",
   });
+
+  // Diálogo de pago diferido (habilitar o extender). Guarda la suscripción sobre
+  // la que se opera + la fecha comprometida + una nota opcional.
+  const [diferido, setDiferido] = useState<{
+    sub: any;
+    fecha: string;
+    nota: string;
+  } | null>(null);
+
+  // Confirmación de suspender / reactivar una suscripción.
+  const [confirmSuspension, setConfirmSuspension] = useState<{
+    sub: any;
+    suspender: boolean;
+  } | null>(null);
 
   const precioCursoArs = (course: any) => {
     const precioUsd = Number(course?.precio);
@@ -244,8 +282,11 @@ const AdminSubscriptions = () => {
           courseTitle.includes(searchTerm);
 
         const matchesStatus =
-          statusFilter === "all" ||
-          sub.estado === statusFilter;
+          statusFilter === "all"
+            ? true
+            : statusFilter === "suspendida"
+            ? !!sub.suspendida_en
+            : !sub.suspendida_en && sub.estado === statusFilter;
 
         const matchesTab =
           (sub.cursos?.modalidad ||
@@ -257,13 +298,24 @@ const AdminSubscriptions = () => {
           matchesTab
         );
       })
-      // Refuerzo del ORDER BY de Supabase.
-      // Siempre quedan los registros más nuevos arriba.
-      .sort(
-        (a: any, b: any) =>
+      // Prioridad de alarma: los pagos diferidos vencidos primero, después los
+      // que están por vencer; el resto por fecha de creación (más nuevo arriba).
+      .sort((a: any, b: any) => {
+        const prio = (s: any) => {
+          if (s.suspendida_en) return 3;
+          if (s.estado !== "pago_diferido") return 2;
+          if (diferidoVencido(s.pago_diferido_hasta)) return 0;
+          if (diferidoPorVencer(s.pago_diferido_hasta)) return 1;
+          return 2;
+        };
+        const pa = prio(a);
+        const pb = prio(b);
+        if (pa !== pb) return pa - pb;
+        return (
           new Date(b.creado_en).getTime() -
           new Date(a.creado_en).getTime()
-      );
+        );
+      });
   }, [
     subscriptions,
     search,
@@ -515,6 +567,67 @@ const AdminSubscriptions = () => {
     }
   };
 
+  const invalidarSuscripciones = () => {
+    queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
+    queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
+    queryClient.invalidateQueries({ queryKey: ["payment-status"] });
+    queryClient.invalidateQueries({ queryKey: ["student-courses-progress"] });
+    queryClient.invalidateQueries({ queryKey: ["diferidos-vencidos-count"] });
+    queryClient.invalidateQueries({ queryKey: ["admin-master-stats"] });
+  };
+
+  // Habilitar o extender un pago diferido: en ambos casos la RPC crea o reutiliza
+  // la suscripción y le deja el estado 'pago_diferido' con la nueva fecha.
+  const diferidoMutation = useMutation({
+    mutationFn: async () => {
+      if (!diferido) return;
+      if (!diferido.fecha) {
+        throw new Error("Elegí la fecha comprometida de pago.");
+      }
+      const { error } = await supabase.rpc("habilitar_pago_diferido", {
+        p_usuario_id: diferido.sub.usuario_id,
+        p_curso_id: diferido.sub.curso_id,
+        p_fecha_limite: diferido.fecha,
+        p_nota: diferido.nota || null,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidarSuscripciones();
+      toast.success(
+        diferido?.sub?.estado === "pago_diferido"
+          ? "Pago diferido extendido"
+          : "Pago diferido habilitado — acceso concedido"
+      );
+      setDiferido(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const suspensionMutation = useMutation({
+    mutationFn: async () => {
+      if (!confirmSuspension) return;
+      const { sub, suspender } = confirmSuspension;
+      const { error } = await supabase
+        .from("suscripciones")
+        .update({
+          suspendida_en: suspender ? new Date().toISOString() : null,
+        })
+        .eq("id", sub.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidarSuscripciones();
+      toast.success(
+        confirmSuspension?.suspender
+          ? "Suscripción suspendida — el alumno perdió el acceso al curso"
+          : "Suscripción reactivada — el alumno recuperó el acceso"
+      );
+      setConfirmSuspension(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
   const statusColor: Record<
     EstadoSuscripcionDisplay,
     string
@@ -523,6 +636,10 @@ const AdminSubscriptions = () => {
       "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
     pago_pendiente:
       "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+    pago_diferido:
+      "bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900",
+    suspendida:
+      "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
     vencida:
       "bg-muted text-muted-foreground border-border",
     cancelada:
@@ -536,6 +653,8 @@ const AdminSubscriptions = () => {
     activa: "AL DÍA",
     pago_pendiente:
       "PAGO PENDIENTE",
+    pago_diferido: "PAGO DIFERIDO",
+    suspendida: "SUSPENDIDA",
     vencida: "VENCIDA",
     cancelada: "CANCELADA",
   };
@@ -714,6 +833,11 @@ const AdminSubscriptions = () => {
                                 }
                               >
                                 {course.titulo}
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  {course.modalidad === "grabado"
+                                    ? "· grabado"
+                                    : "· en vivo"}
+                                </span>
                               </SelectItem>
                             )
                           )}
@@ -933,6 +1057,14 @@ const AdminSubscriptions = () => {
                     Pago pendiente
                   </SelectItem>
 
+                  <SelectItem value="pago_diferido">
+                    Pago diferido
+                  </SelectItem>
+
+                  <SelectItem value="suspendida">
+                    Suspendidas
+                  </SelectItem>
+
                   <SelectItem value="expired">
                     Expirados
                   </SelectItem>
@@ -967,11 +1099,25 @@ const AdminSubscriptions = () => {
                   sub.fin_en
                 );
 
+              const suspendida = !!sub.suspendida_en;
+              const esDiferido =
+                sub.estado === "pago_diferido" &&
+                !suspendida;
+              const diferidoVenc =
+                esDiferido &&
+                diferidoVencido(sub.pago_diferido_hasta);
+              const diferidoPronto =
+                esDiferido &&
+                !diferidoVenc &&
+                diferidoPorVencer(sub.pago_diferido_hasta);
+
               return (
                 <Card
                   key={sub.id}
                   className={`overflow-hidden transition-all shadow-card ${
-                    isNearExp
+                    diferidoVenc
+                      ? "border-red-500 ring-1 ring-red-500"
+                      : isNearExp || diferidoPronto
                       ? "border-amber-500 ring-1 ring-amber-500"
                       : ""
                   }`}
@@ -1016,6 +1162,29 @@ const AdminSubscriptions = () => {
                           <Badge className="bg-amber-500 text-white border-none animate-pulse">
                             <AlertTriangle className="w-3 h-3 mr-1" />
                             COBRAR PRONTO
+                          </Badge>
+                        )}
+
+                        {esDiferido && (
+                          <Badge
+                            className={`border-none ${
+                              diferidoVenc
+                                ? "bg-red-600 text-white animate-pulse"
+                                : diferidoPronto
+                                ? "bg-amber-500 text-white animate-pulse"
+                                : "bg-indigo-500 text-white"
+                            }`}
+                          >
+                            <CalendarClock className="w-3 h-3 mr-1" />
+                            {diferidoVenc
+                              ? "DIFERIDO VENCIDO"
+                              : "PAGA"}{" "}
+                            {sub.pago_diferido_hasta
+                              ? format(
+                                  parseISO(sub.pago_diferido_hasta),
+                                  "dd/MM"
+                                )
+                              : ""}
                           </Badge>
                         )}
                       </div>
@@ -1141,15 +1310,19 @@ const AdminSubscriptions = () => {
                                   ),
                                   "dd/MM/yyyy"
                                 )
+                              : esDiferido
+                              ? "Sin corte (diferido)"
                               : "-"}
                           </span>
                         </div>
                       </div>
                     )}
 
-                    <div className="flex items-center gap-2">
-                      {sub.estado ===
-                        "pago_pendiente" && (
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      {(sub.estado ===
+                        "pago_pendiente" ||
+                        sub.estado ===
+                          "pago_diferido") && (
                         <Button
                           size="sm"
                           className="bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -1179,6 +1352,78 @@ const AdminSubscriptions = () => {
                           >
                             <RefreshCw className="w-4 h-4 mr-2" />
                             Registrar mensualidad
+                          </Button>
+                        )}
+
+                      {/* Pago diferido: habilitar (desde pendiente/al día) o extender la fecha. Solo cursos en vivo. */}
+                      {!esGrabado &&
+                        !suspendida &&
+                        (sub.estado ===
+                          "pago_pendiente" ||
+                          sub.estado ===
+                            "active" ||
+                          sub.estado ===
+                            "pago_diferido") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-indigo-600 dark:text-indigo-400 border-indigo-200 dark:border-indigo-900 hover:bg-indigo-50 dark:hover:bg-indigo-950/40"
+                            onClick={() =>
+                              setDiferido({
+                                sub,
+                                fecha:
+                                  sub.pago_diferido_hasta
+                                    ? String(
+                                        sub.pago_diferido_hasta
+                                      ).slice(0, 10)
+                                    : "",
+                                nota:
+                                  sub.nota_admin || "",
+                              })
+                            }
+                          >
+                            <CalendarClock className="w-4 h-4 mr-2" />
+                            {sub.estado ===
+                            "pago_diferido"
+                              ? "Extender diferido"
+                              : "Pago diferido"}
+                          </Button>
+                        )}
+
+                      {/* Suspender / reactivar. Solo cursos en vivo con acceso concedido. */}
+                      {!esGrabado &&
+                        (suspendida ||
+                          sub.estado ===
+                            "active" ||
+                          sub.estado ===
+                            "pago_diferido") && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className={
+                              suspendida
+                                ? "text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                : "text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/40"
+                            }
+                            onClick={() =>
+                              setConfirmSuspension({
+                                sub,
+                                suspender:
+                                  !suspendida,
+                              })
+                            }
+                          >
+                            {suspendida ? (
+                              <>
+                                <PlayCircle className="w-4 h-4 mr-2" />
+                                Reactivar
+                              </>
+                            ) : (
+                              <>
+                                <PauseCircle className="w-4 h-4 mr-2" />
+                                Suspender
+                              </>
+                            )}
                           </Button>
                         )}
 
@@ -1227,6 +1472,110 @@ const AdminSubscriptions = () => {
           )}
         </div>
       </div>
+
+      {/* Pago diferido: habilitar o extender */}
+      <Dialog
+        open={!!diferido}
+        onOpenChange={(v) => {
+          if (!v) setDiferido(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {diferido?.sub?.estado === "pago_diferido"
+                ? "Extender pago diferido"
+                : "Habilitar pago diferido"}
+            </DialogTitle>
+            <DialogDescription>
+              {diferido?.sub?.perfiles?.nombre_completo} —{" "}
+              {diferido?.sub?.cursos?.titulo}. Le damos acceso al curso ahora y
+              anotamos la fecha que se comprometió a pagar. El acceso no se corta
+              solo: si no paga, usá "Suspender".
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 pt-2">
+            <div className="space-y-2">
+              <Label>Fecha comprometida de pago</Label>
+              <Input
+                type="date"
+                min={hoyISODate()}
+                value={diferido?.fecha || ""}
+                onChange={(e) =>
+                  setDiferido((d) =>
+                    d ? { ...d, fecha: e.target.value } : d
+                  )
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nota (opcional)</Label>
+              <Textarea
+                rows={2}
+                placeholder="Ej: arregló pagar el 5 por transferencia"
+                value={diferido?.nota || ""}
+                onChange={(e) =>
+                  setDiferido((d) =>
+                    d ? { ...d, nota: e.target.value } : d
+                  )
+                }
+              />
+            </div>
+
+            <Button
+              className="w-full gradient-primary text-primary-foreground"
+              disabled={diferidoMutation.isPending}
+              onClick={() => diferidoMutation.mutate()}
+            >
+              {diferido?.sub?.estado === "pago_diferido"
+                ? "Guardar nueva fecha"
+                : "Habilitar acceso con pago diferido"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmación de suspender / reactivar */}
+      <AlertDialog
+        open={!!confirmSuspension}
+        onOpenChange={(v) => {
+          if (!v) setConfirmSuspension(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmSuspension?.suspender
+                ? "¿Suspender la suscripción?"
+                : "¿Reactivar la suscripción?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmSuspension?.suspender
+                ? `${confirmSuspension?.sub?.perfiles?.nombre_completo} va a perder el acceso a "${confirmSuspension?.sub?.cursos?.titulo}" hasta que lo reactives. No se pierde ningún dato: la suscripción y las fechas quedan igual.`
+                : `${confirmSuspension?.sub?.perfiles?.nombre_completo} recupera el acceso a "${confirmSuspension?.sub?.cursos?.titulo}".`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className={
+                confirmSuspension?.suspender
+                  ? "bg-red-600 hover:bg-red-700"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+              }
+              onClick={(e) => {
+                e.preventDefault();
+                suspensionMutation.mutate();
+              }}
+              disabled={suspensionMutation.isPending}
+            >
+              {confirmSuspension?.suspender ? "Suspender" : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };

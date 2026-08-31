@@ -8,18 +8,21 @@ export interface EstadoPagoCurso {
   finEn: string | null;
   bloqueado: boolean;
   porVencer: boolean;
+  // Suscripción pausada por administración: el acceso está cortado a mano.
+  suspendida: boolean;
+  // Pago diferido: acceso concedido con una fecha comprometida de pago.
+  esDiferido: boolean;
+  diferidoHasta: string | null;
 }
 
-// Solo una suscripción ACTIVE da acceso.
+// Dan acceso al contenido:
+//  - 'active'        = pagó / al día (para cursos en vivo, mientras no venza fin_en).
+//  - 'pago_diferido' = acceso concedido a mano, con fecha comprometida de pago.
 //
-// "pago_pendiente" significa:
-// - solicitud aprobada;
-// - alumno autorizado;
-// - todavía no abonó;
-// - NO tiene acceso al curso.
+// Cualquiera de los dos con "suspendida_en" cargado queda BLOQUEADO: es la
+// palanca de administración para cortarle el curso a alguien.
 //
-// Para cursos en vivo además verificamos fin_en.
-// Para cursos grabados, una vez active, el acceso no vence.
+// "pago_pendiente" = solicitud aprobada pero sin abonar todavía → sin acceso.
 export const usePaymentStatus = (userId: string | undefined) =>
   useQuery({
     queryKey: ["payment-status", userId],
@@ -27,23 +30,36 @@ export const usePaymentStatus = (userId: string | undefined) =>
       const { data: subs, error } = await supabase
         .from("suscripciones")
         .select(
-          "curso_id, fin_en, cursos:curso_id(titulo, modalidad)"
+          "curso_id, estado, fin_en, suspendida_en, pago_diferido_hasta, cursos:curso_id(titulo, modalidad)"
         )
         .eq("usuario_id", userId!)
-        .eq("estado", "active");
+        .in("estado", ["active", "pago_diferido"]);
 
       if (error) throw error;
       if (!subs?.length) return [];
 
       return subs.map((s: any) => {
         const esGrabado = s.cursos?.modalidad === "grabado";
+        const esDiferido = s.estado === "pago_diferido";
+        const suspendida = !!s.suspendida_en;
 
         return {
           cursoId: s.curso_id,
           cursoTitulo: s.cursos?.titulo || "Curso",
           finEn: s.fin_en,
-          bloqueado: !esGrabado && estaVencido(s.fin_en),
-          porVencer: !esGrabado && estaPorVencer(s.fin_en),
+          // El diferido nunca bloquea por fecha; solo la suspensión (o, para
+          // 'active' en vivo, que se haya vencido fin_en) corta el acceso.
+          bloqueado:
+            suspendida ||
+            (!esDiferido && !esGrabado && estaVencido(s.fin_en)),
+          porVencer:
+            !suspendida &&
+            !esDiferido &&
+            !esGrabado &&
+            estaPorVencer(s.fin_en),
+          suspendida,
+          esDiferido,
+          diferidoHasta: s.pago_diferido_hasta ?? null,
         };
       });
     },

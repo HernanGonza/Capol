@@ -290,16 +290,23 @@ const StudentDashboard = () => {
                           <CheckCircle className="w-3 h-3" /> COMPLETADO
                         </div>
                       )}
-                      {pago?.bloqueado && (
+                      {pago?.suspendida ? (
+                        <div className="absolute top-3 left-3 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                          <Lock className="w-3 h-3" /> SUSPENDIDO
+                        </div>
+                      ) : pago?.bloqueado ? (
                         <div className="absolute top-3 left-3 bg-destructive text-destructive-foreground text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
                           <Lock className="w-3 h-3" /> PAGO VENCIDO
                         </div>
-                      )}
-                      {!pago?.bloqueado && pago?.porVencer && (
+                      ) : pago?.esDiferido ? (
+                        <div className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg">
+                          <Clock className="w-3 h-3" /> PAGO PENDIENTE
+                        </div>
+                      ) : pago?.porVencer ? (
                         <div className="absolute top-3 left-3 bg-amber-500 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-lg animate-pulse">
                           <Clock className="w-3 h-3" /> VENCE PRONTO
                         </div>
-                      )}
+                      ) : null}
                     </div>
                     <CardContent className="p-5">
                       <h3 className="font-bold text-xl mb-2 line-clamp-1 group-hover:text-primary transition-colors">{item.course?.titulo}</h3>

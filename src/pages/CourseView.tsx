@@ -223,7 +223,9 @@ const CourseView = () => {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold">Acceso no autorizado</h1>
             <p className="text-muted-foreground">
-              {bloqueadoPorPago
+              {courseStatus?.suspendida
+                ? "Tu suscripción a este curso está suspendida. Contactá con administración para reactivarla."
+                : bloqueadoPorPago
                 ? "Tu suscripción venció. El acceso se reactiva automáticamente al registrarse un nuevo pago."
                 : "No tienes una suscripción activa vinculada a este curso."}
             </p>

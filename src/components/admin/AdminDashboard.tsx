@@ -37,7 +37,7 @@ const AdminDashboard = () => {
         { data: allProfiles },
       ] = await Promise.all([
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "student"),
-        supabase.from("suscripciones").select("usuario_id, curso_id, estado, price, moneda"),
+        supabase.from("suscripciones").select("usuario_id, curso_id, estado, price, moneda, suspendida_en, pago_diferido_hasta"),
         supabase.from("cursos").select("id, titulo, publicado"),
         supabase.from("progreso_lecciones").select("completado"),
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "teacher"),
@@ -66,7 +66,13 @@ const AdminDashboard = () => {
       const activeSubs = subsAlumnos.filter((s) => s.estado === 'active');
       const pendingSubs = subsAlumnos.filter((s) => s.estado === 'pago_pendiente');
       const expiredSubs = subsAlumnos.filter((s) => s.estado === 'expired');
-      const inscritosSubs = [...activeSubs, ...pendingSubs];
+      // Pago diferido: acceso concedido a mano, todavía sin pagar. Cuentan como
+      // inscriptos pero NO como ingreso.
+      const diferidoSubs = subsAlumnos.filter((s) => s.estado === 'pago_diferido');
+      const diferidosVencidos = diferidoSubs.filter(
+        (s) => !s.suspendida_en && s.pago_diferido_hasta && new Date(s.pago_diferido_hasta) <= new Date()
+      ).length;
+      const inscritosSubs = [...activeSubs, ...pendingSubs, ...diferidoSubs];
 
       // Contamos ALUMNOS distintos, no filas de suscripción: un alumno con 2 cursos
       // tiene 2 filas en "suscripciones" pero sigue siendo 1 solo alumno.
@@ -112,6 +118,8 @@ const AdminDashboard = () => {
         activeCount: alumnosAlDia,
         expiredCount: alumnosVencidos,
         pagosPendientes,
+        diferidosTotal: diferidoSubs.length,
+        diferidosVencidos,
         revenueByCurrency,
         completionRate,
         // Salud de cobranza = de los inscriptos, cuántos están al día con el pago.
@@ -162,7 +170,7 @@ const AdminDashboard = () => {
     {
       title: "Pagos Pendientes",
       value: stats?.pagosPendientes,
-      description: `Inscripciones sin pagar${stats?.expiredCount ? ` · ${stats.expiredCount} vencidas` : ""}`,
+      description: `Inscripciones sin pagar${stats?.expiredCount ? ` · ${stats.expiredCount} vencidas` : ""}${stats?.diferidosTotal ? ` · ${stats.diferidosTotal} diferidos` : ""}`,
       icon: AlertTriangle,
       color: "bg-card text-destructive",
       path: "/admin/subscriptions"
@@ -175,6 +183,20 @@ const AdminDashboard = () => {
         <h1 className="text-3xl font-bold tracking-tight">Panel de Control</h1>
         <p className="text-muted-foreground">Gestión centralizada de tu academia y facturación.</p>
       </div>
+
+      {!!stats?.diferidosVencidos && (
+        <button
+          type="button"
+          onClick={() => navigate("/admin/subscriptions")}
+          className="w-full flex items-center gap-3 rounded-xl border border-red-300 dark:border-red-900 bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 px-4 py-3 text-sm font-semibold text-left hover:bg-red-100 dark:hover:bg-red-950/60 transition-colors"
+        >
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          {stats.diferidosVencidos === 1
+            ? "1 pago diferido venció su fecha comprometida y sigue sin pagarse."
+            : `${stats.diferidosVencidos} pagos diferidos vencieron su fecha comprometida y siguen sin pagarse.`}
+          <ChevronRight className="w-4 h-4 ml-auto shrink-0" />
+        </button>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map((card, idx) => (

@@ -148,6 +148,21 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
     refetchInterval: 30000,
   });
 
+  const { data: diferidosVencidos } = useQuery({
+    queryKey: ["diferidos-vencidos-count"],
+    queryFn: async () => {
+      const { count } = await supabase
+        .from("suscripciones")
+        .select("*", { count: "exact", head: true })
+        .eq("estado", "pago_diferido")
+        .is("suspendida_en", null)
+        .lte("pago_diferido_hasta", new Date().toISOString());
+      return count || 0;
+    },
+    enabled: isAdmin,
+    refetchInterval: 60000,
+  });
+
   const { data: alertasSeguridadPendientes } = useQuery({
     queryKey: ["alertas-seguridad-pendientes-count"],
     queryFn: async () => {
@@ -298,7 +313,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         { to: "/admin/courses", label: "Cursos", icon: BookOpen },
         { to: "/admin/students", label: "Alumnos", icon: Users },
         { to: "/admin/solicitudes", label: "Solicitudes", icon: ClipboardList, badge: solicitudesPendientes },
-        { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard },
+        { to: "/admin/subscriptions", label: "Suscripciones", icon: CreditCard, badge: diferidosVencidos },
         { to: "/admin/finanzas", label: "Finanzas", icon: Wallet },
         { to: "/admin/metricas", label: "Métricas de Acceso", icon: BarChart3 },
         { to: "/admin/teachers", label: "Profesores", icon: UserPlus },
