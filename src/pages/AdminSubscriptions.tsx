@@ -58,6 +58,7 @@ import {
   CreditCard,
   PauseCircle,
   PlayCircle,
+  Trash2,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
@@ -115,6 +116,9 @@ const AdminSubscriptions = () => {
     sub: any;
     suspender: boolean;
   } | null>(null);
+
+  // Confirmación de eliminar (borrado físico) una suscripción.
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
 
   const precioCursoArs = (course: any) => {
     const precioUsd = Number(course?.precio);
@@ -600,6 +604,24 @@ const AdminSubscriptions = () => {
           : "Pago diferido habilitado — acceso concedido"
       );
       setDiferido(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const eliminarSubMutation = useMutation({
+    mutationFn: async () => {
+      if (!confirmDelete) return;
+      const { error } = await supabase.rpc("eliminar_suscripcion", {
+        p_suscripcion_id: confirmDelete.id,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      invalidarSuscripciones();
+      queryClient.invalidateQueries({ queryKey: ["admin-solicitudes"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitudes-pendientes-count"] });
+      toast.success("Suscripción eliminada");
+      setConfirmDelete(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1452,6 +1474,18 @@ const AdminSubscriptions = () => {
                       >
                         <Edit2 className="w-4 h-4" />
                       </Button>
+
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Eliminar"
+                        className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40"
+                        onClick={() =>
+                          setConfirmDelete(sub)
+                        }
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
                 </Card>
@@ -1536,6 +1570,40 @@ const AdminSubscriptions = () => {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirmación de eliminar suscripción */}
+      <AlertDialog
+        open={!!confirmDelete}
+        onOpenChange={(v) => {
+          if (!v) setConfirmDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta suscripción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se borra por completo el rastro de{" "}
+              {confirmDelete?.perfiles?.nombre_completo} en "
+              {confirmDelete?.cursos?.titulo}": la suscripción, la inscripción y
+              las solicitudes de ese curso. No se puede deshacer. Si hay pagos
+              registrados, la eliminación se cancela.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={(e) => {
+                e.preventDefault();
+                eliminarSubMutation.mutate();
+              }}
+              disabled={eliminarSubMutation.isPending}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Confirmación de suspender / reactivar */}
       <AlertDialog

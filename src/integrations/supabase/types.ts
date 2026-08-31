@@ -1075,6 +1075,14 @@ export type Database = {
         Args: { p_mensaje_id: string }
         Returns: undefined
       }
+      eliminar_solicitud: {
+        Args: { p_solicitud_id: string; p_borrar_suscripcion?: boolean }
+        Returns: undefined
+      }
+      eliminar_suscripcion: {
+        Args: { p_suscripcion_id: string }
+        Returns: undefined
+      }
       existe_hilo_mensajes: {
         Args: { user_a: string; user_b: string }
         Returns: boolean

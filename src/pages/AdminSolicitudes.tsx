@@ -15,6 +15,17 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import {
   CheckCircle,
@@ -28,6 +39,7 @@ import {
   MapPin,
   CreditCard,
   DollarSign,
+  Trash2,
 } from "lucide-react";
 
 const AdminSolicitudes = () => {
@@ -35,6 +47,10 @@ const AdminSolicitudes = () => {
 
   const [modalAlumno, setModalAlumno] = useState<any>(null);
   const [tab, setTab] = useState<"en_vivo" | "grabado">("en_vivo");
+
+  // Confirmación de eliminar (borrado físico) una solicitud.
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+  const [borrarSuscripcion, setBorrarSuscripcion] = useState(true);
 
   const { data: solicitudes, isLoading } = useQuery({
     queryKey: ["admin-solicitudes"],
@@ -157,6 +173,29 @@ const AdminSolicitudes = () => {
     onError: (e: any) => {
       toast.error(e.message);
     },
+  });
+
+  const eliminarMutation = useMutation({
+    mutationFn: async () => {
+      if (!confirmDelete) return;
+      const { error } = await supabase.rpc("eliminar_solicitud", {
+        p_solicitud_id: confirmDelete.id,
+        p_borrar_suscripcion: borrarSuscripcion,
+      });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["admin-solicitudes"] });
+      queryClient.invalidateQueries({ queryKey: ["solicitudes-pendientes-count"] });
+      queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
+      queryClient.invalidateQueries({ queryKey: ["payment-status"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-master-stats"] });
+      toast.success("Solicitud eliminada");
+      setConfirmDelete(null);
+      setModalAlumno(null);
+    },
+    onError: (e: any) => toast.error(e.message),
   });
 
   const formatPrecio = (curso: any) => {
@@ -416,6 +455,19 @@ const AdminSolicitudes = () => {
                             <CheckCircle className="w-3.5 h-3.5 mr-1" />
                             Aprobar solicitud
                           </Button>
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Eliminar solicitud"
+                            className="text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40"
+                            onClick={() => {
+                              setBorrarSuscripcion(true);
+                              setConfirmDelete(s);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -477,6 +529,20 @@ const AdminSolicitudes = () => {
                           </p>
 
                           {estadoBadge(s.estado)}
+
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            title="Eliminar solicitud"
+                            className="h-8 w-8 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-50 dark:hover:bg-red-950/40"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setBorrarSuscripcion(true);
+                              setConfirmDelete(s);
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
                         </div>
                       </div>
                     </CardContent>
@@ -668,10 +734,66 @@ const AdminSolicitudes = () => {
                   Suscripciones.
                 </div>
               )}
+
+              <Button
+                variant="outline"
+                className="w-full text-red-600 dark:text-red-400 border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/40"
+                onClick={() => {
+                  setBorrarSuscripcion(true);
+                  setConfirmDelete(modalAlumno);
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Eliminar solicitud
+              </Button>
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog
+        open={!!confirmDelete}
+        onOpenChange={(v) => {
+          if (!v) setConfirmDelete(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta solicitud?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Solicitud de {confirmDelete?.perfiles?.nombre_completo} a "
+              {confirmDelete?.cursos?.titulo}". No se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <label className="flex items-start gap-2 text-sm rounded-lg border p-3 cursor-pointer">
+            <Checkbox
+              checked={borrarSuscripcion}
+              onCheckedChange={(v) => setBorrarSuscripcion(v === true)}
+              className="mt-0.5"
+            />
+            <span>
+              Eliminar también la suscripción y la inscripción de este curso (si
+              existen y no tienen pagos registrados). Dejá esto tildado si la
+              solicitud fue un error.
+            </span>
+          </label>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700"
+              onClick={(e) => {
+                e.preventDefault();
+                eliminarMutation.mutate();
+              }}
+              disabled={eliminarMutation.isPending}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 };
