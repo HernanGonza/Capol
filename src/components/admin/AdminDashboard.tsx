@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
+import AlumnosPorCursoCard from "@/components/admin/AlumnosPorCursoCard";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -314,6 +315,8 @@ const AdminDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      <AlumnosPorCursoCard />
     </div>
   );
 };

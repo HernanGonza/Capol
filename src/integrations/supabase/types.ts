@@ -590,10 +590,11 @@ export type Database = {
           destinatario_id: string | null
           editado: boolean
           eliminado: boolean
+          es_sistema: boolean
           fijado: boolean
           id: string
           leido: boolean
-          remitente_id: string
+          remitente_id: string | null
         }
         Insert: {
           adjunto_nombre?: string | null
@@ -604,10 +605,11 @@ export type Database = {
           destinatario_id?: string | null
           editado?: boolean
           eliminado?: boolean
+          es_sistema?: boolean
           fijado?: boolean
           id?: string
           leido?: boolean
-          remitente_id: string
+          remitente_id?: string | null
         }
         Update: {
           adjunto_nombre?: string | null
@@ -618,10 +620,11 @@ export type Database = {
           destinatario_id?: string | null
           editado?: boolean
           eliminado?: boolean
+          es_sistema?: boolean
           fijado?: boolean
           id?: string
           leido?: boolean
-          remitente_id?: string
+          remitente_id?: string | null
         }
         Relationships: [
           {
@@ -1053,6 +1056,18 @@ export type Database = {
         }[]
       }
       contar_registrados_totales: { Args: never; Returns: number }
+      progreso_alumnos_cursos: {
+        Args: never
+        Returns: {
+          usuario_id: string
+          curso_id: string
+          curso_titulo: string
+          curso_modalidad: Database["public"]["Enums"]["curso_modalidad"]
+          estado_suscripcion: string
+          total_clases: number
+          clases_completadas: number
+        }[]
+      }
       registrar_pago_suscripcion: {
         Args: {
           p_curso_id: string

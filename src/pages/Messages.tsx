@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Search, MessageSquare, Users, Ban, ShieldCheck, Pin, PinOff, Trash2, Flag, AlertTriangle, Pencil, Plus } from "lucide-react";
+import { Search, MessageSquare, Users, Ban, ShieldCheck, Pin, PinOff, Trash2, Flag, AlertTriangle, Pencil, Plus, BadgeCheck } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import MessageComposer from "@/components/MessageComposer";
@@ -30,7 +30,7 @@ import { uploadMessageAttachment } from "@/lib/messageAttachments";
 
 type Mensaje = {
   id: string;
-  remitente_id: string;
+  remitente_id: string | null;
   destinatario_id: string | null;
   curso_id: string | null;
   contenido: string;
@@ -38,6 +38,7 @@ type Mensaje = {
   eliminado: boolean;
   fijado: boolean;
   editado: boolean;
+  es_sistema?: boolean;
   creado_en: string;
   adjunto_path: string | null;
   adjunto_nombre: string | null;
@@ -57,6 +58,9 @@ type ConversationDirecta = {
   noLeidos: number;
   cursoId: string | null;
   cursoTitulo: string | null;
+  // true = hilo de avisos automáticos de la plataforma ("CapOL Escuela"): se
+  // muestra como un bot y no se puede responder.
+  esSistema?: boolean;
 };
 
 type ConversationForo = {
@@ -238,7 +242,7 @@ const Messages = () => {
   const idsAResolver = useMemo(() => {
     const ids = new Set<string>();
     for (const m of mensajes || []) {
-      ids.add(m.remitente_id);
+      if (m.remitente_id) ids.add(m.remitente_id);
       if (m.destinatario_id) ids.add(m.destinatario_id);
     }
     if (withParam) ids.add(withParam);
@@ -308,6 +312,31 @@ const Messages = () => {
     const map = new Map<string, Conversation>();
 
     for (const m of mensajes) {
+      // Avisos automáticos de la plataforma: todos juntos en un único hilo
+      // "CapOL Escuela", sin importar de qué evento vengan.
+      if (m.es_sistema) {
+        const key = "sistema";
+        const existing = map.get(key) as ConversationDirecta | undefined;
+        const entry: ConversationDirecta =
+          existing || {
+            key,
+            tipo: "directo",
+            otherId: "sistema",
+            esSistema: true,
+            nombre: "CapOL Escuela",
+            avatar: null,
+            mensajes: [],
+            ultimo: null,
+            noLeidos: 0,
+            cursoId: null,
+            cursoTitulo: null,
+          };
+        entry.mensajes.push(m);
+        entry.ultimo = m;
+        if (m.destinatario_id === user.id && !m.leido) entry.noLeidos += 1;
+        map.set(key, entry);
+        continue;
+      }
       if (m.destinatario_id === null) {
         if (!m.curso_id) continue;
         const key = `foro-${m.curso_id}`;
@@ -430,7 +459,7 @@ const Messages = () => {
       const { data } = await supabase.from("mensajeria_bloqueados").select("usuario_id").eq("usuario_id", otherId).maybeSingle();
       return !!data;
     },
-    enabled: role === "admin" && selected?.tipo === "directo",
+    enabled: role === "admin" && selected?.tipo === "directo" && !selected.esSistema,
   });
 
   const banUserMutation = useMutation({
@@ -451,16 +480,20 @@ const Messages = () => {
   });
 
   const markReadMutation = useMutation({
-    mutationFn: async (otherId: string) => {
-      const { error } = await supabase
+    mutationFn: async (conv: { otherId: string; esSistema?: boolean }) => {
+      let q = supabase
         .from("mensajes")
         .update({ leido: true })
         .eq("destinatario_id", user!.id)
-        .eq("remitente_id", otherId)
         .eq("leido", false);
+      q = conv.esSistema ? q.eq("es_sistema", true) : q.eq("remitente_id", conv.otherId);
+      const { error } = await q;
       if (error) throw error;
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mensajes", user?.id] });
+      queryClient.invalidateQueries({ queryKey: ["mensajes-no-leidos-count", user?.id] });
+    },
   });
 
   // Marca "hasta cuándo leí este foro" para que deje de contar como no leído
@@ -476,7 +509,8 @@ const Messages = () => {
 
   useEffect(() => {
     if (!selected) return;
-    if (selected.tipo === "directo" && selected.noLeidos > 0) markReadMutation.mutate(selected.otherId);
+    if (selected.tipo === "directo" && selected.noLeidos > 0)
+      markReadMutation.mutate({ otherId: selected.otherId, esSistema: selected.esSistema });
     if (selected.tipo === "foro") markForumReadMutation.mutate(selected.cursoId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected?.key]);
@@ -698,7 +732,11 @@ const Messages = () => {
               onClick={() => setSelectedKey(c.key)}
             >
               <CardContent className="p-4 flex items-center gap-4">
-                {c.tipo === "foro" ? (
+                {c.tipo === "directo" && c.esSistema ? (
+                  <div className="w-11 h-11 rounded-full gradient-primary flex items-center justify-center text-white shrink-0">
+                    <BadgeCheck className="w-5 h-5" />
+                  </div>
+                ) : c.tipo === "foro" ? (
                   <div className="w-11 h-11 rounded-full bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
                     <Users className="w-5 h-5" />
                   </div>
@@ -754,11 +792,14 @@ const Messages = () => {
                 {selected?.tipo === "foro" && (
                   <p className="text-xs text-muted-foreground">{selected.cursoTitulo}</p>
                 )}
-                {selected?.tipo === "directo" && selected.cursoTitulo && (
+                {selected?.tipo === "directo" && selected.esSistema && (
+                  <p className="text-xs text-muted-foreground">Avisos automáticos · no se responden</p>
+                )}
+                {selected?.tipo === "directo" && !selected.esSistema && selected.cursoTitulo && (
                   <p className="text-xs text-muted-foreground">Sobre: {selected.cursoTitulo}</p>
                 )}
               </div>
-              {role === "admin" && selected?.tipo === "directo" && (
+              {role === "admin" && selected?.tipo === "directo" && !selected.esSistema && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -795,7 +836,7 @@ const Messages = () => {
                       </p>
                     )}
                     {selected?.tipo === "foro" && !mine && (
-                      <p className="text-xs font-bold opacity-80">{profileMap.get(m.remitente_id)?.nombre_completo || "Usuario"}</p>
+                      <p className="text-xs font-bold opacity-80">{profileMap.get(m.remitente_id ?? "")?.nombre_completo || "Usuario"}</p>
                     )}
                     {m.eliminado ? (
                       <p className={`italic ${mine ? "text-primary-foreground/70" : "text-muted-foreground"}`}>Mensaje eliminado</p>
@@ -842,7 +883,7 @@ const Messages = () => {
                       {m.editado && !m.eliminado && <span className="italic"> (editado)</span>}
                     </p>
 
-                    {!m.eliminado && editingId !== m.id && (
+                    {!m.eliminado && editingId !== m.id && !m.es_sistema && (
                       <div className={`absolute top-1 ${mine ? "left-1" : "right-1"} flex md:hidden md:group-hover:flex items-center gap-0.5 bg-background/90 rounded-lg shadow-sm border`}>
                         {puedeFijar && (
                           <button
@@ -896,15 +937,22 @@ const Messages = () => {
               <p className="text-sm text-muted-foreground text-center py-8">Escribí el primer mensaje.</p>
             )}
           </div>
-          <MessageComposer
-            value={reply}
-            onChange={setReply}
-            file={file}
-            onFileChange={setFile}
-            onSend={() => sendMutation.mutate()}
-            sending={sendMutation.isPending}
-            placeholder={selected?.tipo === "foro" ? "Escribí algo para todo el curso..." : "Escribí un mensaje..."}
-          />
+          {selected?.tipo === "directo" && selected.esSistema ? (
+            <div className="border-t pt-3 text-center text-xs text-muted-foreground">
+              Estos son avisos automáticos de CapOL — no se responden por acá. Si
+              necesitás algo, escribinos un mensaje nuevo.
+            </div>
+          ) : (
+            <MessageComposer
+              value={reply}
+              onChange={setReply}
+              file={file}
+              onFileChange={setFile}
+              onSend={() => sendMutation.mutate()}
+              sending={sendMutation.isPending}
+              placeholder={selected?.tipo === "foro" ? "Escribí algo para todo el curso..." : "Escribí un mensaje..."}
+            />
+          )}
         </DialogContent>
       </Dialog>
 

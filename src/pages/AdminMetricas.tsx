@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, UserPlus, GraduationCap, Percent, Globe, Wallet, Users } from "lucide-react";
+import AlumnosPorCursoCard from "@/components/admin/AlumnosPorCursoCard";
 
 // Traduce un código ISO de país (ej "TH") a su nombre en español. Usa la API
 // nativa del navegador en vez de un mapa a mano — cubre todos los países del
@@ -231,6 +232,8 @@ const AdminMetricas = () => {
             </Card>
           ))}
         </div>
+
+        <AlumnosPorCursoCard />
 
         {/* Argentina vs resto del mundo — mismo corte que usa el precio
             automático (PriceTag) para decidir pesos vs dólares. */}
