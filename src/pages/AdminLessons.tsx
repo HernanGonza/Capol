@@ -86,8 +86,16 @@ const AdminLessons = () => {
 
   const estadoBadge: Record<string, string> = {
     active: "bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900",
+    pago_diferido: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+    pago_pendiente: "bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900",
     expired: "bg-muted text-muted-foreground border-border",
     cancelled: "bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900",
+  };
+
+  const estadoLabel: Record<string, string> = {
+    active: "AL DÍA",
+    pago_diferido: "PAGO DIFERIDO",
+    pago_pendiente: "PAGO PENDIENTE",
   };
 
   const openLessonForEdit = (lesson: any) => {
@@ -208,7 +216,7 @@ const AdminLessons = () => {
                       <p className="text-xs text-muted-foreground truncate">{a.perfiles?.email}</p>
                     </div>
                     <Badge variant="outline" className={`text-[10px] shrink-0 ${estadoBadge[a.estado || "expired"]}`}>
-                      {a.estado === "active" ? "AL DÍA" : (a.estado || "sin estado").toUpperCase()}
+                      {estadoLabel[a.estado] || (a.estado || "sin estado").toUpperCase()}
                     </Badge>
                   </div>
                   <Button variant="outline" size="sm" onClick={() => navigate(`/messages?with=${a.usuario_id}&curso=${courseId}`)}>

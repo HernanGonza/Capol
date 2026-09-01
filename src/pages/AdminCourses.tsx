@@ -71,8 +71,11 @@ const AdminCourses = () => {
       if (error) throw error;
       // Todas las suscripciones (cualquier estado) — de acá salen los contadores
       // de la tarjeta. Las etiquetas cambian según la modalidad:
-      //  - en vivo: "Inscriptos" (active + pago_pendiente) / "Al día" (active, acceso vigente)
+      //  - en vivo: "Inscriptos" (active + pago_pendiente + pago_diferido) / "Al día" (active, ya pagó)
       //  - grabado: "Compradores" (active, compra única) / "Pendientes" (pago_pendiente)
+      // "pago_diferido" es un alumno que ya tiene acceso al curso pero todavía no
+      // pagó (se comprometió a una fecha), así que cuenta como inscripto pero no
+      // como "al día".
       // Antes "Alumnos" salía de la tabla "inscripciones", que desde la migración
       // restrict_unpaid_subscription_access solo guarda a los que pagaron, así
       // que mostraba muchos menos de los que realmente se anotaron.
@@ -81,7 +84,14 @@ const AdminCourses = () => {
       return data.map((course: any) => {
         const cursoSubs = (subs || []).filter((s) => s.curso_id === course.id);
         const inscriptos = new Set(
-          cursoSubs.filter((s) => s.estado === "active" || s.estado === "pago_pendiente").map((s) => s.usuario_id)
+          cursoSubs
+            .filter(
+              (s) =>
+                s.estado === "active" ||
+                s.estado === "pago_pendiente" ||
+                s.estado === "pago_diferido"
+            )
+            .map((s) => s.usuario_id)
         );
         const alDia = new Set(
           cursoSubs.filter((s) => s.estado === "active").map((s) => s.usuario_id)
