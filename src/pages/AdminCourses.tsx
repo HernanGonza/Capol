@@ -273,6 +273,8 @@ const AdminCourses = () => {
             url_video: l.url_video,
             // No copiamos fecha_desbloqueo/fecha_fin_clase/grabacion_url/sala_jitsi:
             // son propias de la cohorte anterior, la nueva edición arranca sin ellas.
+            // (sala_jitsi la vuelve a completar el trigger set_sala_jitsi_default
+            // si el curso es en vivo.)
           }))
         );
       }
