@@ -3,7 +3,7 @@ import {
   useMutation,
   useQueryClient,
 } from "@tanstack/react-query";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
@@ -62,7 +62,7 @@ import {
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
-import { ARS_FIXED_RATE } from "@/lib/currency";
+import { ARS_FIXED_RATE, getExchangeRates } from "@/lib/currency";
 import {
   estaVencido,
   estaPorVencer,
@@ -119,6 +119,32 @@ const AdminSubscriptions = () => {
 
   // Confirmación de eliminar (borrado físico) una suscripción.
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
+
+  // Confirmación cuando el monto cargado a mano no coincide (>1%) con la
+  // cuenta a cotización de mercado del día: precio USD × cotización actual.
+  const [confirmCotizacion, setConfirmCotizacion] = useState<{
+    montoIngresado: number;
+    esperadoMercado: number;
+    cotizacionAplicada: number;
+    cotizacionMercado: number;
+  } | null>(null);
+
+  // Cotización de mercado del día (1 USD = X ARS), solo informativa: sirve
+  // para que el admin vea a qué cotización está quedando el pago que carga a
+  // mano. No condiciona ni valida el monto.
+  const [cotizacionMercado, setCotizacionMercado] = useState<number | null>(
+    null
+  );
+
+  useEffect(() => {
+    let cancelado = false;
+    getExchangeRates().then((rates) => {
+      if (!cancelado) setCotizacionMercado(rates?.ARS ?? null);
+    });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const precioCursoArs = (course: any) => {
     const precioUsd = Number(course?.precio);
@@ -429,26 +455,12 @@ const AdminSubscriptions = () => {
         const monto =
           Number(form.price);
 
-        const montoEsperado = precioCursoArs(selectedCourse);
-
         if (
           !Number.isFinite(monto) ||
           monto <= 0
         ) {
           throw new Error(
             "Ingresá un monto válido."
-          );
-        }
-
-        if (montoEsperado == null) {
-          throw new Error(
-            "El curso no tiene un precio válido configurado."
-          );
-        }
-
-        if (Math.abs(monto - montoEsperado) > 0.009) {
-          throw new Error(
-            `El pago debe ser exactamente $${montoEsperado.toLocaleString("es-AR")} ARS.`
           );
         }
 
@@ -566,9 +578,41 @@ const AdminSubscriptions = () => {
   const submitForm = () => {
     if (editingId) {
       editarMutation.mutate();
-    } else {
-      registrarPagoMutation.mutate();
+      return;
     }
+
+    const precioUsd = Number(selectedCourse?.precio) || 0;
+    const monto = Number(form.price) || 0;
+    const tieneCotizacionManual =
+      (Number(selectedCourse?.cotizacion_ars) || 0) > 0;
+
+    // Si el curso tiene una cotización manual cargada, el admin ya fijó a
+    // propósito a qué tipo de cambio se cobra: no molestamos con la
+    // confirmación. Solo avisamos cuando no hay cotización manual y el monto
+    // se aleja (>1%) de la cuenta a cotización de mercado del día.
+    if (
+      !tieneCotizacionManual &&
+      cotizacionMercado != null &&
+      precioUsd > 0 &&
+      monto > 0
+    ) {
+      const esperadoMercado = precioUsd * cotizacionMercado;
+
+      if (
+        Math.abs(monto - esperadoMercado) / esperadoMercado >
+        0.01
+      ) {
+        setConfirmCotizacion({
+          montoIngresado: monto,
+          esperadoMercado,
+          cotizacionAplicada: monto / precioUsd,
+          cotizacionMercado,
+        });
+        return;
+      }
+    }
+
+    registrarPagoMutation.mutate();
   };
 
   const invalidarSuscripciones = () => {
@@ -910,7 +954,7 @@ const AdminSubscriptions = () => {
 
                     <div className="space-y-2">
                       <Label>
-                        {editingId ? "Monto" : "Monto exacto (ARS)"}
+                        {editingId ? "Monto" : "Monto recibido (ARS)"}
                       </Label>
 
                       <Input
@@ -926,13 +970,106 @@ const AdminSubscriptions = () => {
                                 .value,
                           })
                         }
-                        readOnly={!editingId}
                       />
-                      {!editingId && selectedCourse && (
-                        <p className="text-xs text-muted-foreground">
-                          USD {Number(selectedCourse.precio || 0).toLocaleString("es-AR")} × ${Number(selectedCourse.cotizacion_ars || ARS_FIXED_RATE).toLocaleString("es-AR")} por USD. El importe se valida también en Supabase.
-                        </p>
-                      )}
+                      {!editingId && selectedCourse && (() => {
+                        const precioUsd =
+                          Number(selectedCourse.precio) || 0;
+                        const cotizacionCurso =
+                          Number(selectedCourse.cotizacion_ars) ||
+                          ARS_FIXED_RATE;
+                        const montoIngresado =
+                          Number(form.price) || 0;
+                        const cotizacionAplicada =
+                          precioUsd > 0 && montoIngresado > 0
+                            ? montoIngresado / precioUsd
+                            : null;
+
+                        return (
+                          <div className="text-xs space-y-1 text-muted-foreground">
+                            {precioUsd > 0 ? (
+                              <p>
+                                Precio del curso:{" "}
+                                <strong>
+                                  USD{" "}
+                                  {precioUsd.toLocaleString(
+                                    "es-AR"
+                                  )}
+                                </strong>{" "}
+                                · sugerido a $
+                                {cotizacionCurso.toLocaleString(
+                                  "es-AR"
+                                )}
+                                /USD:{" "}
+                                <strong>
+                                  $
+                                  {(
+                                    precioUsd * cotizacionCurso
+                                  ).toLocaleString("es-AR")}
+                                </strong>
+                              </p>
+                            ) : (
+                              <p className="text-amber-700 dark:text-amber-400">
+                                Este curso no tiene precio en USD
+                                cargado. Cargá el monto recibido
+                                a mano.
+                              </p>
+                            )}
+
+                            {cotizacionMercado != null &&
+                              precioUsd > 0 && (
+                                <p>
+                                  Cotización de mercado hoy:{" "}
+                                  <strong>
+                                    1 USD ≈ $
+                                    {cotizacionMercado.toLocaleString(
+                                      "es-AR",
+                                      {
+                                        maximumFractionDigits: 0,
+                                      }
+                                    )}
+                                  </strong>{" "}
+                                  (≈ $
+                                  {(
+                                    precioUsd * cotizacionMercado
+                                  ).toLocaleString("es-AR", {
+                                    maximumFractionDigits: 0,
+                                  })}
+                                  )
+                                </p>
+                              )}
+
+                            {cotizacionAplicada != null && (
+                              <p className="text-foreground">
+                                Estás registrando{" "}
+                                <strong>
+                                  USD{" "}
+                                  {precioUsd.toLocaleString(
+                                    "es-AR"
+                                  )}
+                                </strong>{" "}
+                                a{" "}
+                                <strong>
+                                  $
+                                  {montoIngresado.toLocaleString(
+                                    "es-AR"
+                                  )}
+                                </strong>{" "}
+                                → cotización aplicada:{" "}
+                                <strong>
+                                  $
+                                  {cotizacionAplicada.toLocaleString(
+                                    "es-AR",
+                                    {
+                                      maximumFractionDigits: 2,
+                                    }
+                                  )}
+                                  /USD
+                                </strong>
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="space-y-2">
@@ -1640,6 +1777,76 @@ const AdminSubscriptions = () => {
               disabled={suspensionMutation.isPending}
             >
               {confirmSuspension?.suspender ? "Suspender" : "Reactivar"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={!!confirmCotizacion}
+        onOpenChange={(o) =>
+          !o && setConfirmCotizacion(null)
+        }
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              El monto no coincide con la cotización automática
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Este curso no tiene una cotización fija cargada, así
+                  que la referencia es la cotización de mercado del
+                  día:{" "}
+                  <strong>
+                    1 USD ≈ $
+                    {confirmCotizacion?.cotizacionMercado.toLocaleString(
+                      "es-AR",
+                      { maximumFractionDigits: 0 }
+                    )}
+                  </strong>
+                  , lo que daría{" "}
+                  <strong>
+                    $
+                    {confirmCotizacion?.esperadoMercado.toLocaleString(
+                      "es-AR",
+                      { maximumFractionDigits: 0 }
+                    )}
+                  </strong>
+                  .
+                </p>
+                <p>
+                  Estás registrando{" "}
+                  <strong>
+                    $
+                    {confirmCotizacion?.montoIngresado.toLocaleString(
+                      "es-AR"
+                    )}
+                  </strong>
+                  , que equivale a una cotización de{" "}
+                  <strong>
+                    $
+                    {confirmCotizacion?.cotizacionAplicada.toLocaleString(
+                      "es-AR",
+                      { maximumFractionDigits: 2 }
+                    )}
+                    /USD
+                  </strong>
+                  . El pago se registra con ese monto igual.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Revisar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmCotizacion(null);
+                registrarPagoMutation.mutate();
+              }}
+            >
+              Registrar igual
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
