@@ -26,6 +26,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Checkbox } from "@/components/ui/checkbox";
+import ConfirmWithReason from "@/components/ConfirmWithReason";
+import { registrarMovimiento } from "@/lib/movimientosAdmin";
 import { toast } from "sonner";
 import {
   CheckCircle,
@@ -51,6 +53,15 @@ const AdminSolicitudes = () => {
   // Confirmación de eliminar (borrado físico) una solicitud.
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
   const [borrarSuscripcion, setBorrarSuscripcion] = useState(true);
+
+  // Confirmación + motivo al aprobar / rechazar una solicitud.
+  const [confirmResolver, setConfirmResolver] = useState<
+    | { solicitud: any; estado: "aprobada" | "rechazada" }
+    | null
+  >(null);
+
+  const pedirResolver = (solicitud: any, estado: "aprobada" | "rechazada") =>
+    setConfirmResolver({ solicitud, estado });
 
   const { data: solicitudes, isLoading } = useQuery({
     queryKey: ["admin-solicitudes"],
@@ -96,11 +107,13 @@ const AdminSolicitudes = () => {
       estado,
       usuarioId,
       cursoId,
+      motivo,
     }: {
       id: string;
       estado: string;
       usuarioId: string;
       cursoId: string;
+      motivo?: string;
     }) => {
       if (estado === "aprobada") {
         // Aprobar una solicitud NO implica pago ni acceso.
@@ -142,10 +155,19 @@ const AdminSolicitudes = () => {
         .update({
           estado,
           resuelto_en: new Date().toISOString(),
+          nota_resolucion: motivo?.trim() || null,
         })
         .eq("id", id);
 
       if (error) throw error;
+
+      await registrarMovimiento({
+        accion: estado === "aprobada" ? "solicitud_aprobada" : "solicitud_rechazada",
+        usuarioId,
+        cursoId,
+        motivo,
+        metadata: { solicitud_id: id },
+      });
     },
 
     onSuccess: (_, vars) => {
@@ -162,6 +184,7 @@ const AdminSolicitudes = () => {
       });
 
       setModalAlumno(null);
+      setConfirmResolver(null);
 
       toast.success(
         vars.estado === "aprobada"
@@ -183,6 +206,13 @@ const AdminSolicitudes = () => {
         p_borrar_suscripcion: borrarSuscripcion,
       });
       if (error) throw error;
+
+      await registrarMovimiento({
+        accion: "solicitud_eliminada",
+        usuarioId: confirmDelete.usuario_id,
+        cursoId: confirmDelete.curso_id,
+        metadata: { solicitud_id: confirmDelete.id, borro_suscripcion: borrarSuscripcion },
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["admin-solicitudes"] });
@@ -426,14 +456,7 @@ const AdminSolicitudes = () => {
                             variant="outline"
                             className="border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
                             disabled={resolverMutation.isPending}
-                            onClick={() =>
-                              resolverMutation.mutate({
-                                id: s.id,
-                                estado: "rechazada",
-                                usuarioId: s.usuario_id,
-                                cursoId: s.curso_id,
-                              })
-                            }
+                            onClick={() => pedirResolver(s, "rechazada")}
                           >
                             <XCircle className="w-3.5 h-3.5 mr-1" />
                             Rechazar
@@ -443,14 +466,7 @@ const AdminSolicitudes = () => {
                             size="sm"
                             className="bg-emerald-600 hover:bg-emerald-700 text-white"
                             disabled={resolverMutation.isPending}
-                            onClick={() =>
-                              resolverMutation.mutate({
-                                id: s.id,
-                                estado: "aprobada",
-                                usuarioId: s.usuario_id,
-                                cursoId: s.curso_id,
-                              })
-                            }
+                            onClick={() => pedirResolver(s, "aprobada")}
                           >
                             <CheckCircle className="w-3.5 h-3.5 mr-1" />
                             Aprobar solicitud
@@ -696,14 +712,7 @@ const AdminSolicitudes = () => {
                     className="flex-1"
                     variant="outline"
                     disabled={resolverMutation.isPending}
-                    onClick={() =>
-                      resolverMutation.mutate({
-                        id: modalAlumno.id,
-                        estado: "rechazada",
-                        usuarioId: modalAlumno.usuario_id,
-                        cursoId: modalAlumno.curso_id,
-                      })
-                    }
+                    onClick={() => pedirResolver(modalAlumno, "rechazada")}
                   >
                     <XCircle className="w-4 h-4 mr-2 text-red-500" />
                     Rechazar
@@ -712,14 +721,7 @@ const AdminSolicitudes = () => {
                   <Button
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
                     disabled={resolverMutation.isPending}
-                    onClick={() =>
-                      resolverMutation.mutate({
-                        id: modalAlumno.id,
-                        estado: "aprobada",
-                        usuarioId: modalAlumno.usuario_id,
-                        cursoId: modalAlumno.curso_id,
-                      })
-                    }
+                    onClick={() => pedirResolver(modalAlumno, "aprobada")}
                   >
                     <CheckCircle className="w-4 h-4 mr-2" />
                     Aprobar solicitud
@@ -794,6 +796,39 @@ const AdminSolicitudes = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ConfirmWithReason
+        open={!!confirmResolver}
+        onOpenChange={(v) => !v && setConfirmResolver(null)}
+        title={
+          confirmResolver?.estado === "aprobada"
+            ? "¿Aprobar esta solicitud?"
+            : "¿Rechazar esta solicitud?"
+        }
+        description={
+          confirmResolver
+            ? `${confirmResolver.solicitud?.perfiles?.nombre_completo || "El alumno"} — ${confirmResolver.solicitud?.cursos?.titulo || "curso"}.` +
+              (confirmResolver.estado === "aprobada"
+                ? " Se crea una suscripción pendiente de pago (no da acceso todavía)."
+                : "")
+            : undefined
+        }
+        confirmLabel={confirmResolver?.estado === "aprobada" ? "Aprobar" : "Rechazar"}
+        destructive={confirmResolver?.estado === "rechazada"}
+        motivoRequerido={confirmResolver?.estado === "rechazada"}
+        motivoLabel={confirmResolver?.estado === "rechazada" ? "Motivo del rechazo" : "Nota"}
+        loading={resolverMutation.isPending}
+        onConfirm={(motivo) =>
+          confirmResolver &&
+          resolverMutation.mutate({
+            id: confirmResolver.solicitud.id,
+            estado: confirmResolver.estado,
+            usuarioId: confirmResolver.solicitud.usuario_id,
+            cursoId: confirmResolver.solicitud.curso_id,
+            motivo,
+          })
+        }
+      />
     </AppLayout>
   );
 };

@@ -20,6 +20,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import ModalidadBadge from "@/components/ModalidadBadge";
+import { esGrabado, modalidadLabel } from "@/lib/modalidad";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { Plus, GraduationCap, BookOpen, Trash2, UserPlus, Search, Shield } from "lucide-react";
 
@@ -61,7 +64,7 @@ const AdminTeachers = () => {
         .select(`
           docente_id,
           curso_id,
-          cursos (id, titulo)
+          cursos (id, titulo, modalidad)
         `)
         .in("docente_id", teacherIds);
 
@@ -103,7 +106,7 @@ const AdminTeachers = () => {
         .select(`
           docente_id,
           curso_id,
-          cursos (id, titulo)
+          cursos (id, titulo, modalidad)
         `)
         .in("docente_id", adminIds);
 
@@ -120,7 +123,7 @@ const AdminTeachers = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("cursos")
-        .select("id, titulo")
+        .select("id, titulo, modalidad")
         .order("titulo");
       if (error) throw error;
       return data;
@@ -344,7 +347,10 @@ const AdminTeachers = () => {
                         <div className="flex flex-wrap gap-2">
                           {admin.cursos.map((course: any) => (
                             <Badge key={course.id} variant="outline" className="pr-1 flex items-center gap-1">
-                              <BookOpen className="w-3 h-3" />
+                              <span
+                                className={cn("w-1.5 h-1.5 rounded-full shrink-0", esGrabado(course.modalidad) ? "bg-fuchsia-500" : "bg-emerald-500")}
+                                title={modalidadLabel(course.modalidad)}
+                              />
                               {course.titulo}
                               <Button
                                 variant="ghost"
@@ -426,12 +432,15 @@ const AdminTeachers = () => {
                     ) : (
                       <div className="flex flex-wrap gap-2">
                         {teacher.cursos.map((course: any) => (
-                          <Badge 
-                            key={course.id} 
-                            variant="outline" 
+                          <Badge
+                            key={course.id}
+                            variant="outline"
                             className="pr-1 flex items-center gap-1"
                           >
-                            <BookOpen className="w-3 h-3" />
+                            <span
+                              className={cn("w-1.5 h-1.5 rounded-full shrink-0", esGrabado(course.modalidad) ? "bg-fuchsia-500" : "bg-emerald-500")}
+                              title={modalidadLabel(course.modalidad)}
+                            />
                             {course.titulo}
                             <Button
                               variant="ghost"
@@ -489,7 +498,10 @@ const AdminTeachers = () => {
                       !selectedTeacher?.cursos?.some((tc: any) => tc.id === c.id)
                     ).map((course) => (
                       <SelectItem key={course.id} value={course.id}>
-                        {course.titulo}
+                        <span className="flex items-center gap-2">
+                          {course.titulo}
+                          <ModalidadBadge modalidad={course.modalidad} showIcon={false} />
+                        </span>
                       </SelectItem>
                     ))}
                   </SelectContent>

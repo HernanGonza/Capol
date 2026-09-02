@@ -4,7 +4,7 @@ import {
   useQueryClient,
 } from "@tanstack/react-query";
 import { useState, useMemo, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import ConfirmWithReason from "@/components/ConfirmWithReason";
+import { registrarMovimiento } from "@/lib/movimientosAdmin";
 import { toast } from "sonner";
 import {
   BookOpen,
@@ -88,12 +90,27 @@ const AdminSubscriptions = () => {
   const [editingId, setEditingId] =
     useState<string | null>(null);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] =
-    useState("all");
+    useState(searchParams.get("estado") || "all");
 
   const [tab, setTab] =
     useState<"en_vivo" | "grabado">("en_vivo");
+
+  // Al entrar con ?estado=... (desde las tarjetas del Panel de Control) se
+  // arranca con ese filtro aplicado. Se limpia el query param para no dejarlo
+  // pegado si el admin después cambia el filtro a mano.
+  useEffect(() => {
+    const estado = searchParams.get("estado");
+    if (estado) {
+      setStatusFilter(estado);
+      searchParams.delete("estado");
+      setSearchParams(searchParams, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [form, setForm] = useState({
     usuario_id: "",
@@ -101,6 +118,7 @@ const AdminSubscriptions = () => {
     price: "",
     proveedor_pago: "",
     estado: "pago_pendiente",
+    nota: "",
   });
 
   // Diálogo de pago diferido (habilitar o extender). Guarda la suscripción sobre
@@ -392,6 +410,7 @@ const AdminSubscriptions = () => {
         proveedor_pago:
           sub.proveedor_pago || "",
         estado: sub.estado,
+        nota: "",
       });
     } else {
       setForm({
@@ -400,6 +419,7 @@ const AdminSubscriptions = () => {
         price: "",
         proveedor_pago: "",
         estado: "pago_pendiente",
+        nota: "",
       });
     }
 
@@ -419,6 +439,7 @@ const AdminSubscriptions = () => {
       proveedor_pago:
         sub.proveedor_pago || "",
       estado: sub.estado,
+      nota: "",
     });
 
     setOpen(true);
@@ -434,6 +455,7 @@ const AdminSubscriptions = () => {
       price: "",
       proveedor_pago: "",
       estado: "pago_pendiente",
+      nota: "",
     });
   };
 
@@ -487,6 +509,17 @@ const AdminSubscriptions = () => {
         );
 
         if (error) throw error;
+
+        await registrarMovimiento({
+          accion: "pago_registrado",
+          usuarioId: form.usuario_id,
+          cursoId: form.curso_id,
+          motivo: form.nota || null,
+          metadata: {
+            monto,
+            proveedor_pago: form.proveedor_pago || null,
+          },
+        });
       },
 
       onSuccess: () => {
@@ -514,6 +547,13 @@ const AdminSubscriptions = () => {
           queryKey: [
             "student-courses-progress",
           ],
+        });
+
+        // Panel Financiero: al registrar el pago de un diferido/pendiente,
+        // ese alumno tiene que salir de la lista de deudores y sumar a lo
+        // recaudado.
+        queryClient.invalidateQueries({
+          queryKey: ["suscripciones-pago-pendiente"],
         });
 
         toast.success(
@@ -622,6 +662,9 @@ const AdminSubscriptions = () => {
     queryClient.invalidateQueries({ queryKey: ["student-courses-progress"] });
     queryClient.invalidateQueries({ queryKey: ["diferidos-vencidos-count"] });
     queryClient.invalidateQueries({ queryKey: ["admin-master-stats"] });
+    // Panel Financiero: la lista de deudores (pago_pendiente + pago_diferido).
+    queryClient.invalidateQueries({ queryKey: ["suscripciones-pago-pendiente"] });
+    queryClient.invalidateQueries({ queryKey: ["pagos"] });
   };
 
   // Habilitar o extender un pago diferido: en ambos casos la RPC crea o reutiliza
@@ -639,6 +682,15 @@ const AdminSubscriptions = () => {
         p_nota: diferido.nota || null,
       });
       if (error) throw error;
+
+      await registrarMovimiento({
+        accion: "pago_diferido_habilitado",
+        usuarioId: diferido.sub.usuario_id,
+        cursoId: diferido.sub.curso_id,
+        suscripcionId: diferido.sub.id ?? null,
+        motivo: diferido.nota || null,
+        metadata: { fecha_limite: diferido.fecha },
+      });
     },
     onSuccess: () => {
       invalidarSuscripciones();
@@ -653,12 +705,20 @@ const AdminSubscriptions = () => {
   });
 
   const eliminarSubMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (motivo: string) => {
       if (!confirmDelete) return;
       const { error } = await supabase.rpc("eliminar_suscripcion", {
         p_suscripcion_id: confirmDelete.id,
       });
       if (error) throw error;
+
+      await registrarMovimiento({
+        accion: "suscripcion_eliminada",
+        usuarioId: confirmDelete.usuario_id,
+        cursoId: confirmDelete.curso_id,
+        suscripcionId: confirmDelete.id,
+        motivo,
+      });
     },
     onSuccess: () => {
       invalidarSuscripciones();
@@ -671,7 +731,7 @@ const AdminSubscriptions = () => {
   });
 
   const suspensionMutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (motivo: string) => {
       if (!confirmSuspension) return;
       const { sub, suspender } = confirmSuspension;
       const { error } = await supabase
@@ -681,6 +741,14 @@ const AdminSubscriptions = () => {
         })
         .eq("id", sub.id);
       if (error) throw error;
+
+      await registrarMovimiento({
+        accion: suspender ? "suscripcion_suspendida" : "suscripcion_reactivada",
+        usuarioId: sub.usuario_id,
+        cursoId: sub.curso_id,
+        suscripcionId: sub.id,
+        motivo,
+      });
     },
     onSuccess: () => {
       invalidarSuscripciones();
@@ -1115,6 +1183,20 @@ const AdminSubscriptions = () => {
                         </SelectContent>
                       </Select>
                     </div>
+
+                    {!editingId && (
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label>Nota / comentario (opcional)</Label>
+                        <Textarea
+                          rows={2}
+                          value={form.nota}
+                          onChange={(e) =>
+                            setForm({ ...form, nota: e.target.value })
+                          }
+                          placeholder="Ej: pagó en 2 partes, comprobante enviado por mail…"
+                        />
+                      </div>
+                    )}
 
                   </div>
 
@@ -1709,78 +1791,44 @@ const AdminSubscriptions = () => {
       </Dialog>
 
       {/* Confirmación de eliminar suscripción */}
-      <AlertDialog
+      <ConfirmWithReason
         open={!!confirmDelete}
-        onOpenChange={(v) => {
-          if (!v) setConfirmDelete(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>¿Eliminar esta suscripción?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Se borra por completo el rastro de{" "}
-              {confirmDelete?.perfiles?.nombre_completo} en "
-              {confirmDelete?.cursos?.titulo}": la suscripción, la inscripción y
-              las solicitudes de ese curso. No se puede deshacer. Si hay pagos
-              registrados, la eliminación se cancela.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-red-600 hover:bg-red-700"
-              onClick={(e) => {
-                e.preventDefault();
-                eliminarSubMutation.mutate();
-              }}
-              disabled={eliminarSubMutation.isPending}
-            >
-              Eliminar
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={(v) => !v && setConfirmDelete(null)}
+        title="¿Eliminar esta suscripción?"
+        description={
+          confirmDelete
+            ? `Se borra por completo el rastro de ${confirmDelete?.perfiles?.nombre_completo} en "${confirmDelete?.cursos?.titulo}": la suscripción, la inscripción y las solicitudes de ese curso. No se puede deshacer. Si hay pagos registrados, la eliminación se cancela.`
+            : undefined
+        }
+        confirmLabel="Eliminar"
+        destructive
+        motivoRequerido
+        motivoLabel="Motivo de la eliminación"
+        loading={eliminarSubMutation.isPending}
+        onConfirm={(motivo) => eliminarSubMutation.mutate(motivo)}
+      />
 
       {/* Confirmación de suspender / reactivar */}
-      <AlertDialog
+      <ConfirmWithReason
         open={!!confirmSuspension}
-        onOpenChange={(v) => {
-          if (!v) setConfirmSuspension(null);
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {confirmSuspension?.suspender
-                ? "¿Suspender la suscripción?"
-                : "¿Reactivar la suscripción?"}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              {confirmSuspension?.suspender
-                ? `${confirmSuspension?.sub?.perfiles?.nombre_completo} va a perder el acceso a "${confirmSuspension?.sub?.cursos?.titulo}" hasta que lo reactives. No se pierde ningún dato: la suscripción y las fechas quedan igual.`
-                : `${confirmSuspension?.sub?.perfiles?.nombre_completo} recupera el acceso a "${confirmSuspension?.sub?.cursos?.titulo}".`}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              className={
-                confirmSuspension?.suspender
-                  ? "bg-red-600 hover:bg-red-700"
-                  : "bg-emerald-600 hover:bg-emerald-700"
-              }
-              onClick={(e) => {
-                e.preventDefault();
-                suspensionMutation.mutate();
-              }}
-              disabled={suspensionMutation.isPending}
-            >
-              {confirmSuspension?.suspender ? "Suspender" : "Reactivar"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onOpenChange={(v) => !v && setConfirmSuspension(null)}
+        title={
+          confirmSuspension?.suspender
+            ? "¿Suspender la suscripción?"
+            : "¿Reactivar la suscripción?"
+        }
+        description={
+          confirmSuspension?.suspender
+            ? `${confirmSuspension?.sub?.perfiles?.nombre_completo} va a perder el acceso a "${confirmSuspension?.sub?.cursos?.titulo}" hasta que lo reactives. No se pierde ningún dato: la suscripción y las fechas quedan igual.`
+            : `${confirmSuspension?.sub?.perfiles?.nombre_completo} recupera el acceso a "${confirmSuspension?.sub?.cursos?.titulo}".`
+        }
+        confirmLabel={confirmSuspension?.suspender ? "Suspender" : "Reactivar"}
+        destructive={confirmSuspension?.suspender}
+        motivoRequerido={confirmSuspension?.suspender}
+        motivoLabel={confirmSuspension?.suspender ? "Motivo de la suspensión" : "Nota"}
+        loading={suspensionMutation.isPending}
+        onConfirm={(motivo) => suspensionMutation.mutate(motivo)}
+      />
 
       <AlertDialog
         open={!!confirmCotizacion}

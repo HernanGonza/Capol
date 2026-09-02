@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import { format, parseISO } from "date-fns";
 import MessageComposer from "@/components/MessageComposer";
 import MessageAttachmentChip from "@/components/MessageAttachmentChip";
+import ModalidadBadge from "@/components/ModalidadBadge";
 import { uploadMessageAttachment } from "@/lib/messageAttachments";
 
 type Mensaje = {
@@ -42,7 +43,7 @@ type Mensaje = {
   creado_en: string;
   adjunto_path: string | null;
   adjunto_nombre: string | null;
-  cursos: { titulo: string } | null;
+  cursos: { titulo: string; modalidad?: string | null } | null;
 };
 
 type PerfilPublico = { id: string; nombre_completo: string | null; url_avatar: string | null };
@@ -69,6 +70,7 @@ type ConversationForo = {
   cursoId: string;
   nombre: string;
   cursoTitulo: string;
+  cursoModalidad: string | null;
   mensajes: Mensaje[];
   ultimo: Mensaje | null;
 };
@@ -137,7 +139,7 @@ const Messages = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("mensajes")
-        .select("*, cursos:curso_id(titulo)")
+        .select("*, cursos:curso_id(titulo, modalidad)")
         .order("creado_en", { ascending: true });
       if (error) throw error;
       return (data || []) as unknown as Mensaje[];
@@ -209,7 +211,7 @@ const Messages = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("docentes_cursos")
-        .select("cursos (id, titulo)")
+        .select("cursos (id, titulo, modalidad)")
         .eq("docente_id", user!.id);
       if (error) throw error;
       return (data || []).map((d: any) => d.cursos).filter(Boolean);
@@ -225,7 +227,7 @@ const Messages = () => {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("cursos (id, titulo)")
+        .select("cursos (id, titulo, modalidad)")
         .eq("usuario_id", user!.id)
         .eq("estado", "active")
         .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
@@ -270,7 +272,7 @@ const Messages = () => {
   const { data: allCourses } = useQuery({
     queryKey: ["admin-courses-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, titulo").order("titulo");
+      const { data } = await supabase.from("cursos").select("id, titulo, modalidad").order("titulo");
       return data || [];
     },
     enabled: role === "admin",
@@ -281,7 +283,7 @@ const Messages = () => {
   // Mensaje" (así buscar por nombre de curso ahí también encuentra el foro).
   const forosDisponibles = useMemo(() => {
     const list = role === "admin" ? allCourses : role === "teacher" ? teacherCourses : role === "student" ? studentCourses : null;
-    return (list || []) as { id: string; titulo: string }[];
+    return (list || []) as { id: string; titulo: string; modalidad?: string | null }[];
   }, [role, allCourses, teacherCourses, studentCourses]);
 
   const forosFiltrados = useMemo(() => {
@@ -297,7 +299,7 @@ const Messages = () => {
       const { data, error } = await supabase
         .from("mensajes_reportados")
         .select(
-          "*, mensajes:mensaje_id(id, contenido, remitente_id, destinatario_id, curso_id, eliminado, remitente:remitente_id(nombre_completo), cursos:curso_id(titulo)), reportante:reportado_por(nombre_completo)"
+          "*, mensajes:mensaje_id(id, contenido, remitente_id, destinatario_id, curso_id, eliminado, remitente:remitente_id(nombre_completo), cursos:curso_id(titulo, modalidad)), reportante:reportado_por(nombre_completo)"
         )
         .eq("resuelto", false)
         .order("creado_en", { ascending: false });
@@ -348,11 +350,13 @@ const Messages = () => {
             cursoId: m.curso_id,
             nombre: `Foro: ${m.cursos?.titulo || "Curso"}`,
             cursoTitulo: m.cursos?.titulo || "Curso",
+            cursoModalidad: m.cursos?.modalidad ?? null,
             mensajes: [],
             ultimo: null,
           };
         entry.mensajes.push(m);
         entry.ultimo = m;
+        if (m.cursos?.modalidad) entry.cursoModalidad = m.cursos.modalidad;
         map.set(key, entry);
       } else {
         const otherId = m.remitente_id === user.id ? m.destinatario_id : m.remitente_id;
@@ -411,6 +415,7 @@ const Messages = () => {
           cursoId: c.id,
           nombre: `Foro: ${c.titulo}`,
           cursoTitulo: c.titulo,
+          cursoModalidad: c.modalidad ?? null,
           mensajes: [],
           ultimo: null,
         });
@@ -431,6 +436,19 @@ const Messages = () => {
         .filter((c) => c.nombre.toLowerCase().includes(search.toLowerCase())),
     [conversations, search, tipoFilter]
   );
+
+  // Los foros se muestran agrupados por modalidad (en vivo arriba, grabados
+  // abajo, con una línea de separación) para no confundirlos — sobre todo el
+  // admin, que ve los foros de todos los cursos.
+  const grupos = useMemo(() => {
+    const directos = filtered.filter((c): c is ConversationDirecta => c.tipo === "directo");
+    const foros = filtered.filter((c): c is ConversationForo => c.tipo === "foro");
+    return {
+      directos,
+      forosEnVivo: foros.filter((c) => c.cursoModalidad !== "grabado"),
+      forosGrabados: foros.filter((c) => c.cursoModalidad === "grabado"),
+    };
+  }, [filtered]);
 
   const selected = conversations.find((c) => c.key === selectedKey) || null;
 
@@ -628,6 +646,63 @@ const Messages = () => {
     }
   };
 
+  const renderConv = (c: Conversation) => (
+    <Card
+      key={c.key}
+      className={`cursor-pointer transition-all shadow-card hover:border-primary/40 ${
+        c.tipo === "directo" && c.noLeidos > 0 ? "border-primary/60 ring-1 ring-primary/30" : ""
+      }`}
+      onClick={() => setSelectedKey(c.key)}
+    >
+      <CardContent className="p-4 flex items-center gap-4">
+        {c.tipo === "directo" && c.esSistema ? (
+          <div className="w-11 h-11 rounded-full gradient-primary flex items-center justify-center text-white shrink-0">
+            <BadgeCheck className="w-5 h-5" />
+          </div>
+        ) : c.tipo === "foro" ? (
+          <div className="w-11 h-11 rounded-full bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+        ) : c.avatar ? (
+          <img src={c.avatar} alt={c.nombre} className="w-11 h-11 rounded-full object-cover shrink-0" />
+        ) : (
+          <div className="w-11 h-11 rounded-full gradient-hero flex items-center justify-center text-white font-bold shrink-0">
+            {c.nombre[0]?.toUpperCase()}
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <h3 className="font-bold truncate">{c.nombre}</h3>
+            {c.tipo === "foro" && <ModalidadBadge modalidad={c.cursoModalidad} className="shrink-0" />}
+            {c.tipo === "directo" && c.noLeidos > 0 && (
+              <Badge className="bg-primary text-primary-foreground border-none">
+                {c.noLeidos} nuevo{c.noLeidos > 1 ? "s" : ""}
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground truncate">
+            {c.ultimo
+              ? c.ultimo.eliminado
+                ? "Mensaje eliminado"
+                : c.ultimo.contenido || (c.ultimo.adjunto_nombre ? `📎 ${c.ultimo.adjunto_nombre}` : "")
+              : "Todavía no hay mensajes — escribí el primero"}
+          </p>
+        </div>
+        {c.ultimo && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            {format(parseISO(c.ultimo.creado_en), "dd/MM HH:mm")}
+          </span>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  const seccionHeader = (texto: string) => (
+    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground px-1 pt-2 first:pt-0">
+      {texto}
+    </p>
+  );
+
   return (
     <AppLayout>
       <div className="space-y-6 animate-fade-in">
@@ -660,6 +735,9 @@ const Messages = () => {
                         <span className="font-bold">{r.mensajes?.remitente?.nombre_completo || "Usuario"}</span>
                         {r.mensajes?.cursos?.titulo && <> en el foro de <span className="font-bold">{r.mensajes.cursos.titulo}</span></>}
                       </p>
+                      {r.mensajes?.cursos?.modalidad && (
+                        <ModalidadBadge modalidad={r.mensajes.cursos.modalidad} className="mt-1" />
+                      )}
                       <p className="text-sm text-muted-foreground italic truncate">
                         {r.mensajes?.eliminado ? "(el mensaje ya fue borrado)" : `"${r.mensajes?.contenido || "(sin texto)"}"`}
                       </p>
@@ -723,55 +801,27 @@ const Messages = () => {
         </Card>
 
         <div className="grid gap-3">
-          {filtered.map((c) => (
-            <Card
-              key={c.key}
-              className={`cursor-pointer transition-all shadow-card hover:border-primary/40 ${
-                c.tipo === "directo" && c.noLeidos > 0 ? "border-primary/60 ring-1 ring-primary/30" : ""
-              }`}
-              onClick={() => setSelectedKey(c.key)}
-            >
-              <CardContent className="p-4 flex items-center gap-4">
-                {c.tipo === "directo" && c.esSistema ? (
-                  <div className="w-11 h-11 rounded-full gradient-primary flex items-center justify-center text-white shrink-0">
-                    <BadgeCheck className="w-5 h-5" />
-                  </div>
-                ) : c.tipo === "foro" ? (
-                  <div className="w-11 h-11 rounded-full bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                    <Users className="w-5 h-5" />
-                  </div>
-                ) : c.avatar ? (
-                  <img src={c.avatar} alt={c.nombre} className="w-11 h-11 rounded-full object-cover shrink-0" />
-                ) : (
-                  <div className="w-11 h-11 rounded-full gradient-hero flex items-center justify-center text-white font-bold shrink-0">
-                    {c.nombre[0]?.toUpperCase()}
-                  </div>
-                )}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold truncate">{c.nombre}</h3>
-                    {c.tipo === "directo" && c.noLeidos > 0 && (
-                      <Badge className="bg-primary text-primary-foreground border-none">
-                        {c.noLeidos} nuevo{c.noLeidos > 1 ? "s" : ""}
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {c.ultimo
-                      ? c.ultimo.eliminado
-                        ? "Mensaje eliminado"
-                        : c.ultimo.contenido || (c.ultimo.adjunto_nombre ? `📎 ${c.ultimo.adjunto_nombre}` : "")
-                      : "Todavía no hay mensajes — escribí el primero"}
-                  </p>
-                </div>
-                {c.ultimo && (
-                  <span className="text-xs text-muted-foreground shrink-0">
-                    {format(parseISO(c.ultimo.creado_en), "dd/MM HH:mm")}
-                  </span>
-                )}
-              </CardContent>
-            </Card>
-          ))}
+          {!!grupos.directos.length && (
+            <>
+              {(!!grupos.forosEnVivo.length || !!grupos.forosGrabados.length) && seccionHeader("Mensajes directos")}
+              {grupos.directos.map(renderConv)}
+            </>
+          )}
+
+          {!!grupos.forosEnVivo.length && (
+            <>
+              {seccionHeader("Foros — Cursos en vivo")}
+              {grupos.forosEnVivo.map(renderConv)}
+            </>
+          )}
+
+          {!!grupos.forosGrabados.length && (
+            <>
+              <div className="border-t border-border/70 my-1" />
+              {seccionHeader("Foros — Cursos grabados")}
+              {grupos.forosGrabados.map(renderConv)}
+            </>
+          )}
 
           {filtered.length === 0 && (
             <div className="p-20 text-center border-2 border-dashed rounded-xl bg-muted/20">
@@ -790,7 +840,10 @@ const Messages = () => {
                 <DialogTitle className="truncate">{selected?.tipo === "foro" ? "Foro del Curso" : selected?.nombre}</DialogTitle>
                 <DialogDescription className="sr-only">Conversación de mensajes{selected?.cursoTitulo ? ` — ${selected.cursoTitulo}` : ""}</DialogDescription>
                 {selected?.tipo === "foro" && (
-                  <p className="text-xs text-muted-foreground">{selected.cursoTitulo}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-xs text-muted-foreground">{selected.cursoTitulo}</p>
+                    <ModalidadBadge modalidad={selected.cursoModalidad} />
+                  </div>
                 )}
                 {selected?.tipo === "directo" && selected.esSistema && (
                   <p className="text-xs text-muted-foreground">Avisos automáticos · no se responden</p>
@@ -1020,6 +1073,7 @@ const Messages = () => {
                     </div>
                     <div className="min-w-0">
                       <p className="font-semibold truncate">Foro: {f.titulo}</p>
+                      <ModalidadBadge modalidad={f.modalidad} className="mt-0.5" />
                     </div>
                   </button>
                 ))}

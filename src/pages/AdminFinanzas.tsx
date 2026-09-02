@@ -37,8 +37,9 @@ type Suscripcion = {
   estado: string | null;
   fin_en: string | null;
   proxima_fecha_pago: string | null;
+  pago_diferido_hasta: string | null;
   creado_en: string | null;
-  perfiles: { nombre_completo: string | null } | null;
+  perfiles: { nombre_completo: string | null; activo: boolean | null } | null;
   cursos: {
     fecha_inicio: string | null;
     precio: number | null;
@@ -54,6 +55,11 @@ const montoPendienteArs = (suscripcion: Suscripcion) => {
 };
 
 const fechaPendiente = (suscripcion: Suscripcion, pagos: Pago[]) => {
+  // Pago diferido: la fecha relevante es la que el alumno se comprometió.
+  if (suscripcion.estado === "pago_diferido" && suscripcion.pago_diferido_hasta) {
+    return parseISO(suscripcion.pago_diferido_hasta);
+  }
+
   const fechaGuardada = suscripcion.proxima_fecha_pago || suscripcion.fin_en;
   if (fechaGuardada) return parseISO(fechaGuardada);
 
@@ -158,16 +164,22 @@ const AdminFinanzas = () => {
     },
   });
 
-  // Suscripciones que todavía deben su primer pago o una mensualidad.
-  const { data: pendientes } = useQuery({
+  // Suscripciones que todavía deben plata:
+  //  - pago_pendiente: solicitud aprobada, sin pagar y sin acceso.
+  //  - pago_diferido: acceso concedido a mano, con fecha comprometida de pago.
+  // Se excluye a los alumnos dados de baja (perfiles.activo = false): dejan de
+  // contar como deuda esperada.
+  const { data: deudores } = useQuery({
     queryKey: ["suscripciones-pago-pendiente"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("suscripciones")
-        .select("*, perfiles:usuario_id(nombre_completo), cursos:curso_id(fecha_inicio, precio, cotizacion_ars)")
-        .eq("estado", "pago_pendiente");
+        .select("*, perfiles:usuario_id(nombre_completo, activo), cursos:curso_id(fecha_inicio, precio, cotizacion_ars)")
+        .in("estado", ["pago_pendiente", "pago_diferido"]);
       if (error) throw error;
-      return (data || []) as unknown as Suscripcion[];
+      return ((data || []) as unknown as Suscripcion[]).filter(
+        (s) => s.perfiles?.activo !== false
+      );
     },
   });
 
@@ -277,18 +289,34 @@ const AdminFinanzas = () => {
     [pagos, cursoFiltro, tabModalidad, modalidadPorCurso]
   );
 
-  const pendientesFiltrados = useMemo(
-    () => (pendientes || []).filter((s) => (cursoFiltro === "todos" || s.curso_id === cursoFiltro) && esDeLaTab(s.curso_id)),
-    [pendientes, cursoFiltro, tabModalidad, modalidadPorCurso]
+  const deudoresFiltrados = useMemo(
+    () => (deudores || []).filter((s) => (cursoFiltro === "todos" || s.curso_id === cursoFiltro) && esDeLaTab(s.curso_id)),
+    [deudores, cursoFiltro, tabModalidad, modalidadPorCurso]
   );
 
+  const pendientesFiltrados = useMemo(
+    () => deudoresFiltrados.filter((s) => s.estado === "pago_pendiente"),
+    [deudoresFiltrados]
+  );
+  const diferidosFiltrados = useMemo(
+    () => deudoresFiltrados.filter((s) => s.estado === "pago_diferido"),
+    [deudoresFiltrados]
+  );
+
+  const enPeriodo = (s: Suscripcion) => {
+    const fecha = fechaPendiente(s, pagos || []);
+    return fecha != null && fecha >= periodo.start && fecha <= periodo.end;
+  };
+
   const pendientePeriodo = useMemo(
-    () =>
-      pendientesFiltrados.filter((s) => {
-        const fecha = fechaPendiente(s, pagos || []);
-        return fecha != null && fecha >= periodo.start && fecha <= periodo.end;
-      }),
+    () => pendientesFiltrados.filter(enPeriodo),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [pendientesFiltrados, periodo, pagos]
+  );
+  const diferidoPeriodo = useMemo(
+    () => diferidosFiltrados.filter(enPeriodo),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [diferidosFiltrados, periodo, pagos]
   );
 
   const resumenPeriodo = useMemo(
@@ -309,6 +337,8 @@ const AdminFinanzas = () => {
 
   const pendienteMontoPeriodo = pendientePeriodo.reduce((acc, s) => acc + montoPendienteArs(s), 0);
   const pendienteMontoTotal = pendientesFiltrados.reduce((acc, s) => acc + montoPendienteArs(s), 0);
+  const diferidoMontoPeriodo = diferidoPeriodo.reduce((acc, s) => acc + montoPendienteArs(s), 0);
+  const diferidoMontoTotal = diferidosFiltrados.reduce((acc, s) => acc + montoPendienteArs(s), 0);
 
   // Desglose por curso (para la vista "Todos"), solo de la modalidad activa
   const porCurso = useMemo(() => {
@@ -320,6 +350,7 @@ const AdminFinanzas = () => {
         return fecha >= periodo.start && fecha <= periodo.end;
       });
       const propiosPendientes = pendientePeriodo.filter((s) => s.curso_id === c.id);
+      const propiosDiferidos = diferidoPeriodo.filter((s) => s.curso_id === c.id);
       const profesores = (docentesCursos || [])
         .filter((dc) => dc.curso_id === c.id)
         .map((dc: any) => dc.perfiles?.nombre_completo)
@@ -331,12 +362,14 @@ const AdminFinanzas = () => {
         total: sumarDesgloses(propios.map((p) => ({ monto: p.monto, publicidad: p.costo_publicidad_ars, plataforma: p.costo_plataforma_ars, modalidad: tabModalidad }))),
         pendienteMonto: propiosPendientes.reduce((acc, s) => acc + montoPendienteArs(s), 0),
         pendienteCount: propiosPendientes.length,
+        diferidoMonto: propiosDiferidos.reduce((acc, s) => acc + montoPendienteArs(s), 0),
+        diferidoCount: propiosDiferidos.length,
         // Si a este curso ya se le liquidó (profesor + plataforma) el
         // período que se está mirando ahora mismo.
         corte: cortesPorCursoYPeriodo.get(corteKey(c.id, mes)),
       };
     });
-  }, [cursosTab, pagos, pendientePeriodo, docentesCursos, periodo, tabModalidad, cortesPorCursoYPeriodo, mes]);
+  }, [cursosTab, pagos, pendientePeriodo, diferidoPeriodo, docentesCursos, periodo, tabModalidad, cortesPorCursoYPeriodo, mes]);
 
   // Cursos de la pestaña activa con plata para liquidar este período que
   // todavía no se marcaron como pagados — el "cuadro" de pendientes.
@@ -527,7 +560,7 @@ const AdminFinanzas = () => {
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-2">
             <TrendingUp className="w-4 h-4" /> Este período
           </h2>
-          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${tabModalidad === "en_vivo" ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
+          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${tabModalidad === "en_vivo" ? "lg:grid-cols-7" : "lg:grid-cols-5"}`}>
             <Card className="border-none shadow-card">
               <CardContent className="p-4">
                 <Wallet className="w-4 h-4 text-primary mb-1" />
@@ -574,13 +607,20 @@ const AdminFinanzas = () => {
                 <p className="text-[11px] text-muted-foreground">Pendiente ({pendientePeriodo.length})</p>
               </CardContent>
             </Card>
+            <Card className="border-none shadow-card">
+              <CardContent className="p-4">
+                <TrendingUp className="w-4 h-4 text-amber-500 mb-1" />
+                <p className="text-lg font-bold">{fmt(diferidoMontoPeriodo)}</p>
+                <p className="text-[11px] text-muted-foreground">Diferido ({diferidoPeriodo.length})</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
 
         {/* Acumulado histórico */}
         <div>
           <h2 className="text-sm font-bold uppercase tracking-wide text-muted-foreground mb-3">Acumulado histórico</h2>
-          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${tabModalidad === "en_vivo" ? "lg:grid-cols-6" : "lg:grid-cols-4"}`}>
+          <div className={`grid grid-cols-2 md:grid-cols-3 gap-3 ${tabModalidad === "en_vivo" ? "lg:grid-cols-7" : "lg:grid-cols-5"}`}>
             <Card className="border-none shadow-card bg-muted/30">
               <CardContent className="p-4">
                 <p className="text-lg font-bold">{fmt(resumenTotal.recaudado)}</p>
@@ -619,6 +659,12 @@ const AdminFinanzas = () => {
               <CardContent className="p-4">
                 <p className="text-lg font-bold">{fmt(pendienteMontoTotal)}</p>
                 <p className="text-[11px] text-muted-foreground">Pendiente ({pendientesFiltrados.length})</p>
+              </CardContent>
+            </Card>
+            <Card className="border-none shadow-card bg-muted/30">
+              <CardContent className="p-4">
+                <p className="text-lg font-bold">{fmt(diferidoMontoTotal)}</p>
+                <p className="text-[11px] text-muted-foreground">Diferido ({diferidosFiltrados.length})</p>
               </CardContent>
             </Card>
           </div>
@@ -662,6 +708,11 @@ const AdminFinanzas = () => {
                       {c.pendienteCount > 0 && (
                         <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900">
                           {c.pendienteCount} pendiente{c.pendienteCount > 1 ? "s" : ""} · {fmt(c.pendienteMonto)}
+                        </Badge>
+                      )}
+                      {c.diferidoCount > 0 && (
+                        <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900">
+                          {c.diferidoCount} diferido{c.diferidoCount > 1 ? "s" : ""} · {fmt(c.diferidoMonto)}
                         </Badge>
                       )}
                       {c.corte ? (
@@ -784,6 +835,33 @@ const AdminFinanzas = () => {
                     {pendientesFiltrados.map((s) => (
                       <div key={s.id} className="p-4 flex items-center justify-between gap-3">
                         <p className="font-medium">{s.perfiles?.nombre_completo || "Alumno"}</p>
+                        <span className="text-sm font-bold">{fmt(montoPendienteArs(s))}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {diferidosFiltrados.length > 0 && (
+              <Card className="shadow-card overflow-hidden border-amber-300 dark:border-amber-800">
+                <CardHeader className="bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-900">
+                  <CardTitle className="text-base flex items-center gap-2 text-amber-700 dark:text-amber-400">
+                    <TrendingUp className="w-4 h-4" /> Alumnos con pago diferido ({diferidosFiltrados.length})
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <div className="divide-y">
+                    {diferidosFiltrados.map((s) => (
+                      <div key={s.id} className="p-4 flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-medium truncate">{s.perfiles?.nombre_completo || "Alumno"}</p>
+                          {s.pago_diferido_hasta && (
+                            <p className="text-xs text-muted-foreground">
+                              Se comprometió a pagar el {format(parseISO(s.pago_diferido_hasta), "dd/MM/yyyy")}
+                            </p>
+                          )}
+                        </div>
                         <span className="text-sm font-bold">{fmt(montoPendienteArs(s))}</span>
                       </div>
                     ))}

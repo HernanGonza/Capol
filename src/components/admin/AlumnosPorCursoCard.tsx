@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { GraduationCap } from "lucide-react";
+import ModalidadBadge from "@/components/ModalidadBadge";
 import {
   resumirProgresoAlumnos,
   type ProgresoAlumnoCurso,
@@ -34,16 +35,28 @@ const AlumnosPorCursoCard = ({ className }: { className?: string }) => {
           <p className="text-sm text-muted-foreground animate-pulse">Cargando…</p>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-center">
               <div className="rounded-xl bg-muted/50 p-3">
                 <p className="text-2xl font-bold">{resumen.totalConCurso}</p>
                 <p className="text-[11px] text-muted-foreground">Alumnos con curso</p>
+              </div>
+              <div className="rounded-xl bg-amber-50 dark:bg-amber-950/30 p-3">
+                <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                  {resumen.porEmpezar}
+                </p>
+                <p className="text-[11px] text-muted-foreground">Por empezar</p>
               </div>
               <div className="rounded-xl bg-indigo-50 dark:bg-indigo-950/30 p-3">
                 <p className="text-2xl font-bold text-indigo-700 dark:text-indigo-300">
                   {resumen.cursando}
                 </p>
-                <p className="text-[11px] text-muted-foreground">Cursando</p>
+                <p className="text-[11px] text-muted-foreground">Cursando (en vivo)</p>
+              </div>
+              <div className="rounded-xl bg-sky-50 dark:bg-sky-950/30 p-3">
+                <p className="text-2xl font-bold text-sky-700 dark:text-sky-300">
+                  {resumen.enProgreso}
+                </p>
+                <p className="text-[11px] text-muted-foreground">Grabados</p>
               </div>
               <div className="rounded-xl bg-emerald-50 dark:bg-emerald-950/30 p-3">
                 <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300">
@@ -54,27 +67,38 @@ const AlumnosPorCursoCard = ({ className }: { className?: string }) => {
             </div>
 
             {resumen.porCurso.length ? (
-              <div className="space-y-1.5">
-                <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-[11px] font-bold uppercase tracking-wider text-muted-foreground pb-1 border-b">
+              <div className="space-y-1.5 overflow-x-auto">
+                <div className="grid grid-cols-[minmax(9rem,1fr)_4.75rem_4.75rem_4.75rem_4.75rem] gap-x-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground pb-1 border-b min-w-[26rem]">
                   <span>Curso</span>
-                  <span className="text-right w-16">Cursando</span>
-                  <span className="text-right w-16">Graduados</span>
+                  <span className="text-center whitespace-nowrap">Por empezar</span>
+                  <span className="text-center whitespace-nowrap">Cursando</span>
+                  <span className="text-center whitespace-nowrap">Grabados</span>
+                  <span className="text-center whitespace-nowrap">Graduados</span>
                 </div>
                 {resumen.porCurso.map((c) => (
                   <div
                     key={c.cursoId}
-                    className="grid grid-cols-[1fr_auto_auto] gap-x-4 text-sm items-center"
+                    className="grid grid-cols-[minmax(9rem,1fr)_4.75rem_4.75rem_4.75rem_4.75rem] gap-x-2 text-sm items-center min-w-[26rem]"
                   >
-                    <span className="truncate">
-                      {c.titulo}
-                      <span className="ml-1.5 text-[10px] text-muted-foreground">
-                        {c.modalidad === "grabado" ? "grabado" : "en vivo"}
-                      </span>
+                    <span className="truncate flex items-center gap-1.5">
+                      <span className="truncate">{c.titulo}</span>
+                      <ModalidadBadge modalidad={c.modalidad} showIcon={false} className="shrink-0" />
+                      {!c.enMarcha && (
+                        <span className="shrink-0 text-[10px] text-amber-600 dark:text-amber-400">
+                          no empezó
+                        </span>
+                      )}
                     </span>
-                    <span className="text-right w-16 font-semibold text-indigo-700 dark:text-indigo-300">
-                      {c.actuales}
+                    <span className="text-center font-semibold text-amber-700 dark:text-amber-300">
+                      {c.porEmpezar || "—"}
                     </span>
-                    <span className="text-right w-16 font-semibold text-emerald-700 dark:text-emerald-300">
+                    <span className="text-center font-semibold text-indigo-700 dark:text-indigo-300">
+                      {c.modalidad === "grabado" ? "—" : c.actuales}
+                    </span>
+                    <span className="text-center font-semibold text-sky-700 dark:text-sky-300">
+                      {c.modalidad === "grabado" ? c.enProgreso : "—"}
+                    </span>
+                    <span className="text-center font-semibold text-emerald-700 dark:text-emerald-300">
                       {c.graduados}
                     </span>
                   </div>
@@ -87,8 +111,10 @@ const AlumnosPorCursoCard = ({ className }: { className?: string }) => {
             )}
 
             <p className="text-[11px] text-muted-foreground/80 pt-1.5 border-t border-border/50">
-              "Graduado" = completó todas las clases del curso. Un alumno con
-              varios cursos cuenta como graduado solo cuando terminó todos.
+              "Cursando" = cursos en vivo ya en marcha (según su fecha de inicio).
+              "Grabados" = alumnos de un curso grabado que todavía no lo terminaron.
+              "Por empezar" = inscriptos a un curso en vivo que todavía no arrancó.
+              Los recuadros de arriba cuentan personas distintas.
             </p>
           </>
         )}

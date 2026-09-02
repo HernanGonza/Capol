@@ -6,6 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import ModalidadBadge from "@/components/ModalidadBadge";
 import { BookOpen, Users, Layers, Edit, Video, Calendar, Eye } from "lucide-react";
 
 const TeacherDashboard = () => {
@@ -23,6 +24,7 @@ const TeacherDashboard = () => {
             id,
             titulo,
             descripcion,
+            modalidad,
             publicado,
             url_flyer,
             lecciones (count),
@@ -225,12 +227,15 @@ const TeacherDashboard = () => {
                 <Card key={course.id} className="border-none shadow-card bg-card">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between">
-                      <Badge 
-                        variant={course.publicado ? "default" : "secondary"}
-                        className={course.publicado ? "bg-success/10 text-success border-none" : ""}
-                      >
-                        {course.publicado ? "Publicado" : "Borrador"}
-                      </Badge>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge
+                          variant={course.publicado ? "default" : "secondary"}
+                          className={course.publicado ? "bg-success/10 text-success border-none" : ""}
+                        >
+                          {course.publicado ? "Publicado" : "Borrador"}
+                        </Badge>
+                        <ModalidadBadge modalidad={course.modalidad} />
+                      </div>
                       <div className="p-2 bg-primary/5 rounded-lg text-primary">
                         <BookOpen className="w-5 h-5" />
                       </div>

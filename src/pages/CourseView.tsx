@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { openCertificate } from "@/lib/certificate";
 import CourseForumDialog from "@/components/CourseForumDialog";
+import ModalidadBadge from "@/components/ModalidadBadge";
 import EnrollmentDialog from "@/components/student/EnrollmentDialog";
 import { useCertificateSignatures } from "@/hooks/use-certificate-signatures";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
@@ -255,6 +256,7 @@ const CourseView = () => {
           onOpenChange={setForumOpen}
           courseId={courseId!}
           courseTitle={course?.titulo}
+          courseModalidad={course?.modalidad}
         />
       </AppLayout>
     );
@@ -332,7 +334,10 @@ const CourseView = () => {
         )}
         <header className="border-b pb-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground">{course?.titulo}</h1>
+              {course?.modalidad && <ModalidadBadge modalidad={course.modalidad} />}
+            </div>
             <p className="text-muted-foreground mt-2 text-lg">{course?.descripcion}</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -446,6 +451,7 @@ const CourseView = () => {
         onOpenChange={setForumOpen}
         courseId={courseId!}
         courseTitle={course?.titulo}
+        courseModalidad={course?.modalidad}
       />
 
       <EnrollmentDialog course={showPurchase ? course : null} onClose={() => setShowPurchase(false)} />

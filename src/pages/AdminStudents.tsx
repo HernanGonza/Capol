@@ -7,18 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import ModalidadBadge from "@/components/ModalidadBadge";
+import ConfirmWithReason from "@/components/ConfirmWithReason";
+import { modalidadLabel } from "@/lib/modalidad";
+import { registrarMovimiento } from "@/lib/movimientosAdmin";
 import { toast } from "sonner";
 import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck, Download } from "lucide-react";
 
@@ -28,7 +22,7 @@ type ConfirmAction =
   | { type: "deactivate"; student: any }
   | { type: "unenroll"; enrollment: any };
 
-const confirmActionCopy = (action: ConfirmAction): { title: string; description: string; confirmLabel: string; destructive: boolean } => {
+const confirmActionCopy = (action: ConfirmAction): { title: string; description: string; confirmLabel: string; destructive: boolean; motivoRequerido: boolean } => {
   switch (action.type) {
     case "toggle-ban":
       return action.bloqueado
@@ -37,12 +31,14 @@ const confirmActionCopy = (action: ConfirmAction): { title: string; description:
             description: `${action.student.nombre_completo} va a poder volver a mandar mensajes.`,
             confirmLabel: "Desbloquear",
             destructive: false,
+            motivoRequerido: false,
           }
         : {
             title: "¿Banear la mensajería?",
             description: `${action.student.nombre_completo} no va a poder mandar mensajes directos ni postear en foros. Su cuenta y suscripciones no se ven afectadas.`,
             confirmLabel: "Banear",
             destructive: true,
+            motivoRequerido: true,
           };
     case "promote":
       return {
@@ -50,6 +46,7 @@ const confirmActionCopy = (action: ConfirmAction): { title: string; description:
         description: `${action.student.nombre_completo} va a dejar de figurar como alumno y vas a poder asignarle cursos desde "Profesores".`,
         confirmLabel: "Hacer Profesor",
         destructive: false,
+        motivoRequerido: false,
       };
     case "deactivate":
       return {
@@ -57,6 +54,7 @@ const confirmActionCopy = (action: ConfirmAction): { title: string; description:
         description: `Se vencerán todas las suscripciones activas de ${action.student.nombre_completo}. Podés reactivarlo cuando quieras.`,
         confirmLabel: "Dar de baja",
         destructive: true,
+        motivoRequerido: true,
       };
     case "unenroll":
       return {
@@ -64,6 +62,7 @@ const confirmActionCopy = (action: ConfirmAction): { title: string; description:
         description: `${action.enrollment.perfiles?.nombre_completo} se va a quitar de "${action.enrollment.cursos?.titulo}". Se vence su suscripción a este curso.`,
         confirmLabel: "Quitar",
         destructive: true,
+        motivoRequerido: true,
       };
   }
 };
@@ -129,7 +128,7 @@ const AdminStudents = () => {
   const { data: courses } = useQuery({
     queryKey: ["admin-courses-list"],
     queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, titulo").order("titulo");
+      const { data } = await supabase.from("cursos").select("id, titulo, modalidad").order("titulo");
       return data || [];
     },
   });
@@ -137,7 +136,7 @@ const AdminStudents = () => {
   const { data: enrollments } = useQuery({
     queryKey: ["all-enrollments-with-subs"],
     queryFn: async () => {
-      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo), perfiles:usuario_id(nombre_completo, email, dni, telefono, edad, ocupacion)");
+      const { data: enr } = await supabase.from("inscripciones").select("*, cursos(titulo, modalidad), perfiles:usuario_id(nombre_completo, email, dni, telefono, edad, ocupacion)");
       const { data: subs } = await supabase.from("suscripciones").select("*");
       return enr?.map(e => ({
         ...e,
@@ -169,7 +168,14 @@ const AdminStudents = () => {
   // (respeta los filtros de curso/estado/búsqueda ya aplicados) — así el
   // admin elige el curso en el filtro y exporta solo esos alumnos.
   const exportCsv = () => {
-    const headers = ["Nombre", "Email", "DNI", "Teléfono", "Edad", "Ocupación", "Curso", "Estado de suscripción", "Inscripto el"];
+    const estadoSubLabel = (estado: string | undefined) =>
+      estado === "active" ? "Activa"
+      : estado === "pago_pendiente" ? "Pago pendiente"
+      : estado === "pago_diferido" ? "Pago diferido"
+      : estado === "expired" ? "Vencida"
+      : estado === "cancelled" ? "Cancelada"
+      : "Sin suscripción";
+    const headers = ["Nombre", "Email", "DNI", "Teléfono", "Edad", "Ocupación", "Curso", "Modalidad", "Estado de suscripción", "Inscripto el"];
     const rows = filteredEnrollments.map((e: any) => [
       e.perfiles?.nombre_completo || "",
       e.perfiles?.email || "",
@@ -178,7 +184,8 @@ const AdminStudents = () => {
       e.perfiles?.edad ?? "",
       e.perfiles?.ocupacion || "",
       e.cursos?.titulo || "",
-      e.subscription?.estado === "active" ? "Activa" : e.subscription?.estado === "pago_pendiente" ? "Pago pendiente" : e.subscription?.estado === "expired" ? "Vencida" : e.subscription?.estado === "cancelled" ? "Cancelada" : "Sin suscripción",
+      e.cursos?.modalidad ? modalidadLabel(e.cursos.modalidad) : "",
+      estadoSubLabel(e.subscription?.estado),
       e.inscripto_en ? new Date(e.inscripto_en).toLocaleDateString("es-AR") : "",
     ]);
     const escape = (v: unknown) => `"${String(v).replace(/"/g, '""')}"`;
@@ -237,17 +244,24 @@ const AdminStudents = () => {
   // Quitar a un alumno de UN curso puntual: hay que cerrar tanto la inscripción
   // como la suscripción de ese curso, o quedan desincronizadas (el bug original).
   const unenrollMutation = useMutation({
-    mutationFn: async (enrollment: any) => {
+    mutationFn: async ({ enrollment, motivo }: { enrollment: any; motivo: string }) => {
       const { error: subError } = await supabase
         .from("suscripciones")
         .update({ estado: "expired" })
         .eq("usuario_id", enrollment.usuario_id)
         .eq("curso_id", enrollment.curso_id)
-        .in("estado", ["active", "pago_pendiente"]);
+        .in("estado", ["active", "pago_pendiente", "pago_diferido"]);
       if (subError) throw subError;
 
       const { error: enrError } = await supabase.from("inscripciones").delete().eq("id", enrollment.id);
       if (enrError) throw enrError;
+
+      await registrarMovimiento({
+        accion: "alumno_removido_curso",
+        usuarioId: enrollment.usuario_id,
+        cursoId: enrollment.curso_id,
+        motivo,
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["all-enrollments-with-subs"] });
@@ -259,9 +273,15 @@ const AdminStudents = () => {
   // Baja lógica de la cuenta del alumno (no un borrado físico): marca "activo = false".
   // Un trigger en la base vence automáticamente todas sus suscripciones activas.
   const toggleActivoMutation = useMutation({
-    mutationFn: async ({ id, activo }: { id: string; activo: boolean }) => {
+    mutationFn: async ({ id, activo, motivo }: { id: string; activo: boolean; motivo?: string }) => {
       const { error } = await supabase.from("perfiles").update({ activo }).eq("id", id);
       if (error) throw error;
+
+      await registrarMovimiento({
+        accion: activo ? "alumno_reactivado" : "alumno_baja",
+        usuarioId: id,
+        motivo,
+      });
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["all-students"] });
@@ -289,7 +309,7 @@ const AdminStudents = () => {
   // Banear/desbanear de mensajería: le impide mandar mensajes directos o
   // postear en foros sin tocar su cuenta ni sus suscripciones.
   const toggleBanMutation = useMutation({
-    mutationFn: async ({ userId, bloqueado }: { userId: string; bloqueado: boolean }) => {
+    mutationFn: async ({ userId, bloqueado, motivo }: { userId: string; bloqueado: boolean; motivo?: string }) => {
       if (bloqueado) {
         const { error } = await supabase.from("mensajeria_bloqueados").delete().eq("usuario_id", userId);
         if (error) throw error;
@@ -297,6 +317,12 @@ const AdminStudents = () => {
         const { error } = await supabase.from("mensajeria_bloqueados").insert({ usuario_id: userId });
         if (error) throw error;
       }
+
+      await registrarMovimiento({
+        accion: bloqueado ? "mensajeria_desbloqueada" : "mensajeria_bloqueada",
+        usuarioId: userId,
+        motivo,
+      });
     },
     onSuccess: (_, vars) => {
       queryClient.invalidateQueries({ queryKey: ["mensajeria-bloqueados"] });
@@ -480,7 +506,14 @@ const AdminStudents = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Todos los cursos</SelectItem>
-                  {courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>)}
+                  {courses?.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      <span className="flex items-center gap-2">
+                        {c.titulo}
+                        <ModalidadBadge modalidad={c.modalidad} showIcon={false} />
+                      </span>
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
               <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -526,6 +559,7 @@ const AdminStudents = () => {
                       <p className="text-xs text-muted-foreground truncate">{e.perfiles?.email}</p>
                       <p className="text-xs text-muted-foreground truncate">{e.perfiles?.telefono || "Sin teléfono cargado"}</p>
                       <p className="text-sm text-muted-foreground flex items-center gap-1 truncate"><BookOpen className="w-3.5 h-3.5 shrink-0" /> <span className="truncate">{e.cursos?.titulo}</span></p>
+                      <ModalidadBadge modalidad={e.cursos?.modalidad} className="mt-1" />
                     </div>
                   </div>
 
@@ -534,6 +568,8 @@ const AdminStudents = () => {
                       <p className="text-[10px] uppercase font-bold text-muted-foreground">Suscripción</p>
                       {e.subscription?.estado === 'active' ? (
                         <Badge variant="outline" className="bg-green-50 dark:bg-green-950/40 text-green-700 dark:text-green-400 border-green-200 dark:border-green-900">ACTIVA</Badge>
+                      ) : e.subscription?.estado === 'pago_diferido' ? (
+                        <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-900">PAGO DIFERIDO</Badge>
                       ) : e.subscription?.estado === 'expired' ? (
                         <Badge variant="outline" className="bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-400 border-red-200 dark:border-red-900">VENCIDA</Badge>
                       ) : (
@@ -568,38 +604,34 @@ const AdminStudents = () => {
         </Card>
       </div>
 
-      <AlertDialog open={!!confirmAction} onOpenChange={(o) => { if (!o) setConfirmAction(null); }}>
-        <AlertDialogContent>
-          {confirmAction && (
-            <>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{confirmActionCopy(confirmAction).title}</AlertDialogTitle>
-                <AlertDialogDescription>{confirmActionCopy(confirmAction).description}</AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction
-                  className={confirmActionCopy(confirmAction).destructive ? "bg-destructive hover:bg-destructive/90 text-destructive-foreground" : ""}
-                  onClick={() => {
-                    if (confirmAction.type === "toggle-ban") {
-                      toggleBanMutation.mutate({ userId: confirmAction.student.id, bloqueado: confirmAction.bloqueado });
-                    } else if (confirmAction.type === "promote") {
-                      promoteToTeacherMutation.mutate(confirmAction.student.id);
-                    } else if (confirmAction.type === "deactivate") {
-                      toggleActivoMutation.mutate({ id: confirmAction.student.id, activo: false });
-                    } else if (confirmAction.type === "unenroll") {
-                      unenrollMutation.mutate(confirmAction.enrollment);
-                    }
-                    setConfirmAction(null);
-                  }}
-                >
-                  {confirmActionCopy(confirmAction).confirmLabel}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </>
-          )}
-        </AlertDialogContent>
-      </AlertDialog>
+      <ConfirmWithReason
+        open={!!confirmAction}
+        onOpenChange={(o) => { if (!o) setConfirmAction(null); }}
+        title={confirmAction ? confirmActionCopy(confirmAction).title : ""}
+        description={confirmAction ? confirmActionCopy(confirmAction).description : undefined}
+        confirmLabel={confirmAction ? confirmActionCopy(confirmAction).confirmLabel : "Confirmar"}
+        destructive={!!confirmAction && confirmActionCopy(confirmAction).destructive}
+        motivoRequerido={!!confirmAction && confirmActionCopy(confirmAction).motivoRequerido}
+        loading={
+          toggleBanMutation.isPending ||
+          promoteToTeacherMutation.isPending ||
+          toggleActivoMutation.isPending ||
+          unenrollMutation.isPending
+        }
+        onConfirm={(motivo) => {
+          if (!confirmAction) return;
+          if (confirmAction.type === "toggle-ban") {
+            toggleBanMutation.mutate({ userId: confirmAction.student.id, bloqueado: confirmAction.bloqueado, motivo });
+          } else if (confirmAction.type === "promote") {
+            promoteToTeacherMutation.mutate(confirmAction.student.id);
+          } else if (confirmAction.type === "deactivate") {
+            toggleActivoMutation.mutate({ id: confirmAction.student.id, activo: false, motivo });
+          } else if (confirmAction.type === "unenroll") {
+            unenrollMutation.mutate({ enrollment: confirmAction.enrollment, motivo });
+          }
+          setConfirmAction(null);
+        }}
+      />
     </AppLayout>
   );
 };

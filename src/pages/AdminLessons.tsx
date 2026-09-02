@@ -6,6 +6,7 @@ import AppLayout from "@/components/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import ModalidadBadge from "@/components/ModalidadBadge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -46,7 +47,7 @@ const AdminLessons = () => {
   const { data: course } = useQuery({
     queryKey: ["course-details-admin", courseId],
     queryFn: async () => {
-      const { data, error } = await supabase.from("cursos").select("titulo").eq("id", courseId!).single();
+      const { data, error } = await supabase.from("cursos").select("titulo, modalidad").eq("id", courseId!).single();
       if (error) throw error;
       return data;
     },
@@ -152,7 +153,10 @@ const AdminLessons = () => {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div className="min-w-0">
-              <h1 className="text-2xl font-bold tracking-tighter truncate">{course?.titulo || "Gestión de Clases"}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold tracking-tighter truncate">{course?.titulo || "Gestión de Clases"}</h1>
+                {course?.modalidad && <ModalidadBadge modalidad={course.modalidad} />}
+              </div>
               <p className="text-muted-foreground text-sm">Arma tu clase usando bloques interactivos</p>
             </div>
           </div>

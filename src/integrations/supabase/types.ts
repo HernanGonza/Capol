@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.4"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -719,6 +719,42 @@ export type Database = {
           },
         ]
       }
+      movimientos_admin: {
+        Row: {
+          accion: string
+          actor_id: string
+          creado_en: string
+          curso_id: string | null
+          id: string
+          metadata: Json | null
+          motivo: string | null
+          suscripcion_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          accion: string
+          actor_id: string
+          creado_en?: string
+          curso_id?: string | null
+          id?: string
+          metadata?: Json | null
+          motivo?: string | null
+          suscripcion_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          accion?: string
+          actor_id?: string
+          creado_en?: string
+          curso_id?: string | null
+          id?: string
+          metadata?: Json | null
+          motivo?: string | null
+          suscripcion_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       pagos: {
         Row: {
           costo_plataforma_ars: number
@@ -915,6 +951,7 @@ export type Database = {
           estado: string | null
           id: string
           mensaje: string | null
+          nota_resolucion: string | null
           resuelto_en: string | null
           resuelto_por: string | null
           usuario_id: string
@@ -925,6 +962,7 @@ export type Database = {
           estado?: string | null
           id?: string
           mensaje?: string | null
+          nota_resolucion?: string | null
           resuelto_en?: string | null
           resuelto_por?: string | null
           usuario_id: string
@@ -935,6 +973,7 @@ export type Database = {
           estado?: string | null
           id?: string
           mensaje?: string | null
+          nota_resolucion?: string | null
           resuelto_en?: string | null
           resuelto_por?: string | null
           usuario_id?: string
@@ -1040,6 +1079,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _notificar_alumno: {
+        Args: {
+          p_contenido: string
+          p_curso_id: string
+          p_tipo: string
+          p_usuario_id: string
+        }
+        Returns: undefined
+      }
       contar_alumnos_totales: { Args: never; Returns: number }
       contar_inscritos_por_curso: {
         Args: never
@@ -1056,27 +1104,6 @@ export type Database = {
         }[]
       }
       contar_registrados_totales: { Args: never; Returns: number }
-      progreso_alumnos_cursos: {
-        Args: never
-        Returns: {
-          usuario_id: string
-          curso_id: string
-          curso_titulo: string
-          curso_modalidad: Database["public"]["Enums"]["curso_modalidad"]
-          estado_suscripcion: string
-          total_clases: number
-          clases_completadas: number
-        }[]
-      }
-      registrar_pago_suscripcion: {
-        Args: {
-          p_curso_id: string
-          p_monto: number
-          p_proveedor_pago: string | null
-          p_usuario_id: string
-        }
-        Returns: string
-      }
       dentro_de_cooldown_mensajes: {
         Args: { p_remitente: string }
         Returns: boolean
@@ -1091,7 +1118,7 @@ export type Database = {
         Returns: undefined
       }
       eliminar_solicitud: {
-        Args: { p_solicitud_id: string; p_borrar_suscripcion?: boolean }
+        Args: { p_borrar_suscripcion?: boolean; p_solicitud_id: string }
         Returns: undefined
       }
       eliminar_suscripcion: {
@@ -1110,7 +1137,7 @@ export type Database = {
         Args: {
           p_curso_id: string
           p_fecha_limite: string
-          p_nota?: string | null
+          p_nota?: string
           p_usuario_id: string
         }
         Returns: string
@@ -1152,6 +1179,33 @@ export type Database = {
       primer_orden_leccion: {
         Args: { curso_id_param: string }
         Returns: number
+      }
+      progreso_alumnos_cursos: {
+        Args: never
+        Returns: {
+          clases_completadas: number
+          curso_estado: Database["public"]["Enums"]["curso_estado"]
+          curso_fecha_inicio: string | null
+          curso_id: string
+          curso_modalidad: Database["public"]["Enums"]["curso_modalidad"]
+          curso_titulo: string
+          estado_suscripcion: string
+          total_clases: number
+          usuario_id: string
+        }[]
+      }
+      puede_participar_foro_curso: {
+        Args: { p_curso_id: string }
+        Returns: boolean
+      }
+      registrar_pago_suscripcion: {
+        Args: {
+          p_curso_id: string
+          p_monto: number
+          p_proveedor_pago?: string
+          p_usuario_id: string
+        }
+        Returns: string
       }
     }
     Enums: {

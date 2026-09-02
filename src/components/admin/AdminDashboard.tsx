@@ -171,10 +171,18 @@ const AdminDashboard = () => {
     {
       title: "Pagos Pendientes",
       value: stats?.pagosPendientes,
-      description: `Inscripciones sin pagar${stats?.expiredCount ? ` · ${stats.expiredCount} vencidas` : ""}${stats?.diferidosTotal ? ` · ${stats.diferidosTotal} diferidos` : ""}`,
+      description: `Inscripciones sin pagar${stats?.expiredCount ? ` · ${stats.expiredCount} vencidas` : ""}`,
       icon: AlertTriangle,
       color: "bg-card text-destructive",
-      path: "/admin/subscriptions"
+      path: "/admin/subscriptions?estado=pago_pendiente"
+    },
+    {
+      title: "Diferidos Totales",
+      value: stats?.diferidosTotal ?? 0,
+      description: `Acceso dado, pago comprometido${stats?.diferidosVencidos ? ` · ${stats.diferidosVencidos} vencidos` : ""}`,
+      icon: TrendingUp,
+      color: "bg-card text-amber-600 dark:text-amber-400",
+      path: "/admin/subscriptions?estado=pago_diferido"
     }
   ];
 
@@ -199,7 +207,7 @@ const AdminDashboard = () => {
         </button>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {cards.map((card, idx) => (
           <Card 
             key={idx} 

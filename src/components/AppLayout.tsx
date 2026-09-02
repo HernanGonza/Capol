@@ -202,7 +202,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         supabase.from("foro_ultima_lectura").select("curso_id, leido_hasta").eq("usuario_id", user!.id),
         supabase
           .from("mensajes")
-          .select("curso_id, creado_en, contenido, cursos:curso_id(titulo)")
+          .select("curso_id, creado_en, contenido, cursos:curso_id(titulo, modalidad)")
           .is("destinatario_id", null)
           .neq("remitente_id", user!.id)
           .eq("eliminado", false),
@@ -218,6 +218,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
           const entry = porCurso.get(m.curso_id) || {
             cursoId: m.curso_id as string,
             cursoTitulo: m.cursos?.titulo || "Curso",
+            cursoModalidad: (m.cursos?.modalidad as string | null) ?? null,
             count: 0,
             ultimoContenido: m.contenido as string | null,
             ultimoCreadoEn: m.creado_en as string,

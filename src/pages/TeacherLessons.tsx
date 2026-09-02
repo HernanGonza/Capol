@@ -50,6 +50,7 @@ import { Circle, Download } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 import RevisarEntregasDialog from "@/components/RevisarEntregasDialog";
 import CourseForumDialog from "@/components/CourseForumDialog";
+import ModalidadBadge from "@/components/ModalidadBadge";
 import { deleteLessonCompletely } from "@/lib/deleteLesson";
 
 const TeacherLessons = () => {
@@ -573,7 +574,10 @@ const TeacherLessons = () => {
               <ArrowLeft className="w-4 h-4" />
             </Button>
             <div>
-              <h1 className="text-2xl font-bold tracking-tight">{course?.titulo}</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold tracking-tight">{course?.titulo}</h1>
+                {course?.modalidad && <ModalidadBadge modalidad={course.modalidad} />}
+              </div>
               <p className="text-muted-foreground font-medium">Gestiona las clases de este curso</p>
             </div>
           </div>
@@ -924,6 +928,7 @@ const TeacherLessons = () => {
         onOpenChange={setForumOpen}
         courseId={courseId!}
         courseTitle={course?.titulo}
+        courseModalidad={course?.modalidad}
       />
       {endClassDialog}
       {deleteLessonDialog}

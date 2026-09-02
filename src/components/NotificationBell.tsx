@@ -4,10 +4,12 @@ import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import ModalidadBadge from "@/components/ModalidadBadge";
 
 export type ForoActividadCurso = {
   cursoId: string;
   cursoTitulo: string;
+  cursoModalidad: string | null;
   count: number;
   ultimoContenido: string | null;
   ultimoCreadoEn: string;
@@ -77,7 +79,10 @@ const NotificationBell = ({ porCurso, collapsed, className, id }: NotificationBe
               className="w-full text-left p-3 hover:bg-muted/50 transition-colors"
             >
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-bold truncate">{c.cursoTitulo}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-bold truncate">{c.cursoTitulo}</p>
+                  <ModalidadBadge modalidad={c.cursoModalidad} className="mt-0.5" />
+                </div>
                 <span className="bg-red-500 text-white text-[10px] font-black rounded-full w-5 h-5 flex items-center justify-center shrink-0">
                   {c.count}
                 </span>
