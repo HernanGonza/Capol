@@ -126,8 +126,30 @@ const TeacherLessons = () => {
   useEffect(() => {
     if (recorder.error) toast.error(recorder.error);
   }, [recorder.error]);
+  // Cuando la grabación arranca sin el audio de la videollamada, el profe está
+  // en la pestaña de Jitsi (otra pestaña, otro dominio: no podemos dibujar nada
+  // encima). Para que se entere igual: traemos el foco a esta pestaña y hacemos
+  // parpadear el título, que se ve en la barra de pestañas desde cualquier lado.
   useEffect(() => {
-    if (recorder.warning) toast.warning(recorder.warning, { duration: 20_000 });
+    if (!recorder.warning) return;
+    toast.warning(recorder.warning, { duration: 20_000 });
+    try {
+      window.focus();
+    } catch {
+      /* el navegador puede bloquear el focus programático: no pasa nada */
+    }
+    const original = document.title;
+    let flip = false;
+    const flash = () => {
+      flip = !flip;
+      document.title = flip ? "⚠️ SIN AUDIO — Clase" : original;
+    };
+    flash();
+    const id = window.setInterval(flash, 1_000);
+    return () => {
+      window.clearInterval(id);
+      document.title = original;
+    };
   }, [recorder.warning]);
 
   // Alumnos con suscripción activa a este curso — para poder mandarles un mensaje
@@ -526,6 +548,8 @@ const TeacherLessons = () => {
               courseTitle={course?.titulo}
               lessonTitle={activeLesson?.titulo}
               isTeacher
+              previewStream={recorder.previewStream}
+              recordingHasAudio={recorder.hasCallAudio}
               onClose={() => {
                 setShowJitsi(false);
                 setActiveRoom("");

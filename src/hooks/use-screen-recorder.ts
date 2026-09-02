@@ -46,6 +46,12 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
   // para que el profe pueda cortar y volver a compartir bien.
   const [warning, setWarning] = useState<string | null>(null);
   const [durationSec, setDurationSec] = useState(0);
+  // Espejo en vivo de lo que se está grabando, para mostrarlo en el panel de la
+  // clase (solo la pista de video; el audio va muteado en el <video>). Sirve
+  // para que el profe confirme que compartió la pestaña correcta.
+  const [previewStream, setPreviewStream] = useState<MediaStream | null>(null);
+  // ¿Entró el audio de la videollamada en la grabación?
+  const [hasCallAudio, setHasCallAudio] = useState(false);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -66,6 +72,8 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
       audioCtxRef.current = null;
     }
     recorderRef.current = null;
+    setPreviewStream(null);
+    setHasCallAudio(false);
   }, []);
 
   const download = useCallback(
@@ -112,10 +120,14 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
       });
       streamsRef.current.push(display);
 
+      // Espejo en vivo para el panel de la clase: solo la pista de video.
+      setPreviewStream(new MediaStream([display.getVideoTracks()[0]]));
+
       // ¿Entró el audio de la videollamada? Solo pasa si el profe eligió una
       // PESTAÑA de Chrome y tildó "compartir audio de la pestaña". Si compartió
       // una ventana o toda la pantalla, o se olvidó el tilde, la grabación
       // queda solo con su micrófono: no se escucha a los alumnos. Avisamos ya.
+      setHasCallAudio(display.getAudioTracks().length > 0);
       if (display.getAudioTracks().length === 0) {
         const surface = (
           display.getVideoTracks()[0]?.getSettings?.() as { displaySurface?: string } | undefined
@@ -213,5 +225,15 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
     };
   }, [cleanup]);
 
-  return { status, error, warning, durationSec, start, stop, isRecording: status === "recording" };
+  return {
+    status,
+    error,
+    warning,
+    durationSec,
+    previewStream,
+    hasCallAudio,
+    start,
+    stop,
+    isRecording: status === "recording",
+  };
 };

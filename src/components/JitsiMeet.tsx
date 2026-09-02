@@ -1,6 +1,7 @@
+import { useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { ExternalLink, Video } from "lucide-react";
+import { Circle, ExternalLink, Video, Volume2, VolumeX } from "lucide-react";
 
 const JITSI_DOMAIN = "meet.jit.si";
 
@@ -12,6 +13,11 @@ interface Props {
   // El profesor entra sin mutear (es moderador: entra primero, ver
   // "clase_iniciada_en"). El alumno entra con cámara y micrófono apagados.
   isTeacher?: boolean;
+  // Espejo en vivo de la grabación (solo mientras el profe está grabando). Si
+  // viene, el panel muestra lo que se está grabando en vez del botón.
+  previewStream?: MediaStream | null;
+  // ¿La grabación tomó el audio de la videollamada?
+  recordingHasAudio?: boolean;
 }
 
 // Convierte el nombre de sala elegido por el profesor en un slug válido para Jitsi.
@@ -54,7 +60,15 @@ export const buildJitsiUrl = (
   return `https://${JITSI_DOMAIN}/${slug}#${params.join("&")}`;
 };
 
-const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: Props) => {
+const JitsiMeet = ({
+  roomName,
+  courseTitle,
+  lessonTitle,
+  onClose,
+  isTeacher,
+  previewStream,
+  recordingHasAudio,
+}: Props) => {
   const { profile } = useAuth();
   const userName = profile?.nombre_completo || "Participante";
   const jitsiUrl = buildJitsiUrl(roomName, userName, {
@@ -64,6 +78,53 @@ const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: P
   });
 
   const openCall = () => window.open(jitsiUrl, "_blank", "noopener,noreferrer");
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useEffect(() => {
+    const el = videoRef.current;
+    if (!el) return;
+    el.srcObject = previewStream ?? null;
+    if (previewStream) el.play().catch(() => {});
+    return () => {
+      if (el) el.srcObject = null;
+    };
+  }, [previewStream]);
+
+  // Mientras el profe graba, el panel muestra el espejo en vivo de la
+  // grabación (así confirma que compartió la pestaña correcta y con sonido).
+  if (previewStream) {
+    return (
+      <div className="flex h-full w-full flex-col gap-2 rounded-2xl bg-slate-950 p-3">
+        <div className="flex items-center justify-between gap-2 px-1">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold text-red-400">
+            <Circle className="h-2.5 w-2.5 animate-pulse fill-red-500 text-red-500" />
+            GRABANDO
+          </span>
+          {recordingHasAudio ? (
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-400">
+              <Volume2 className="h-3.5 w-3.5" />
+              con sonido
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-red-400">
+              <VolumeX className="h-3.5 w-3.5" />
+              SIN sonido
+            </span>
+          )}
+        </div>
+        <video
+          ref={videoRef}
+          muted
+          autoPlay
+          playsInline
+          className="min-h-0 w-full flex-1 rounded-lg bg-black object-contain"
+        />
+        <p className="px-1 text-center text-[11px] text-white/50">
+          Esto es lo que se está grabando. La videollamada sigue en la otra pestaña.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-full w-full flex-col items-center justify-center gap-3 rounded-2xl bg-gradient-to-b from-slate-900 to-slate-950 p-6 text-center">
@@ -84,6 +145,11 @@ const JitsiMeet = ({ roomName, courseTitle, lessonTitle, onClose, isTeacher }: P
       <p className="max-w-xs text-[11px] text-white/40">
         Se abre en una pestaña nueva. Si se cierra, volvé a entrar desde acá.
       </p>
+      {isTeacher && (
+        <p className="max-w-xs text-[11px] text-white/40">
+          Cuando empieces a grabar, acá vas a ver lo que estás grabando.
+        </p>
+      )}
 
       {onClose && (
         <Button variant="ghost" size="sm" onClick={onClose} className="text-white/50 hover:text-white">
