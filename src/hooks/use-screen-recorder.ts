@@ -41,6 +41,10 @@ export const screenRecordingSupported = () =>
 export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptions = {}) => {
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  // Aviso NO fatal: la grabación sigue, pero le falta el audio de la
+  // videollamada (no se escucharía a los alumnos). Lo mostramos en el momento
+  // para que el profe pueda cortar y volver a compartir bien.
+  const [warning, setWarning] = useState<string | null>(null);
   const [durationSec, setDurationSec] = useState(0);
 
   const recorderRef = useRef<MediaRecorder | null>(null);
@@ -88,6 +92,7 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
     } else {
       cleanup();
       setStatus("idle");
+      setWarning(null);
     }
   }, [cleanup]);
 
@@ -98,6 +103,7 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
       return;
     }
     setError(null);
+    setWarning(null);
     try {
       // 1. Pantalla / ventana / pestaña + su audio (si el profe lo tilda).
       const display = await navigator.mediaDevices.getDisplayMedia({
@@ -105,6 +111,21 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
         audio: true,
       });
       streamsRef.current.push(display);
+
+      // ¿Entró el audio de la videollamada? Solo pasa si el profe eligió una
+      // PESTAÑA de Chrome y tildó "compartir audio de la pestaña". Si compartió
+      // una ventana o toda la pantalla, o se olvidó el tilde, la grabación
+      // queda solo con su micrófono: no se escucha a los alumnos. Avisamos ya.
+      if (display.getAudioTracks().length === 0) {
+        const surface = (
+          display.getVideoTracks()[0]?.getSettings?.() as { displaySurface?: string } | undefined
+        )?.displaySurface;
+        setWarning(
+          surface && surface !== "browser"
+            ? 'Estás grabando SIN el audio de la videollamada: compartiste una ventana o toda la pantalla. Cortá la grabación, dale a Grabar de nuevo, elegí la PESTAÑA de la videollamada y tildá "Compartir audio de la pestaña".'
+            : 'Estás grabando SIN el audio de la videollamada: falta tildar "Compartir audio de la pestaña". Cortá la grabación, dale a Grabar de nuevo y tildá esa casilla — si no, no se escucha a los alumnos.',
+        );
+      }
 
       // 2. Micrófono del profe (por si comparte "toda la pantalla", que no
       //    captura audio de la llamada). Si lo rechaza, seguimos sin mic.
@@ -152,6 +173,7 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
         chunksRef.current = [];
         cleanup();
         setStatus("idle");
+        setWarning(null);
         setDurationSec(0);
         if (blob.size > 0) download(blob);
       };
@@ -191,5 +213,5 @@ export const useScreenRecorder = ({ fileName = "Clase" }: UseScreenRecorderOptio
     };
   }, [cleanup]);
 
-  return { status, error, durationSec, start, stop, isRecording: status === "recording" };
+  return { status, error, warning, durationSec, start, stop, isRecording: status === "recording" };
 };

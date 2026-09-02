@@ -46,7 +46,7 @@ import {
 import JitsiMeet, { buildJitsiUrl } from "@/components/JitsiMeet";
 import LessonBlocks from "@/components/LessonBlocks";
 import { useScreenRecorder, screenRecordingSupported } from "@/hooks/use-screen-recorder";
-import { Circle, Download } from "lucide-react";
+import { Circle, Download, AlertTriangle } from "lucide-react";
 import LessonEditorDialog from "@/components/LessonEditorDialog";
 import RevisarEntregasDialog from "@/components/RevisarEntregasDialog";
 import CourseForumDialog from "@/components/CourseForumDialog";
@@ -126,6 +126,9 @@ const TeacherLessons = () => {
   useEffect(() => {
     if (recorder.error) toast.error(recorder.error);
   }, [recorder.error]);
+  useEffect(() => {
+    if (recorder.warning) toast.warning(recorder.warning, { duration: 20_000 });
+  }, [recorder.warning]);
 
   // Alumnos con suscripción activa a este curso — para poder mandarles un mensaje
   const { data: studentsInCourse } = useQuery({
@@ -501,6 +504,12 @@ const TeacherLessons = () => {
             </Button>
           </div>
         </div>
+        {recorder.isRecording && recorder.warning && (
+          <div className="shrink-0 bg-red-600 px-4 py-2 text-xs md:text-sm text-white flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>{recorder.warning}</span>
+          </div>
+        )}
         <div className="flex-1 overflow-hidden grid grid-cols-1 lg:grid-cols-2 min-h-0">
           {/* Contenido de la clase, igual a lo que ve el alumno */}
           <div className="overflow-y-auto p-6 md:p-10 bg-white text-slate-900 min-h-0">
