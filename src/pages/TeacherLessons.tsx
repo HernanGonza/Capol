@@ -152,7 +152,8 @@ const TeacherLessons = () => {
     };
   }, [recorder.warning]);
 
-  // Alumnos con suscripción activa a este curso — para poder mandarles un mensaje
+  // Alumnos con acceso vigente a este curso (pagando o con pago diferido) —
+  // para poder mandarles un mensaje
   const { data: studentsInCourse } = useQuery({
     queryKey: ["teacher-course-students", courseId],
     queryFn: async () => {
@@ -160,7 +161,7 @@ const TeacherLessons = () => {
         .from("suscripciones")
         .select("usuario_id")
         .eq("curso_id", courseId!)
-        .eq("estado", "active")
+        .in("estado", ["active", "pago_diferido"])
         .or(`fin_en.gt.${new Date().toISOString()},fin_en.is.null`);
       if (error) throw error;
       return data || [];

@@ -174,7 +174,10 @@ const StudentDashboard = () => {
           cursos (id, titulo, descripcion, url_imagen, url_flyer, tipo_flyer, fecha_inicio, horarios, carga_horaria, lecciones (id))
         `)
         .eq("usuario_id", user!.id)
-.eq("estado", "active");
+        // "active" = pagó, "pago_diferido" = acceso habilitado a mano sin
+        // pagar todavía (ver 20260831120000_pago_diferido_y_suspension.sql).
+        // Ambos dan acceso real al curso, por eso van los dos acá.
+        .in("estado", ["active", "pago_diferido"]);
       if (error) throw error;
 
       const { data: progress } = await supabase
@@ -229,7 +232,7 @@ const StudentDashboard = () => {
         .from("suscripciones")
         .select("curso_id")
         .eq("usuario_id", user!.id)
-        .in("estado", ["active", "pago_pendiente"]);
+        .in("estado", ["active", "pago_pendiente", "pago_diferido"]);
 
       const enrolledIds = new Set((activeSubs || []).map((s: any) => s.curso_id));
       return (allCourses || [])
