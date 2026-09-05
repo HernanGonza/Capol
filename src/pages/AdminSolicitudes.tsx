@@ -115,6 +115,15 @@ const AdminSolicitudes = () => {
       cursoId: string;
       motivo?: string;
     }) => {
+      // Ya duplicada: si el alumno ya tiene una suscripción vigente para este
+      // curso (pagando, pendiente de pago o con pago diferido en curso), no
+      // se crea una segunda. Antes acá faltaba 'pago_diferido' en el filtro,
+      // que es justo el estado que se le queda "pisado" a un alumno cuando
+      // ya se le concedió acceso a mano — sin eso, aprobar una solicitud
+      // repetida generaba una segunda suscripción fantasma (caso Ana Carina
+      // Torres, 2026-09-05).
+      let yaTeniaSuscripcion = false;
+
       if (estado === "aprobada") {
         // Aprobar una solicitud NO implica pago ni acceso.
         //
@@ -128,10 +137,12 @@ const AdminSolicitudes = () => {
           .select("id")
           .eq("usuario_id", usuarioId)
           .eq("curso_id", cursoId)
-          .in("estado", ["active", "pago_pendiente"])
+          .in("estado", ["active", "pago_pendiente", "pago_diferido"])
           .maybeSingle();
 
         if (existenteError) throw existenteError;
+
+        yaTeniaSuscripcion = !!existente;
 
         if (!existente) {
           const { error: subError } = await supabase
@@ -166,11 +177,13 @@ const AdminSolicitudes = () => {
         usuarioId,
         cursoId,
         motivo,
-        metadata: { solicitud_id: id },
+        metadata: { solicitud_id: id, ya_tenia_suscripcion: yaTeniaSuscripcion },
       });
+
+      return { yaTeniaSuscripcion };
     },
 
-    onSuccess: (_, vars) => {
+    onSuccess: (data, vars) => {
       queryClient.invalidateQueries({
         queryKey: ["admin-solicitudes"],
       });
@@ -186,11 +199,17 @@ const AdminSolicitudes = () => {
       setModalAlumno(null);
       setConfirmResolver(null);
 
-      toast.success(
-        vars.estado === "aprobada"
-          ? "✅ Solicitud aprobada — pendiente de pago"
-          : "Solicitud rechazada"
-      );
+      if (vars.estado === "aprobada" && data?.yaTeniaSuscripcion) {
+        toast.warning(
+          "⚠️ Solicitud aprobada, pero este alumno ya tenía una suscripción para este curso — no se creó una nueva. Revisá el Panel de Suscripciones si algo no coincide."
+        );
+      } else {
+        toast.success(
+          vars.estado === "aprobada"
+            ? "✅ Solicitud aprobada — pendiente de pago"
+            : "Solicitud rechazada"
+        );
+      }
     },
 
     onError: (e: any) => {
