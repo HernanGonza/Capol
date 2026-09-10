@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import ConfirmWithReason from "@/components/ConfirmWithReason";
+import StudentProfileModal from "@/components/admin/StudentProfileModal";
 import { registrarMovimiento } from "@/lib/movimientosAdmin";
 import { toast } from "sonner";
 import {
@@ -89,6 +90,9 @@ const AdminSubscriptions = () => {
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] =
     useState<string | null>(null);
+
+  const [alumnoDetalle, setAlumnoDetalle] =
+    useState<any>(null);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -276,7 +280,18 @@ const AdminSubscriptions = () => {
           *,
           perfiles:usuario_id (
             nombre_completo,
-            email
+            email,
+            telefono,
+            dni,
+            edad,
+            ocupacion,
+            direccion,
+            localidad,
+            provincia,
+            pais,
+            biografia,
+            url_avatar,
+            creado_en
           ),
           cursos:curso_id (
             titulo,
@@ -1367,11 +1382,21 @@ const AdminSubscriptions = () => {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center gap-3 mb-1">
                         <h3 className="font-bold text-lg">
-                          {
-                            sub
-                              .perfiles
-                              ?.nombre_completo
-                          }
+                          <button
+                            type="button"
+                            className="hover:underline decoration-2 underline-offset-2 text-left"
+                            onClick={() =>
+                              setAlumnoDetalle(
+                                sub.perfiles
+                              )
+                            }
+                          >
+                            {
+                              sub
+                                .perfiles
+                                ?.nombre_completo
+                            }
+                          </button>
                         </h3>
 
                         <span className="text-sm text-muted-foreground">
@@ -1899,6 +1924,14 @@ const AdminSubscriptions = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <StudentProfileModal
+        perfil={alumnoDetalle}
+        open={!!alumnoDetalle}
+        onOpenChange={(open) => {
+          if (!open) setAlumnoDetalle(null);
+        }}
+      />
     </AppLayout>
   );
 };
