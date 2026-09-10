@@ -40,6 +40,7 @@ import {
   FileVideo,
   CalendarClock,
   Square,
+  RotateCcw,
   ClipboardCheck,
   Users,
   MessageSquare,
@@ -73,6 +74,7 @@ const TeacherLessons = () => {
   const [recordingLinkLesson, setRecordingLinkLesson] = useState<any>(null);
   const [recordingLinkValue, setRecordingLinkValue] = useState("");
   const [endClassConfirmLesson, setEndClassConfirmLesson] = useState<any>(null);
+  const [resetClassConfirmLesson, setResetClassConfirmLesson] = useState<any>(null);
   const [closeClassConfirmOpen, setCloseClassConfirmOpen] = useState(false);
   const [deleteLessonConfirm, setDeleteLessonConfirm] = useState<any>(null);
   const [savingRecordingLink, setSavingRecordingLink] = useState(false);
@@ -325,6 +327,50 @@ const TeacherLessons = () => {
           <AlertDialogCancel>Cancelar</AlertDialogCancel>
           <AlertDialogAction onClick={confirmEndClass} disabled={endClassMutation.isPending}>
             {endClassMutation.isPending ? "Terminando..." : "Terminar Clase"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  // Restablecer una clase ya terminada, por si se apretó "Terminar Clase" sin
+  // querer: borra la fecha de fin y vuelve a habilitar "Iniciar Clase"/"Volver
+  // a Entrar" como si nunca se hubiera terminado.
+  const resetClassMutation = useMutation({
+    mutationFn: async (lessonId: string) => {
+      const { error } = await supabase
+        .from("lecciones")
+        .update({ fecha_fin_clase: null })
+        .eq("id", lessonId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      toast.success("Clase restablecida.");
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const confirmResetClass = () => {
+    if (resetClassConfirmLesson) {
+      resetClassMutation.mutate(resetClassConfirmLesson.id);
+      setResetClassConfirmLesson(null);
+    }
+  };
+
+  const resetClassDialog = (
+    <AlertDialog open={!!resetClassConfirmLesson} onOpenChange={(o) => !o && setResetClassConfirmLesson(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Restablecer esta clase?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se borra la fecha de fin y la clase deja de figurar como terminada: vas a poder iniciarla de nuevo con "Iniciar Clase". Usalo si tocaste "Terminar Clase" por error.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmResetClass} disabled={resetClassMutation.isPending}>
+            {resetClassMutation.isPending ? "Restableciendo..." : "Restablecer Clase"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -883,14 +929,26 @@ const TeacherLessons = () => {
                     {/* Acciones */}
                     <div className="flex items-center gap-2 flex-wrap">
                       {isClassOver(lesson) ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openRecordingLinkDialog(lesson)}
-                        >
-                          <Upload className="w-4 h-4 mr-1" />
-                          {lesson.grabacion_url ? "Cambiar Link de Grabación" : "Agregar Link de Grabación"}
-                        </Button>
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openRecordingLinkDialog(lesson)}
+                          >
+                            <Upload className="w-4 h-4 mr-1" />
+                            {lesson.grabacion_url ? "Cambiar Link de Grabación" : "Agregar Link de Grabación"}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={resetClassMutation.isPending}
+                            onClick={() => setResetClassConfirmLesson(lesson)}
+                            title="Restablecer clase (por si se terminó por error)"
+                          >
+                            <RotateCcw className="w-4 h-4 mr-1" />
+                            Restablecer
+                          </Button>
+                        </>
                       ) : (
                         <>
                           <Button
@@ -995,6 +1053,7 @@ const TeacherLessons = () => {
         courseModalidad={course?.modalidad}
       />
       {endClassDialog}
+      {resetClassDialog}
       {deleteLessonDialog}
     </AppLayout>
   );
