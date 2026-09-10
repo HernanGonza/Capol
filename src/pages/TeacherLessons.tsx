@@ -21,6 +21,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -72,6 +73,7 @@ const TeacherLessons = () => {
   const [recordingLinkLesson, setRecordingLinkLesson] = useState<any>(null);
   const [recordingLinkValue, setRecordingLinkValue] = useState("");
   const [endClassConfirmLesson, setEndClassConfirmLesson] = useState<any>(null);
+  const [closeClassConfirmOpen, setCloseClassConfirmOpen] = useState(false);
   const [deleteLessonConfirm, setDeleteLessonConfirm] = useState<any>(null);
   const [savingRecordingLink, setSavingRecordingLink] = useState(false);
   const [form, setForm] = useState({
@@ -314,9 +316,9 @@ const TeacherLessons = () => {
     <AlertDialog open={!!endClassConfirmLesson} onOpenChange={(o) => !o && setEndClassConfirmLesson(null)}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>¿Terminar esta clase ahora?</AlertDialogTitle>
+          <AlertDialogTitle>¿Terminar esta clase del todo?</AlertDialogTitle>
           <AlertDialogDescription>
-            La video llamada va a dejar de estar disponible y vas a poder subir la grabación.
+            Es definitivo: la video llamada deja de existir para siempre, ni vos ni los alumnos van a poder volver a entrar. En su lugar, vas a poder subir el link de la grabación para que la vean.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
@@ -324,6 +326,34 @@ const TeacherLessons = () => {
           <AlertDialogAction onClick={confirmEndClass} disabled={endClassMutation.isPending}>
             {endClassMutation.isPending ? "Terminando..." : "Terminar Clase"}
           </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  // "Cerrar Clase" solo cierra la ventana del profesor: la clase sigue activa
+  // (los alumnos pueden seguir entrando) y se puede reabrir con "Volver a
+  // Entrar". No hay que confundirlo con "Terminar Clase", que sí es definitivo.
+  const closeClass = () => {
+    if (recorder.isRecording) recorder.stop();
+    setShowJitsi(false);
+    setActiveRoom("");
+    setActiveLesson(null);
+    setCloseClassConfirmOpen(false);
+  };
+
+  const closeClassDialog = (
+    <AlertDialog open={closeClassConfirmOpen} onOpenChange={setCloseClassConfirmOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Cerrar esta clase por ahora?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se cierra esta ventana, pero la clase sigue activa: los alumnos pueden seguir entrando a la video llamada y vos podés volver a entrar cuando quieras con "Volver a Entrar". Si en cambio querés terminarla del todo, usá "Terminar Clase".
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={closeClass}>Cerrar Clase</AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
@@ -498,33 +528,36 @@ const TeacherLessons = () => {
                 </Button>
               )
             ) : null}
-            <Button
-              variant="default"
-              size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg"
-              disabled={endClassMutation.isPending}
-              onClick={() => {
-                if (recorder.isRecording) recorder.stop();
-                setEndClassConfirmLesson(activeLesson);
-              }}
-              title="Terminar Clase"
-            >
-              <Square className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Terminar Clase</span>
-            </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                if (recorder.isRecording) recorder.stop();
-                setShowJitsi(false);
-                setActiveRoom("");
-                setActiveLesson(null);
-              }}
-              className="shadow-lg"
-              title="Cerrar Clase"
-            >
-              <X className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Cerrar Clase</span>
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="default"
+                  size="sm"
+                  className="bg-amber-600 hover:bg-amber-700 text-white shadow-lg"
+                  disabled={endClassMutation.isPending}
+                  onClick={() => {
+                    if (recorder.isRecording) recorder.stop();
+                    setEndClassConfirmLesson(activeLesson);
+                  }}
+                >
+                  <Square className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Terminar Clase</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Termina la clase para siempre: no se puede volver a entrar. Después subís la grabación.</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setCloseClassConfirmOpen(true)}
+                  className="shadow-lg"
+                >
+                  <X className="w-4 h-4 sm:mr-2" /> <span className="hidden sm:inline">Cerrar Clase</span>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Solo cierra esta ventana. La clase sigue activa y podés volver a entrar cuando quieras.</TooltipContent>
+            </Tooltip>
           </div>
         </div>
         {recorder.isRecording && recorder.warning && (
@@ -551,15 +584,12 @@ const TeacherLessons = () => {
               isTeacher
               previewStream={recorder.previewStream}
               recordingHasAudio={recorder.hasCallAudio}
-              onClose={() => {
-                setShowJitsi(false);
-                setActiveRoom("");
-                setActiveLesson(null);
-              }}
+              onClose={() => setCloseClassConfirmOpen(true)}
             />
           </div>
         </div>
         {endClassDialog}
+        {closeClassDialog}
         {deleteLessonDialog}
       </div>
     );
