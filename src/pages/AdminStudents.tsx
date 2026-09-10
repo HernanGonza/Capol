@@ -80,6 +80,11 @@ const AdminStudents = () => {
   const [statusFilter, setStatusFilter] = useState("all");
   const [courseFilter, setCourseFilter] = useState("all");
 
+  // Filtro/orden propios de la tarjeta "Alumnos" (cuentas): por defecto los
+  // últimos registrados arriba, con opción de pasar a orden alfabético.
+  const [studentsSearch, setStudentsSearch] = useState("");
+  const [studentsSort, setStudentsSort] = useState<"reciente" | "alfabetico">("reciente");
+
   // Lista de alumnos (a nivel cuenta, con su estado activo/inactivo)
   const { data: students } = useQuery({
     queryKey: ["all-students"],
@@ -90,10 +95,25 @@ const AdminStudents = () => {
         .from("perfiles")
         .select("*")
         .in("id", roles.map((r) => r.usuario_id))
-        .order("nombre_completo");
+        .order("creado_en", { ascending: false });
       return profiles || [];
     },
   });
+
+  const filteredStudents = useMemo(() => {
+    if (!students) return [];
+    const term = studentsSearch.toLowerCase();
+    return students
+      .filter((s: any) =>
+        (s.nombre_completo || "").toLowerCase().includes(term) ||
+        (s.email || "").toLowerCase().includes(term)
+      )
+      .sort((a: any, b: any) =>
+        studentsSort === "alfabetico"
+          ? (a.nombre_completo || "").localeCompare(b.nombre_completo || "")
+          : new Date(b.creado_en || 0).getTime() - new Date(a.creado_en || 0).getTime()
+      );
+  }, [students, studentsSearch, studentsSort]);
 
   // Para inscribir en un curso: el admin también tiene que poder anotar a un
   // profesor, a otro admin, o a sí mismo como alumno de cualquier curso, no
@@ -377,15 +397,35 @@ const AdminStudents = () => {
 
         {/* CUENTAS DE ALUMNOS: activar / dar de baja */}
         <Card className="shadow-card overflow-hidden">
-          <CardHeader className="bg-muted/30 border-b">
+          <CardHeader className="bg-muted/30 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Users className="w-5 h-5 text-primary" />
-              Alumnos ({students?.length || 0})
+              Alumnos ({filteredStudents.length})
             </CardTitle>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Buscar alumno..."
+                  className="pl-9 bg-background w-full sm:w-[220px]"
+                  value={studentsSearch}
+                  onChange={(e) => setStudentsSearch(e.target.value)}
+                />
+              </div>
+              <Select value={studentsSort} onValueChange={(v) => setStudentsSort(v as "reciente" | "alfabetico")}>
+                <SelectTrigger className="w-full sm:w-[180px] bg-background">
+                  <SelectValue placeholder="Ordenar por" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="reciente">Más recientes primero</SelectItem>
+                  <SelectItem value="alfabetico">Alfabético</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </CardHeader>
           <CardContent className="p-0">
             <div className="divide-y">
-              {students?.map((s) => (
+              {filteredStudents.map((s) => (
                 <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 hover:bg-muted/10 gap-4">
                   <div className="flex items-center gap-4 min-w-0">
                     <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0 ${s.activo ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"}`}>
@@ -479,8 +519,10 @@ const AdminStudents = () => {
                   </div>
                 </div>
               ))}
-              {students?.length === 0 && (
-                <p className="text-center text-muted-foreground py-10">Todavía no hay alumnos registrados.</p>
+              {filteredStudents.length === 0 && (
+                <p className="text-center text-muted-foreground py-10">
+                  {studentsSearch ? "No hay alumnos que coincidan con la búsqueda." : "Todavía no hay alumnos registrados."}
+                </p>
               )}
             </div>
           </CardContent>
