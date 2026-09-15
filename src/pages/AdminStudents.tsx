@@ -11,10 +11,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import ModalidadBadge from "@/components/ModalidadBadge";
 import ConfirmWithReason from "@/components/ConfirmWithReason";
-import { modalidadLabel } from "@/lib/modalidad";
+import { modalidadLabel, esGrabado } from "@/lib/modalidad";
 import { registrarMovimiento } from "@/lib/movimientosAdmin";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck, Download } from "lucide-react";
+import { UserPlus, Users, BookOpen, Trash2, Search, Filter, UserX, UserCheck, GraduationCap, MessageSquare, Ban, ShieldCheck, Download, Check } from "lucide-react";
 
 type ConfirmAction =
   | { type: "toggle-ban"; student: any; bloqueado: boolean }
@@ -379,10 +380,36 @@ const AdminStudents = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Select value={selectedCourse} onValueChange={setSelectedCourse}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar curso" /></SelectTrigger>
-                  <SelectContent>{courses?.map((c) => <SelectItem key={c.id} value={c.id}>{c.titulo}</SelectItem>)}</SelectContent>
-                </Select>
+                <div className="rounded-lg border overflow-hidden">
+                  <div className="max-h-56 overflow-y-auto divide-y">
+                    {([false, true] as const).map((grabado) => {
+                      const grupo = courses?.filter((c) => esGrabado(c.modalidad) === grabado) || [];
+                      if (grupo.length === 0) return null;
+                      return (
+                        <div key={String(grabado)}>
+                          <div className="sticky top-0 z-10 bg-muted/60 backdrop-blur-sm px-3 py-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                            {modalidadLabel(grabado ? "grabado" : "en_vivo")}
+                          </div>
+                          {grupo.map((c) => (
+                            <button
+                              key={c.id}
+                              type="button"
+                              onClick={() => setSelectedCourse(c.id)}
+                              className={cn(
+                                "w-full flex items-center gap-2.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-muted/50",
+                                selectedCourse === c.id && "bg-primary/10"
+                              )}
+                            >
+                              <ModalidadBadge modalidad={c.modalidad} showIcon className="shrink-0" />
+                              <span className="flex-1 truncate">{c.titulo}</span>
+                              {selectedCourse === c.id && <Check className="w-4 h-4 text-primary shrink-0" />}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
                 <Button
                   className="w-full gradient-primary"
                   disabled={!selectedStudent || !selectedCourse || enrollMutation.isPending}
