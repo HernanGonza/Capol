@@ -693,16 +693,6 @@ const TeacherLessons = () => {
           </div>
           
           <div className="flex items-center gap-2 flex-wrap">
-          {claseParaDictar && course?.modalidad !== "grabado" && (
-            <Button
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg"
-              disabled={startLiveClassMutation.isPending}
-              onClick={() => startLiveClass(claseParaDictar)}
-              title={`Dar clase en vivo: ${claseParaDictar.titulo}`}
-            >
-              <Video className="w-4 h-4 mr-2" /> Dar Clase en Vivo
-            </Button>
-          )}
           <Button variant="outline" onClick={() => setForumOpen(true)}>
             <Users className="w-4 h-4 mr-2" /> Foro del Curso
           </Button>
