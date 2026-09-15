@@ -693,7 +693,7 @@ const TeacherLessons = () => {
           </div>
           
           <div className="flex items-center gap-2 flex-wrap">
-          {claseParaDictar && (
+          {claseParaDictar && course?.modalidad !== "grabado" && (
             <Button
               className="bg-green-600 hover:bg-green-700 text-white font-semibold shadow-lg"
               disabled={startLiveClassMutation.isPending}
@@ -951,15 +951,17 @@ const TeacherLessons = () => {
                         </>
                       ) : (
                         <>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                            disabled={startLiveClassMutation.isPending}
-                            onClick={() => startLiveClass(lesson)}
-                          >
-                            <Play className="w-4 h-4 mr-1" />
-                            {startLiveClassMutation.isPending ? "Iniciando..." : lesson.clase_iniciada_en ? "Volver a Entrar" : "Iniciar Clase"}
-                          </Button>
+                          {course?.modalidad !== "grabado" && (
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                              disabled={startLiveClassMutation.isPending}
+                              onClick={() => startLiveClass(lesson)}
+                            >
+                              <Play className="w-4 h-4 mr-1" />
+                              {startLiveClassMutation.isPending ? "Iniciando..." : lesson.clase_iniciada_en ? "Volver a Entrar" : "Iniciar Clase"}
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"

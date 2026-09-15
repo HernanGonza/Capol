@@ -259,7 +259,7 @@ const TeacherDashboard = () => {
                     </div>
 
                     <div className="space-y-2">
-                      <Link to={`/teacher/course/${course.id}/lessons?dictar=1`} className="block">
+                      <Link to={`/teacher/course/${course.id}/lessons`} className="block">
                         <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold">
                           <Video className="w-4 h-4 mr-2" /> Dar Clase en Vivo
                         </Button>
