@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,14 @@ const getInitialCollapsed = (): boolean => {
 // OTRA cuenta sin recargar la página, el tour de esa cuenta nueva se pueda
 // disparar igual.
 let tourStartedForUserId: string | null = null;
+
+// Último "ultimoCreadoEn" de actividad de foro visto por curso, para poder
+// detectar mensajes nuevos por polling (ver el useEffect del toast de foro
+// más abajo) sin depender de Realtime. Vive a nivel de módulo por el mismo
+// motivo que "tourStartedForUserId": sobrevive al remount de AppLayout en
+// cada cambio de ruta.
+let lastForoVistoPorCurso: Map<string, string> | null = null;
+let lastForoVistoUserId: string | null = null;
 
 const AppLayout = ({ children }: { children: ReactNode }) => {
   const { user, role, profile, signOut, refreshProfile } = useAuth();
@@ -245,65 +253,33 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
   const foroNoLeidos = foroActividad?.total || 0;
   const foroPorCurso = foroActividad?.porCurso || [];
 
-  // Mapa id -> título de curso, solo para poder mostrar el nombre del curso
-  // en el toast de "nuevo mensaje en el foro" (el payload de Realtime no
-  // trae el join a "cursos"). RLS ya restringe esto a los cursos que el
-  // usuario puede ver.
-  const { data: misCursos } = useQuery({
-    queryKey: ["cursos-titulos", user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from("cursos").select("id, titulo");
-      return data || [];
-    },
-    enabled: !!user,
-    staleTime: 5 * 60 * 1000,
-  });
-  const cursoTituloMap = useMemo(() => new Map((misCursos || []).map((c) => [c.id, c.titulo])), [misCursos]);
-
-  // El efecto de Realtime de abajo se suscribe una sola vez por sesión (no
-  // vuelve a correr cuando cambia "misCursos"), así que si el callback
-  // capturara "cursoTituloMap" directo quedaría pegado para siempre con el
-  // mapa vacío que había al momento de suscribirse. Por eso se lee desde un
-  // ref actualizado en un efecto aparte.
-  const cursoTituloMapRef = useRef(cursoTituloMap);
+  // Toast de "nuevo mensaje en el foro" sin Realtime: se detecta comparando
+  // el "ultimoCreadoEn" de cada curso entre una vuelta de polling y la
+  // siguiente (foroActividad ya refetchea solo cada 60s). Se guarda en una
+  // variable de módulo (no un ref) para sobrevivir al remount de AppLayout
+  // en cada cambio de ruta, mismo criterio que "tourStartedForUserId" más
+  // arriba. Se resetea si cambia el usuario logueado en la misma pestaña,
+  // para no comparar contra la actividad de una sesión anterior.
   useEffect(() => {
-    cursoTituloMapRef.current = cursoTituloMap;
-  }, [cursoTituloMap]);
-
-  // Una sola conexión Realtime por sesión logueada, escuchando cambios en
-  // "mensajes". Supabase Realtime respeta la RLS de la tabla: cada cliente
-  // solo recibe los eventos de filas que ya podría ver por su propia policy
-  // de SELECT, así que no hace falta duplicar acá ningún filtro de permisos.
-  useEffect(() => {
-    if (!user) return;
-    const channel = supabase
-      .channel(`mensajes-realtime-${user.id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "mensajes" }, (payload: any) => {
-        queryClient.invalidateQueries({ queryKey: ["mensajes-no-leidos-count", user.id] });
-        queryClient.invalidateQueries({ queryKey: ["foro-no-leidos-count", user.id] });
-        queryClient.invalidateQueries({ queryKey: ["mensajes", user.id] });
-        queryClient.invalidateQueries({ queryKey: ["foro-curso"] });
-
-        if (
-          payload.eventType === "INSERT" &&
-          payload.new?.destinatario_id === null &&
-          payload.new?.curso_id &&
-          payload.new?.remitente_id !== user.id
-        ) {
-          const cursoId = payload.new.curso_id as string;
-          const titulo = cursoTituloMapRef.current.get(cursoId);
+    if (!user || !foroActividad) return;
+    if (lastForoVistoUserId !== user.id) {
+      lastForoVistoPorCurso = null;
+      lastForoVistoUserId = user.id;
+    }
+    const previo = lastForoVistoPorCurso;
+    if (previo) {
+      for (const c of foroActividad.porCurso) {
+        const anterior = previo.get(c.cursoId);
+        if (anterior && new Date(c.ultimoCreadoEn) > new Date(anterior)) {
           toast("Nuevo mensaje en el foro", {
-            description: titulo || "Un curso tiene actividad nueva",
-            action: { label: "Ver", onClick: () => navigate(`/messages?curso=${cursoId}`) },
+            description: c.cursoTitulo || "Un curso tiene actividad nueva",
+            action: { label: "Ver", onClick: () => navigate(`/messages?curso=${c.cursoId}`) },
           });
         }
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user?.id, queryClient, navigate]);
+      }
+    }
+    lastForoVistoPorCurso = new Map(foroActividad.porCurso.map((c) => [c.cursoId, c.ultimoCreadoEn]));
+  }, [foroActividad, user, navigate]);
 
   const mensajesBadge = (mensajesNoLeidos || 0) + (foroNoLeidos || 0);
 
