@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare, Users, ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
+import { buildJitsiUrl } from "@/components/JitsiMeet";
+import { claseEstaFinalizada } from "@/lib/liveClass";
 import { openCertificate } from "@/lib/certificate";
 import CourseForumDialog from "@/components/CourseForumDialog";
 import ModalidadBadge from "@/components/ModalidadBadge";
@@ -192,6 +194,30 @@ const CourseView = () => {
     : null;
 
   const selectedLesson = lessons?.find((l) => l.id === selectedLessonId);
+
+  // Clase en vivo activa AHORA MISMO en este curso — para el botón flotante
+  // del listado, así el alumno no tiene que entrar a cada clase para ver
+  // cuál tiene videollamada abierta. Se detecta por polling (sin Realtime,
+  // mismo criterio que "clase-estado-en-vivo" en LessonContent) y solo tiene
+  // sentido para cursos en vivo.
+  const { data: liveLessons } = useQuery({
+    queryKey: ["course-live-lessons", courseId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("lecciones")
+        .select("id, titulo, sala_jitsi, clase_iniciada_en, fecha_fin_clase")
+        .eq("curso_id", courseId!)
+        .not("sala_jitsi", "is", null);
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: !!courseId && hasFullAccess && course?.modalidad !== "grabado",
+    refetchInterval: 15000,
+  });
+
+  const claseEnVivo = liveLessons?.find(
+    (l) => !!l.clase_iniciada_en && !claseEstaFinalizada(l.clase_iniciada_en, l.fecha_fin_clase)
+  );
 
   // Al abrir una clase, arrancar con el scroll arriba de todo: como no
   // cambia la URL (es el mismo componente, solo cambia el estado), sin esto
@@ -455,6 +481,32 @@ const CourseView = () => {
       />
 
       <EnrollmentDialog course={showPurchase ? course : null} onClose={() => setShowPurchase(false)} />
+
+      {/* Botón flotante: hay una clase en vivo ahora mismo en este curso */}
+      {claseEnVivo && (
+        <button
+          type="button"
+          onClick={() =>
+            window.open(
+              buildJitsiUrl(claseEnVivo.sala_jitsi!, profile?.nombre_completo || "Alumno", {
+                courseTitle: course?.titulo,
+                lessonTitle: claseEnVivo.titulo,
+                muted: true,
+              }),
+              "_blank",
+              "noopener,noreferrer",
+            )
+          }
+          className="fixed bottom-24 right-6 z-40 flex items-center gap-3 bg-emerald-500 hover:bg-emerald-600 text-white font-black pl-4 pr-5 py-3 rounded-full shadow-2xl shadow-emerald-500/40 transition-transform hover:scale-105"
+        >
+          <span className="relative flex h-3 w-3 shrink-0">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-white" />
+          </span>
+          <Video className="w-5 h-5 shrink-0" />
+          Video llamada: {claseEnVivo.titulo}
+        </button>
+      )}
     </AppLayout>
   );
 };

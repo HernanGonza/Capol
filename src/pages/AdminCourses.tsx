@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap, Copy, FlagOff, Archive, Eye } from "lucide-react";
+import { Plus, BookOpen, Edit, Layers, Upload, X, Film, Image as ImageIcon, DollarSign, Settings, Trash2, Clock, Zap, Copy, FlagOff, Archive, Eye, GraduationCap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCurrencyConversion } from "@/hooks/use-currency-conversion";
 import { compressImageToWebP } from "@/lib/imageCompression";
@@ -748,6 +748,11 @@ const AdminCourses = () => {
                         <Link to={`/course/${course.id}`} title="Vista previa (como lo ve un alumno, incluye certificado de prueba)">
                           <Button variant="outline" size="sm">
                             <Eye className="w-3.5 h-3.5" />
+                          </Button>
+                        </Link>
+                        <Link to={`/teacher/course/${course.id}/lessons`} title="Vista como profesor (iniciar/terminar clase, subir grabación, etc.)">
+                          <Button variant="outline" size="sm">
+                            <GraduationCap className="w-3.5 h-3.5" />
                           </Button>
                         </Link>
                       </div>

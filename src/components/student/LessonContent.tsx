@@ -26,6 +26,7 @@ import {
   Award,
 } from "lucide-react";
 import { buildJitsiUrl } from "@/components/JitsiMeet";
+import { claseEstaFinalizada } from "@/lib/liveClass";
 import LessonBlocks from "@/components/LessonBlocks";
 import DriveVideoEmbed from "@/components/DriveVideoEmbed";
 import { useState } from "react";
@@ -52,6 +53,26 @@ const getDriveEmbedUrl = (url: string): string | null => {
   const match = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
   if (!match) return null;
   return `https://drive.google.com/file/d/${match[1]}/preview`;
+};
+
+// Algunos profesores suben la grabación como un bloque de Video en el editor
+// de contenido de la clase (mismo mecanismo que en un curso grabado) en vez
+// de usar el link dedicado "grabación de la clase en vivo" (grabacion_url).
+// En ese caso no hay que pedirle que la suba de nuevo: el video ya se ve más
+// abajo, dentro del contenido.
+const tieneVideoEnContenido = (content: string | null): boolean => {
+  try {
+    const blocks = JSON.parse(content || "[]");
+    return (
+      Array.isArray(blocks) &&
+      blocks.some(
+        (b: { type?: string; value?: unknown }) =>
+          b?.type === "video" && typeof b.value === "string" && b.value.trim() !== ""
+      )
+    );
+  } catch {
+    return false;
+  }
 };
 
 const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria, courseModalidad, isPreview, isTeaser, isLastLesson }: Props) => {
@@ -122,7 +143,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
 
   const fechaFinClase = estadoEnVivo?.fecha_fin_clase ?? lesson.fecha_fin_clase;
   const claseIniciadaEn = estadoEnVivo?.clase_iniciada_en ?? lesson.clase_iniciada_en;
-  const isClassOver = !!fechaFinClase && new Date(fechaFinClase) <= new Date();
+  const isClassOver = claseEstaFinalizada(claseIniciadaEn, fechaFinClase);
   const claseEnVivoActiva = !!claseIniciadaEn && !isClassOver;
   const driveEmbedUrl = lesson.grabacion_url ? getDriveEmbedUrl(lesson.grabacion_url) : null;
 
@@ -269,93 +290,89 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
         </div>
       </div>
 
-      {/* TODOS LOS BLOQUES DINÁMICOS */}
-      <LessonBlocks content={lesson.content} restringido={isTeaser} />
-
-      {/* CLASE EN VIVO O GRABACIÓN — solo tiene sentido para cursos en vivo.
-          Los cursos grabados traen sala_jitsi seteada por default desde la
-          lógica de creación de cursos (para poder pasar un curso de grabado
-          a en vivo sin reconfigurar nada), así que acá se oculta nomás por
-          modalidad en vez de tocar esa lógica. */}
+      {/* CLASE EN VIVO O GRABACIÓN — arriba de todo el contenido, para que no
+          haya que scrollear para encontrar el botón de entrar a la clase.
+          Solo tiene sentido para cursos en vivo. Los cursos grabados traen
+          sala_jitsi seteada por default desde la lógica de creación de
+          cursos (para poder pasar un curso de grabado a en vivo sin
+          reconfigurar nada), así que acá se oculta nomás por modalidad en
+          vez de tocar esa lógica. */}
       {courseModalidad !== "grabado" && (isClassOver ? (
         lesson.grabacion_url ? (
-          <div className="pt-16">
-            <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
-              <CardContent className="p-8 space-y-6">
-                <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-primary/20 rounded-xl"><Video className="w-6 h-6 text-primary" /></div>
-                  <div>
-                    <h3 className="text-2xl font-black tracking-tight">Grabación de la Clase</h3>
-                    <p className="text-white/50 text-sm">Esta clase ya finalizó, pero podés repasarla cuando quieras.</p>
-                  </div>
+          <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
+            <CardContent className="p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-primary/20 rounded-xl"><Video className="w-6 h-6 text-primary" /></div>
+                <div>
+                  <h3 className="text-2xl font-black tracking-tight">Grabación de la Clase</h3>
+                  <p className="text-white/50 text-sm">Esta clase ya finalizó, pero podés repasarla cuando quieras.</p>
                 </div>
-                <div className="flex flex-wrap gap-3">
-                  <Button onClick={() => setShowRecording(true)} className="bg-white text-slate-900 font-black hover:bg-white/90">
-                    <PlayCircle className="w-5 h-5 mr-2" /> Ver Grabación
-                  </Button>
-                  {isSafeUrl(lesson.grabacion_url) && (
-                    <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer">
-                      <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white hover:text-black">
-                        <ExternalLink className="w-4 h-4 mr-2" /> Abrir en Drive
-                      </Button>
-                    </a>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        ) : lesson.sala_jitsi ? (
-          <div className="pt-16">
-            <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
-              <CardContent className="text-center py-20 px-10 space-y-4">
-                <Clock className="w-16 h-16 text-primary mx-auto" />
-                <h3 className="text-3xl font-black tracking-tighter">Clase Finalizada</h3>
-                <p className="text-white/50 max-w-md mx-auto">
-                  Esta clase ya terminó. El profesor todavía no subió la grabación — volvé a revisar más tarde.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={() => setShowRecording(true)} className="bg-white text-slate-900 font-black hover:bg-white/90">
+                  <PlayCircle className="w-5 h-5 mr-2" /> Ver Grabación
+                </Button>
+                {isSafeUrl(lesson.grabacion_url) && (
+                  <a href={lesson.grabacion_url} target="_blank" rel="noopener noreferrer">
+                    <Button variant="outline" className="bg-transparent border-white/20 text-white hover:bg-white hover:text-black">
+                      <ExternalLink className="w-4 h-4 mr-2" /> Abrir en Drive
+                    </Button>
+                  </a>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        ) : lesson.sala_jitsi && !tieneVideoEnContenido(lesson.content) ? (
+          <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
+            <CardContent className="text-center py-20 px-10 space-y-4">
+              <Clock className="w-16 h-16 text-primary mx-auto" />
+              <h3 className="text-3xl font-black tracking-tighter">Clase Finalizada</h3>
+              <p className="text-white/50 max-w-md mx-auto">
+                Esta clase ya terminó. El profesor todavía no subió la grabación — volvé a revisar más tarde.
+              </p>
+            </CardContent>
+          </Card>
         ) : null
       ) : (
         lesson.sala_jitsi && (
-          <div className="pt-16">
-            <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
-              <CardContent className="p-0">
-                {claseEnVivoActiva ? (
-                  <div className="text-center py-16 px-10">
-                    <h3 className="text-3xl font-black mb-2 tracking-tighter">Clase en Vivo</h3>
-                    <p className="text-white/50 mb-6 text-sm">El profesor ya está en la sala.</p>
-                    <Button
-                      onClick={() => window.open(
-                        buildJitsiUrl(lesson.sala_jitsi!, profile?.nombre_completo || "Alumno", {
-                          courseTitle,
-                          lessonTitle: lesson.titulo,
-                          muted: true,
-                        }),
-                        "_blank",
-                        "noopener,noreferrer",
-                      )}
-                      className="bg-white text-slate-900 font-black px-12 h-14 rounded-2xl text-lg shadow-2xl"
-                    >
-                      <ExternalLink className="w-5 h-5 mr-2" /> INGRESAR AHORA
-                    </Button>
-                    <p className="text-white/40 text-[11px] mt-4">Se abre en una pestaña nueva.</p>
-                  </div>
-                ) : (
-                  <div className="text-center py-20 px-10">
-                    <Clock className="w-16 h-16 text-white/30 mx-auto mb-6" />
-                    <h3 className="text-3xl font-black mb-4 tracking-tighter">Clase en Vivo</h3>
-                    <p className="text-white/50 max-w-md mx-auto">
-                      El profesor todavía no inició la clase. Cuando la abra, vas a poder entrar desde acá — dejá esta página abierta.
-                    </p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+          <Card className="border-none shadow-elevated bg-slate-900 text-white overflow-hidden rounded-[3rem]">
+            <CardContent className="p-0">
+              {claseEnVivoActiva ? (
+                <div className="text-center py-16 px-10">
+                  <h3 className="text-3xl font-black mb-2 tracking-tighter">Clase en Vivo</h3>
+                  <p className="text-white/50 mb-6 text-sm">El profesor ya está en la sala.</p>
+                  <Button
+                    onClick={() => window.open(
+                      buildJitsiUrl(lesson.sala_jitsi!, profile?.nombre_completo || "Alumno", {
+                        courseTitle,
+                        lessonTitle: lesson.titulo,
+                        muted: true,
+                      }),
+                      "_blank",
+                      "noopener,noreferrer",
+                    )}
+                    className="bg-white text-slate-900 font-black px-12 h-14 rounded-2xl text-lg shadow-2xl"
+                  >
+                    <ExternalLink className="w-5 h-5 mr-2" /> INGRESAR AHORA
+                  </Button>
+                  <p className="text-white/40 text-[11px] mt-4">Se abre en una pestaña nueva.</p>
+                </div>
+              ) : (
+                <div className="text-center py-20 px-10">
+                  <Clock className="w-16 h-16 text-white/30 mx-auto mb-6" />
+                  <h3 className="text-3xl font-black mb-4 tracking-tighter">Clase en Vivo</h3>
+                  <p className="text-white/50 max-w-md mx-auto">
+                    El profesor todavía no inició la clase. Cuando la abra, vas a poder entrar desde acá — dejá esta página abierta.
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         )
       ))}
+
+      {/* TODOS LOS BLOQUES DINÁMICOS */}
+      <LessonBlocks content={lesson.content} restringido={isTeaser} />
 
       {/* TRABAJO FINAL: solo en la última clase configurada del curso, y hasta que el profesor la apruebe */}
       {isLastLesson && !isPreview && !isTeaser && !isCompleted && (
