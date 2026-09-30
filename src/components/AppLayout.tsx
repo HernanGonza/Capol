@@ -39,6 +39,13 @@ import { WHATSAPP_NUMBER } from "@/lib/whatsapp";
 // esperable).
 let sidebarScrollTop = 0;
 
+// El scroll del contenido vive en <main>, no en window (el layout es
+// h-screen con overflow-hidden), así que window.scrollTo no hace nada acá.
+const MAIN_ID = "app-main";
+export const scrollContenidoArriba = () => {
+  document.getElementById(MAIN_ID)?.scrollTo(0, 0);
+};
+
 // El sidebar colapsado/expandido es una preferencia del usuario, no un
 // estado de sesión — se guarda en localStorage (mismo criterio que el tema
 // claro/oscuro) para que sobreviva tanto a un cambio de ruta (AppLayout se
@@ -528,7 +535,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
         </header>
 
         {/* Contenido Dinámico - SCROLLEABLE */}
-        <main className="flex-1 overflow-y-auto">
+        <main id={MAIN_ID} className="flex-1 overflow-y-auto">
           <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full">
             {children}
           </div>

@@ -2,11 +2,11 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import AppLayout from "@/components/AppLayout";
+import AppLayout, { scrollContenidoArriba } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Lock, CheckCircle, Video, Calendar, ChevronRight, AlertCircle, Award, MessageSquare, Users, ArrowLeft } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import LessonContent from "@/components/student/LessonContent";
 import { buildJitsiUrl } from "@/components/JitsiMeet";
 import { claseEstaFinalizada } from "@/lib/liveClass";
@@ -222,8 +222,9 @@ const CourseView = () => {
   // Al abrir una clase, arrancar con el scroll arriba de todo: como no
   // cambia la URL (es el mismo componente, solo cambia el estado), sin esto
   // hereda el scroll que traía el listado de lecciones.
-  useEffect(() => {
-    if (selectedLessonId) window.scrollTo(0, 0);
+  // useLayoutEffect: se resetea antes de pintar, así no se ve el salto.
+  useLayoutEffect(() => {
+    if (selectedLessonId) scrollContenidoArriba();
   }, [selectedLessonId]);
 
   // Pantalla de carga
