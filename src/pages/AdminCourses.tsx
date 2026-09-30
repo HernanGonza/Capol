@@ -52,6 +52,9 @@ const AdminCourses = () => {
     fecha_inicio: "", fecha_fin: "", horarios: "", duracion: "", carga_horaria: "",
     precio: "", tipo_precio: "curso", cantidad_cuotas: "", cotizacion_ars: "",
   });
+  // Un curso en vivo que se inscribe o se dicta necesita fecha de inicio;
+  // los finalizados se pueden editar sin ella.
+  const fechaInicioObligatoria = form.modalidad === "en_vivo" && form.estado !== "finalizado";
   const { currency: adminCurrency, usdToLocal, formatMoney } = useCurrencyConversion();
   const [uploading, setUploading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -180,12 +183,22 @@ const AdminCourses = () => {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // En vivo: la fecha de inicio ancla el ciclo de las mensualidades, así
+      // que es obligatoria mientras el curso se inscribe o se dicta.
+      if (fechaInicioObligatoria && !form.fecha_inicio) {
+        throw new Error("Cargá la fecha de inicio del curso: las mensualidades se calculan a partir de ella.");
+      }
       const courseData = {
         titulo: form.titulo, descripcion: form.descripcion,
         url_imagen: form.url_imagen, url_flyer: form.url_flyer,
         tipo_flyer: form.tipo_flyer, publicado: form.publicado, estado: form.estado,
         modalidad: form.modalidad,
-        fecha_inicio: form.estado === "proximamente" && form.fecha_inicio ? form.fecha_inicio : null,
+        // En vivo se guarda siempre (no se borra al pasar a "Activo"); en
+        // grabado solo tiene sentido como "próxima edición".
+        fecha_inicio:
+          (form.modalidad === "en_vivo" || form.estado === "proximamente") && form.fecha_inicio
+            ? form.fecha_inicio
+            : null,
         fecha_fin: form.estado === "finalizado" ? (form.fecha_fin || new Date().toISOString().slice(0, 10)) : null,
         horarios: form.horarios.trim() || null,
         duracion: form.duracion.trim() || null,
@@ -579,7 +592,22 @@ const AdminCourses = () => {
                     </p>
                   </div>
 
-                  {form.estado === "proximamente" && (
+                  {form.modalidad === "en_vivo" ? (
+                    <div className="space-y-2">
+                      <Label className={labelCls}>
+                        Fecha de inicio del curso{fechaInicioObligatoria ? " *" : " (opcional)"}
+                      </Label>
+                      <Input
+                        type="date"
+                        required={fechaInicioObligatoria}
+                        value={form.fecha_inicio}
+                        onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Las mensualidades se cobran tomando este día como referencia (si arranca el 1/9, cada mes vence el 1). Podés cambiarla si se corre el inicio. Mientras sea futura, la tarjeta muestra "Próxima edición: ...".
+                      </p>
+                    </div>
+                  ) : form.estado === "proximamente" && (
                     <div className="space-y-2">
                       <Label className={labelCls}>Fecha de la próxima edición (opcional)</Label>
                       <Input type="date" value={form.fecha_inicio} onChange={(e) => setForm({ ...form, fecha_inicio: e.target.value })} />

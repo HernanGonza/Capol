@@ -40,7 +40,7 @@ import { toast } from "sonner";
 import ThemeToggle from "@/components/ThemeToggle";
 import FaqBot from "@/components/FaqBot";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
-import { clasificarCursos } from "@/lib/courseGrouping";
+import { clasificarCursos, proximaEdicion } from "@/lib/courseGrouping";
 import { WHATSAPP_NUMBER, buildWhatsappLink } from "@/lib/whatsapp";
 
 interface Course {
@@ -395,9 +395,9 @@ const Landing = () => {
                 <><Video className="w-3.5 h-3.5 shrink-0" /> Incluye clases en vivo</>
               )}
             </div>
-            {(course.fecha_inicio || course.horarios || course.duracion) && (
+            {(proximaEdicion(course.fecha_inicio) || course.horarios || course.duracion) && (
               <div className="mt-3 space-y-1.5">
-                {course.fecha_inicio && (
+                {proximaEdicion(course.fecha_inicio) && (
                   <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-300 text-xs font-semibold">
                     <Calendar className="w-3.5 h-3.5 shrink-0" />
                     <span>

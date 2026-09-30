@@ -61,3 +61,13 @@ export function clasificarCursos<C extends CursoClasificable>(cursos: C[]): Clas
 
   return { enVivo, grabado, finalizado };
 }
+
+// "Próxima edición: ..." solo tiene sentido si la fecha de inicio todavía no
+// llegó — un curso en vivo en marcha conserva su fecha (ancla las
+// mensualidades) pero no la anuncia como próxima.
+export function proximaEdicion(fechaInicio: string | null | undefined): boolean {
+  if (!fechaInicio) return false;
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  return new Date(`${fechaInicio}T00:00:00`) >= hoy;
+}

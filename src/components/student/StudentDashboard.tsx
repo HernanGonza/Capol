@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 import { openCertificate, fetchCertificateSignatures } from "@/lib/certificate";
 import PriceTag from "@/components/PriceTag";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
-import { clasificarCursos } from "@/lib/courseGrouping";
+import { clasificarCursos, proximaEdicion } from "@/lib/courseGrouping";
 import { buildWhatsappLink } from "@/lib/whatsapp";
 import EnrollmentDialog, { precioPrefijo } from "@/components/student/EnrollmentDialog";
 
@@ -77,9 +77,9 @@ const CourseCatalogCard = ({ course, canEnroll, onEnroll }: { course: any; canEn
           <><Video className="w-3 h-3 shrink-0" /> Incluye clases en vivo</>
         )}
       </div>
-      {(course.fecha_inicio || course.horarios || course.duracion) && (
+      {(proximaEdicion(course.fecha_inicio) || course.horarios || course.duracion) && (
         <div className="space-y-1 mb-3">
-          {course.fecha_inicio && (
+          {proximaEdicion(course.fecha_inicio) && (
             <div className="flex items-center gap-1.5 text-[11px] text-primary font-semibold">
               <Calendar className="w-3 h-3 shrink-0" />
               <span>

@@ -1024,12 +1024,12 @@ const AdminSubscriptions = () => {
                               Este curso no
                               tiene fecha de
                               inicio cargada.
-                              Conviene
-                              configurarla
-                              antes de
-                              registrar
-                              nuevas
-                              mensualidades.
+                              Cargala desde
+                              Cursos → Editar
+                              para que los
+                              vencimientos
+                              queden alineados
+                              al inicio.
                             </p>
                           )}
                         </div>
