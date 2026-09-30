@@ -571,6 +571,11 @@ const AdminSubscriptions = () => {
           queryKey: ["suscripciones-pago-pendiente"],
         });
 
+        // Dashboard: "Ingresos Mensuales" suma los pagos del período.
+        queryClient.invalidateQueries({
+          queryKey: ["admin-master-stats"],
+        });
+
         toast.success(
           "Pago registrado y acceso actualizado"
         );

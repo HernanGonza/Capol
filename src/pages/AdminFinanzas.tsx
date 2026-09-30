@@ -14,6 +14,7 @@ import { addMonths, differenceInCalendarMonths, format, parseISO } from "date-fn
 import { es } from "date-fns/locale";
 import CurrencyConverter from "@/components/CurrencyConverter";
 import { ARS_FIXED_RATE } from "@/lib/currency";
+import { mesFinancieroActual, periodoFinanciero } from "@/lib/periodoFinanciero";
 
 const fmt = (n: number) => `$${Math.round(n).toLocaleString("es-AR")}`;
 
@@ -112,7 +113,9 @@ const AdminFinanzas = () => {
   const queryClient = useQueryClient();
   const [tabModalidad, setTabModalidad] = useState<"en_vivo" | "grabado">("en_vivo");
   const [cursoFiltro, setCursoFiltro] = useState("todos");
-  const [mes, setMes] = useState(format(new Date(), "yyyy-MM"));
+  // null = el período en curso según el día de corte (se resuelve abajo, cuando
+  // llega la configuración).
+  const [mesElegido, setMes] = useState<string | null>(null);
   const [configForm, setConfigForm] = useState<{ publicidad: string; plataforma: string; corte: string } | null>(null);
 
   const { data: config } = useQuery({
@@ -261,15 +264,11 @@ const AdminFinanzas = () => {
   });
 
   const diaCorte = config?.dia_corte ?? 25;
+  const mes = mesElegido ?? mesFinancieroActual(diaCorte);
 
   // Período seleccionado: desde el día posterior al corte anterior hasta el
   // cierre del día de corte elegido. Ningún instante pertenece a dos períodos.
-  const periodo = useMemo(() => {
-    const [y, m] = mes.split("-").map(Number);
-    const end = new Date(y, m - 1, diaCorte, 23, 59, 59, 999);
-    const start = new Date(y, m - 2, diaCorte + 1, 0, 0, 0, 0);
-    return { start, end };
-  }, [mes, diaCorte]);
+  const periodo = useMemo(() => periodoFinanciero(mes, diaCorte), [mes, diaCorte]);
 
   // Todos los filtros de pagos/pendientes respetan la pestaña de modalidad
   // (en_vivo/grabado) además del curso puntual elegido — un curso grabado

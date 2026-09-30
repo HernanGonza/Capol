@@ -16,6 +16,8 @@ import {
 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { useNavigate } from "react-router-dom";
+import { format } from "date-fns";
+import { mesFinancieroActual, periodoFinanciero } from "@/lib/periodoFinanciero";
 import AlumnosPorCursoCard from "@/components/admin/AlumnosPorCursoCard";
 
 const AdminDashboard = () => {
@@ -36,6 +38,8 @@ const AdminDashboard = () => {
         { data: teacherRoles },
         { data: enrollments },
         { data: allProfiles },
+        { data: configFinanciera },
+        { data: pagos },
       ] = await Promise.all([
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "student"),
         supabase.from("suscripciones").select("usuario_id, curso_id, estado, price, moneda, suspendida_en, pago_diferido_hasta"),
@@ -44,6 +48,8 @@ const AdminDashboard = () => {
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "teacher"),
         supabase.from("inscripciones").select("usuario_id, completado_en"),
         supabase.from("perfiles").select("id, creado_en"),
+        supabase.from("configuracion_financiera").select("dia_corte").maybeSingle(),
+        supabase.from("pagos").select("monto, pagado_en"),
       ]);
 
       const totalStudents = roles?.length || 0;
@@ -83,12 +89,17 @@ const AdminDashboard = () => {
       // "Pagos pendientes" = inscripciones a un curso que todavía no se pagaron
       // (una por alumno+curso), no alumnos distintos.
       const pagosPendientes = pendingSubs.length;
-      // Agrupamos por moneda: sumar ARS + USD + EUR como si fueran el mismo número sería incorrecto.
-      const revenueByCurrency = activeSubs.reduce((acc: Record<string, number>, curr) => {
-        const currency = curr.moneda || "ARS";
-        acc[currency] = (acc[currency] || 0) + (curr.price || 0);
-        return acc;
-      }, {} as Record<string, number>);
+      // Ingresos del período financiero en curso (mismo corte que Finanzas):
+      // lo efectivamente cobrado en public.pagos, que siempre está en ARS.
+      const periodo = periodoFinanciero(
+        mesFinancieroActual(configFinanciera?.dia_corte ?? 25),
+        configFinanciera?.dia_corte ?? 25
+      );
+      const cobradoPeriodo = (pagos || []).reduce((acc, p) => {
+        const fecha = new Date(p.pagado_en);
+        return fecha >= periodo.start && fecha <= periodo.end ? acc + Number(p.monto || 0) : acc;
+      }, 0);
+      const revenueByCurrency: Record<string, number> = cobradoPeriodo > 0 ? { ARS: cobradoPeriodo } : {};
       const completionRate = progress?.length ? (progress.filter(p => p.completado).length / progress.length) * 100 : 0;
 
       const nuevosEsteMes = (allProfiles || []).filter(
@@ -122,6 +133,7 @@ const AdminDashboard = () => {
         diferidosTotal: diferidoSubs.length,
         diferidosVencidos,
         revenueByCurrency,
+        periodoIngresos: periodo,
         completionRate,
         // Salud de cobranza = de los inscriptos, cuántos están al día con el pago.
         healthRatio: alumnosInscriptos > 0 ? (alumnosAlDia / alumnosInscriptos) * 100 : 0,
@@ -147,10 +159,12 @@ const AdminDashboard = () => {
     {
       title: "Ingresos Mensuales",
       value: formatRevenue(stats?.revenueByCurrency),
-      description: "Suscripciones activas",
+      description: stats?.periodoIngresos
+        ? `Cobrado del ${format(stats.periodoIngresos.start, "dd/MM")} al ${format(stats.periodoIngresos.end, "dd/MM")}`
+        : "Cobrado en el período",
       icon: TrendingUp,
       color: "bg-primary text-primary-foreground",
-      path: "/admin/subscriptions" // Ajustar según tu ruta de pagos
+      path: "/admin/finanzas"
     },
     {
       title: "Alumnos Totales",
