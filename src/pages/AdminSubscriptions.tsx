@@ -62,6 +62,7 @@ import {
   PauseCircle,
   PlayCircle,
   Trash2,
+  Ban,
 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import CurrencyConverter from "@/components/CurrencyConverter";
@@ -301,7 +302,8 @@ const AdminSubscriptions = () => {
             moneda,
             tipo_precio,
             cotizacion_ars
-          )
+          ),
+          pagos:pagos!pagos_suscripcion_id_fkey (count)
         `)
         .order("creado_en", {
           ascending: false,
@@ -1371,6 +1373,15 @@ const AdminSubscriptions = () => {
                 esDiferido &&
                 !diferidoVenc &&
                 diferidoPorVencer(sub.pago_diferido_hasta);
+              // En vivo que ya pagó alguna cuota y volvió a pago_pendiente
+              // (checkAndSyncSubscriptionStatuses al vencer fin_en): no es un
+              // inscripto nuevo sino alguien que no pagó la cuota siguiente y
+              // ya no tiene acceso al curso.
+              const cuotaImpaga =
+                !esGrabado &&
+                !suspendida &&
+                sub.estado === "pago_pendiente" &&
+                (sub.pagos?.[0]?.count ?? 0) > 0;
 
               return (
                 <Card
@@ -1433,6 +1444,13 @@ const AdminSubscriptions = () => {
                           <Badge className="bg-amber-500 text-white border-none animate-pulse">
                             <AlertTriangle className="w-3 h-3 mr-1" />
                             COBRAR PRONTO
+                          </Badge>
+                        )}
+
+                        {cuotaImpaga && (
+                          <Badge className="bg-red-600 text-white border-none">
+                            <Ban className="w-3 h-3 mr-1" />
+                            CURSO SUSPENDIDO · CUOTA IMPAGA
                           </Badge>
                         )}
 
