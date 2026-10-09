@@ -692,14 +692,14 @@ const Landing = () => {
           ) : (
             <div>
               {cursosEnVivo.length > 0 && (
-                <ModalidadZona modalidad="en_vivo" fullBleed className="py-12">
+                <ModalidadZona modalidad="en_vivo" className="py-10 mb-10">
                   <ModalidadTitulo modalidad="en_vivo" count={cursosEnVivo.length} subtitulo="Cursadas grupales con clases en vivo y horarios fijos." />
                   {renderCourseSection("Inscripciones abiertas", "Cursos en vivo con cupo disponible — inscribite ahora.", cursosInscripcionesAbiertas)}
                   {renderCourseSection("Cursando", "Con clases en vivo, horarios y una cursada grupal ya en marcha.", cursosEnCurso)}
                 </ModalidadZona>
               )}
               {cursosGrabados.length > 0 && (
-                <ModalidadZona modalidad="grabado" fullBleed className="py-12 mb-16">
+                <ModalidadZona modalidad="grabado" className="py-10 mb-16">
                   <ModalidadTitulo modalidad="grabado" count={cursosGrabados.length} subtitulo="Acceso inmediato y a tu ritmo — mirá la primera clase gratis." />
                   <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {cursosGrabados.map((course, index) => renderCourseCard(course, index))}
