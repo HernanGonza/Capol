@@ -41,6 +41,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import FaqBot from "@/components/FaqBot";
 import { useDocumentMeta } from "@/hooks/use-document-meta";
 import { clasificarCursos, proximaEdicion } from "@/lib/courseGrouping";
+import { ModalidadTitulo, ModalidadZona } from "@/components/ModalidadSection";
 import { WHATSAPP_NUMBER, buildWhatsappLink } from "@/lib/whatsapp";
 
 interface Course {
@@ -690,9 +691,21 @@ const Landing = () => {
             </div>
           ) : (
             <div>
-              {renderCourseSection("Inscripciones abiertas", "Cursos en vivo con cupo disponible — inscribite ahora.", cursosInscripcionesAbiertas)}
-              {renderCourseSection("Cursando", "Con clases en vivo, horarios y una cursada grupal ya en marcha.", cursosEnCurso)}
-              {renderCourseSection("Cursos grabados", "Acceso inmediato y a tu ritmo — mirá la primera clase gratis.", cursosGrabados)}
+              {cursosEnVivo.length > 0 && (
+                <ModalidadZona modalidad="en_vivo" fullBleed className="py-12">
+                  <ModalidadTitulo modalidad="en_vivo" count={cursosEnVivo.length} subtitulo="Cursadas grupales con clases en vivo y horarios fijos." />
+                  {renderCourseSection("Inscripciones abiertas", "Cursos en vivo con cupo disponible — inscribite ahora.", cursosInscripcionesAbiertas)}
+                  {renderCourseSection("Cursando", "Con clases en vivo, horarios y una cursada grupal ya en marcha.", cursosEnCurso)}
+                </ModalidadZona>
+              )}
+              {cursosGrabados.length > 0 && (
+                <ModalidadZona modalidad="grabado" fullBleed className="py-12 mb-16">
+                  <ModalidadTitulo modalidad="grabado" count={cursosGrabados.length} subtitulo="Acceso inmediato y a tu ritmo — mirá la primera clase gratis." />
+                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+                    {cursosGrabados.map((course, index) => renderCourseCard(course, index))}
+                  </div>
+                </ModalidadZona>
+              )}
               {renderCourseSection("Ediciones finalizadas", "Ya no se pueden inscribir, quedan como referencia del catálogo.", cursosFinalizados)}
             </div>
           )}

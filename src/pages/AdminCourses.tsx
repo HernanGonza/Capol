@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import AppLayout from "@/components/AppLayout";
+import { ModalidadTitulo, ModalidadZona } from "@/components/ModalidadSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -831,8 +832,8 @@ const AdminCourses = () => {
             .filter((c: any) => (tab === "terminados" ? c.estado === "finalizado" : c.estado !== "finalizado"))
             .sort((a: any, b: any) => (tab === "terminados" ? (b.fecha_fin || "").localeCompare(a.fecha_fin || "") : 0));
           const grupos = [
-            { titulo: "En vivo", lista: visibles.filter((c: any) => c.modalidad !== "grabado") },
-            { titulo: "Grabados", lista: visibles.filter((c: any) => c.modalidad === "grabado") },
+            { modalidad: "en_vivo" as const, lista: visibles.filter((c: any) => c.modalidad !== "grabado") },
+            { modalidad: "grabado" as const, lista: visibles.filter((c: any) => c.modalidad === "grabado") },
           ].filter((g) => g.lista.length > 0);
 
           if (grupos.length === 0) {
@@ -842,15 +843,12 @@ const AdminCourses = () => {
           return (
             <div className="space-y-10">
               {grupos.map((g) => (
-                <div key={g.titulo} className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold tracking-tight">{g.titulo}</h2>
-                    <Badge variant="secondary" className="text-xs font-bold">{g.lista.length}</Badge>
-                  </div>
+                <ModalidadZona key={g.modalidad} modalidad={g.modalidad} className="py-6">
+                  <ModalidadTitulo modalidad={g.modalidad} count={g.lista.length} />
                   <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {g.lista.map(renderCourseCard)}
                   </div>
-                </div>
+                </ModalidadZona>
               ))}
             </div>
           );

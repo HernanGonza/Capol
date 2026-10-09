@@ -14,6 +14,7 @@ import { openCertificate, fetchCertificateSignatures } from "@/lib/certificate";
 import PriceTag from "@/components/PriceTag";
 import { usePaymentStatus } from "@/hooks/use-payment-status";
 import { clasificarCursos, proximaEdicion } from "@/lib/courseGrouping";
+import { ModalidadTitulo, ModalidadZona } from "@/components/ModalidadSection";
 import { buildWhatsappLink } from "@/lib/whatsapp";
 import EnrollmentDialog, { precioPrefijo } from "@/components/student/EnrollmentDialog";
 
@@ -380,6 +381,9 @@ const StudentDashboard = () => {
           </div>
         ) : (
           <>
+            {cursosEnVivo.length > 0 && (
+              <ModalidadZona modalidad="en_vivo" className="py-6 space-y-4">
+                <ModalidadTitulo modalidad="en_vivo" count={cursosEnVivo.length} />
             {cursosInscripcionesAbiertas.length > 0 && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -416,21 +420,18 @@ const StudentDashboard = () => {
               </div>
             )}
 
+              </ModalidadZona>
+            )}
+
             {cursosGrabados.length > 0 && (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold tracking-tight">Cursos Grabados</h2>
-                    <p className="text-muted-foreground text-sm mt-1">Acceso a tu ritmo, cuando quieras — mirá la primera clase gratis antes de comprar.</p>
-                  </div>
-                  <Badge variant="secondary" className="text-xs font-bold">{cursosGrabados.length} cursos</Badge>
-                </div>
+              <ModalidadZona modalidad="grabado" className="py-6">
+                <ModalidadTitulo modalidad="grabado" count={cursosGrabados.length} subtitulo="Acceso a tu ritmo, cuando quieras — mirá la primera clase gratis antes de comprar." />
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   {cursosGrabados.map((course: any) => (
                     <CourseCatalogCard key={course.id} course={course} canEnroll onEnroll={() => setModalCourse(course)} />
                   ))}
                 </div>
-              </div>
+              </ModalidadZona>
             )}
 
             {/* CATÁLOGO: ediciones finalizadas — solo para que se vea la oferta
