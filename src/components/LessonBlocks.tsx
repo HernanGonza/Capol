@@ -231,7 +231,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
                 <Card key={pregunta.id} className="border-2 border-border shadow-xl rounded-[2rem] overflow-hidden">
                   <div className="bg-muted p-6 border-b flex items-center gap-4">
                     <HelpCircle className="w-6 h-6 text-primary shrink-0" />
-                    <h4 className="font-black text-xl text-foreground">
+                    <h4 className="font-black text-xl text-foreground min-w-0 break-words">
                       {getQuizQuestions(block).length > 1 && <span className="text-primary mr-2">{qIndex + 1}.</span>}
                       {pregunta.pregunta}
                     </h4>
@@ -241,7 +241,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
                       <Button
                         key={oIndex}
                         variant="outline"
-                        className="h-auto py-6 px-8 text-lg font-bold rounded-2xl hover:border-primary hover:bg-primary/5 transition-all text-left justify-start"
+                        className="h-auto min-w-0 w-full py-6 px-8 text-lg font-bold rounded-2xl hover:border-primary hover:bg-primary/5 transition-all text-left justify-start whitespace-normal break-words"
                         onClick={() => {
                           if (oIndex === pregunta.correcta) { toast.success("¡Respuesta Correcta!"); } else { toast.error("Incorrecto, prueba otra vez."); }
                         }}
@@ -249,7 +249,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
                         <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center mr-4 shrink-0 text-sm">
                           {String.fromCharCode(65 + oIndex)}
                         </div>
-                        {opcion}
+                        <span className="min-w-0 flex-1 break-words">{opcion}</span>
                       </Button>
                     ))}
                   </CardContent>
