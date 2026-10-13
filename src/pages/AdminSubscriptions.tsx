@@ -143,6 +143,10 @@ const AdminSubscriptions = () => {
   // Confirmación de eliminar (borrado físico) una suscripción.
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null);
 
+  // Al registrar un pago de un curso en vivo sin fecha de inicio, se ofrece
+  // cargarla ahí mismo (sin ir a Cursos → Editar).
+  const [fechaInicioModal, setFechaInicioModal] = useState<string | null>(null);
+
   // Confirmación cuando el monto cargado a mano no coincide (>1%) con la
   // cuenta a cotización de mercado del día: precio USD × cotización actual.
   const [confirmCotizacion, setConfirmCotizacion] = useState<{
@@ -643,6 +647,18 @@ const AdminSubscriptions = () => {
       return;
     }
 
+    if (
+      selectedCourse?.modalidad === "en_vivo" &&
+      !selectedCourse.fecha_inicio
+    ) {
+      setFechaInicioModal("");
+      return;
+    }
+
+    continuarSubmit();
+  };
+
+  const continuarSubmit = () => {
     const precioUsd = Number(selectedCourse?.precio) || 0;
     const monto = Number(form.price) || 0;
     const tieneCotizacionManual =
@@ -676,6 +692,27 @@ const AdminSubscriptions = () => {
 
     registrarPagoMutation.mutate();
   };
+
+  const guardarFechaInicioMutation = useMutation({
+    mutationFn: async (fecha: string) => {
+      if (!selectedCourse) return;
+      const { error } = await supabase
+        .from("cursos")
+        .update({ fecha_inicio: fecha })
+        .eq("id", selectedCourse.id);
+      if (error) throw error;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-courses-list"] });
+      queryClient.invalidateQueries({ queryKey: ["admin-courses"] });
+      toast.success("Fecha de inicio del curso guardada");
+      setFechaInicioModal(null);
+      continuarSubmit();
+    },
+    onError: (e: any) => {
+      toast.error(e.message);
+    },
+  });
 
   const invalidarSuscripciones = () => {
     queryClient.invalidateQueries({ queryKey: ["all-subscriptions"] });
@@ -1031,12 +1068,10 @@ const AdminSubscriptions = () => {
                               Este curso no
                               tiene fecha de
                               inicio cargada.
-                              Cargala desde
-                              Cursos → Editar
-                              para que los
-                              vencimientos
-                              queden alineados
-                              al inicio.
+                              Al registrar el
+                              pago te vamos a
+                              pedir que la
+                              cargues.
                             </p>
                           )}
                         </div>
@@ -1877,6 +1912,48 @@ const AdminSubscriptions = () => {
         loading={suspensionMutation.isPending}
         onConfirm={(motivo) => suspensionMutation.mutate(motivo)}
       />
+
+      <Dialog
+        open={fechaInicioModal !== null}
+        onOpenChange={(o) => !o && setFechaInicioModal(null)}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Este curso no tiene fecha de inicio</DialogTitle>
+            <DialogDescription>
+              {selectedCourse?.titulo} es en vivo y no tiene fecha de inicio
+              cargada. Con la fecha, el vencimiento del alumno queda alineado
+              al inicio del curso y se recalculan los alumnos que ya pagaron.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Fecha de inicio</Label>
+            <Input
+              type="date"
+              value={fechaInicioModal ?? ""}
+              onChange={(e) => setFechaInicioModal(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
+            <Button
+              variant="outline"
+              disabled={guardarFechaInicioMutation.isPending}
+              onClick={() => {
+                setFechaInicioModal(null);
+                continuarSubmit();
+              }}
+            >
+              Registrar sin fecha
+            </Button>
+            <Button
+              disabled={!fechaInicioModal || guardarFechaInicioMutation.isPending}
+              onClick={() => guardarFechaInicioMutation.mutate(fechaInicioModal!)}
+            >
+              Guardar fecha y registrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog
         open={!!confirmCotizacion}
