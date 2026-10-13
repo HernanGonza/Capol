@@ -107,6 +107,51 @@ const getQuizQuestions = (block: any): { id: string; pregunta: string; opciones:
   return [];
 };
 
+// Cada pregunta guarda qué opciones ya probó el alumno: las incorrectas quedan
+// en rojo, y al acertar la correcta queda en verde y la pregunta se cierra.
+const QuizOptions = ({ pregunta }: { pregunta: { opciones: string[]; correcta: number } }) => {
+  const [probadas, setProbadas] = useState<number[]>([]);
+  const resuelta = probadas.includes(pregunta.correcta);
+
+  const elegir = (oIndex: number) => {
+    if (resuelta || probadas.includes(oIndex)) return;
+    setProbadas((prev) => [...prev, oIndex]);
+    if (oIndex === pregunta.correcta) toast.success("¡Respuesta Correcta!");
+    else toast.error("Incorrecto, prueba otra vez.");
+  };
+
+  return (
+    <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {pregunta.opciones.map((opcion, oIndex) => {
+        const estado = !probadas.includes(oIndex) ? null : oIndex === pregunta.correcta ? "ok" : "mal";
+        return (
+          <Button
+            key={oIndex}
+            variant="outline"
+            className={`h-auto min-w-0 w-full py-6 px-8 text-lg font-bold rounded-2xl transition-all text-left justify-start whitespace-normal break-words border-2 ${
+              estado === "ok"
+                ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/15 hover:border-emerald-500"
+                : estado === "mal"
+                ? "border-red-500 bg-red-500/15 text-red-700 dark:text-red-400 hover:bg-red-500/15 hover:border-red-500"
+                : "hover:border-primary hover:bg-primary/5"
+            }`}
+            onClick={() => elegir(oIndex)}
+          >
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center mr-4 shrink-0 text-sm ${
+                estado === "ok" ? "bg-emerald-500 text-white" : estado === "mal" ? "bg-red-500 text-white" : "bg-muted text-muted-foreground"
+              }`}
+            >
+              {String.fromCharCode(65 + oIndex)}
+            </div>
+            <span className="min-w-0 flex-1 break-words">{opcion}</span>
+          </Button>
+        );
+      })}
+    </CardContent>
+  );
+};
+
 // Mismo criterio para el checklist: antes era un textarea con un ítem por
 // línea. Ahora es una lista de ítems propiamente dicha, pero se sigue
 // leyendo el formato viejo si existe.
@@ -236,23 +281,7 @@ const LessonBlocks = ({ content, restringido }: Props) => {
                       {pregunta.pregunta}
                     </h4>
                   </div>
-                  <CardContent className="p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {pregunta.opciones.map((opcion, oIndex) => (
-                      <Button
-                        key={oIndex}
-                        variant="outline"
-                        className="h-auto min-w-0 w-full py-6 px-8 text-lg font-bold rounded-2xl hover:border-primary hover:bg-primary/5 transition-all text-left justify-start whitespace-normal break-words"
-                        onClick={() => {
-                          if (oIndex === pregunta.correcta) { toast.success("¡Respuesta Correcta!"); } else { toast.error("Incorrecto, prueba otra vez."); }
-                        }}
-                      >
-                        <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center mr-4 shrink-0 text-sm">
-                          {String.fromCharCode(65 + oIndex)}
-                        </div>
-                        <span className="min-w-0 flex-1 break-words">{opcion}</span>
-                      </Button>
-                    ))}
-                  </CardContent>
+                  <QuizOptions pregunta={pregunta} />
                 </Card>
               ))}
             </div>
