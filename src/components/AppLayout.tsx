@@ -161,7 +161,7 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       return count || 0;
     },
     enabled: isAdmin,
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 
   const { data: diferidosVencidos } = useQuery({
@@ -189,7 +189,9 @@ const AppLayout = ({ children }: { children: ReactNode }) => {
       return count || 0;
     },
     enabled: isAdmin,
-    refetchInterval: 30000,
+    // Las alertas además llegan por mail, así que el aviso del menú no
+    // necesita chequearse cada minuto.
+    refetchInterval: 300000,
   });
 
   const { data: mensajesNoLeidos } = useQuery({

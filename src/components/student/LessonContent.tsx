@@ -138,7 +138,7 @@ const LessonContent = ({ lesson, onBack, userId, courseTitle, courseCargaHoraria
       return data;
     },
     enabled: courseModalidad !== "grabado" && !!lesson.sala_jitsi,
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const fechaFinClase = estadoEnVivo?.fecha_fin_clase ?? lesson.fecha_fin_clase;

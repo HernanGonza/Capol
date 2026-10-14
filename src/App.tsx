@@ -38,7 +38,12 @@ const CourseView = lazy(() => import("./pages/CourseView"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const StudentSubscriptions = lazy(() => import("./components/student/StudentSubscriptions"));
 
-const queryClient = new QueryClient();
+// staleTime: AppLayout se remonta en cada cambio de ruta y, sin esto, cada
+// navegación o foco de ventana volvía a pedir todo (contadores del menú
+// incluidos). Las mutaciones siguen invalidando sus queries al instante.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 30_000 } },
+});
 
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">

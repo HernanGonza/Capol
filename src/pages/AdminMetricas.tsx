@@ -24,15 +24,14 @@ const AdminMetricas = () => {
     queryKey: ["admin-metricas-acceso"],
     queryFn: async () => {
       const [
-        { count: visitas },
         { data: visitasPorPais },
         { data: perfiles },
         { data: suscripciones },
         { data: pagos },
         { data: roles },
       ] = await Promise.all([
-        supabase.from("landing_visits").select("*", { count: "exact", head: true }),
-        supabase.from("landing_visits").select("pais_code"),
+        // Ya agrupado en la base: una fila por país en vez de una por visita.
+        supabase.rpc("visitas_por_pais"),
         supabase.from("perfiles").select("id, pais"),
         supabase.from("suscripciones").select("id, usuario_id, estado, proveedor_pago"),
         supabase.from("pagos").select("suscripcion_id"),
@@ -78,9 +77,13 @@ const AdminMetricas = () => {
       // "Argentina" vs "resto del mundo": lo único que hoy nos importa para
       // decidir en qué moneda se muestra el precio (ver PriceTag), así que
       // es el corte más útil para ver de dónde viene la conversión real.
-      const visitasArgentina = (visitasPorPais || []).filter((v) => v.pais_code === "AR").length;
-      const visitasOtrosPaises = (visitasPorPais || []).filter((v) => v.pais_code && v.pais_code !== "AR").length;
-      const visitasSinPais = (visitasPorPais || []).length - visitasArgentina - visitasOtrosPaises;
+      const sumarVisitas = (filas: { cantidad: number }[]) =>
+        filas.reduce((acc, v) => acc + Number(v.cantidad), 0);
+      const filasVisitas = visitasPorPais || [];
+      const visitas = sumarVisitas(filasVisitas);
+      const visitasArgentina = sumarVisitas(filasVisitas.filter((v) => v.pais_code === "AR"));
+      const visitasOtrosPaises = sumarVisitas(filasVisitas.filter((v) => v.pais_code && v.pais_code !== "AR"));
+      const visitasSinPais = visitas - visitasArgentina - visitasOtrosPaises;
 
       const registradosArgentina = perfilesAlumnos.filter((p) => p.pais === "Argentina").length;
       const registradosOtrosPaises = perfilesAlumnos.filter((p) => p.pais && p.pais !== "Argentina").length;
@@ -90,9 +93,9 @@ const AdminMetricas = () => {
       // con countryName(); en perfiles.pais ya queda guardado el nombre
       // directo (es lo que el usuario eligió al registrarse).
       const visitasPorPaisMap = new Map<string, number>();
-      for (const v of visitasPorPais || []) {
+      for (const v of filasVisitas) {
         if (!v.pais_code || v.pais_code === "AR") continue;
-        visitasPorPaisMap.set(v.pais_code, (visitasPorPaisMap.get(v.pais_code) || 0) + 1);
+        visitasPorPaisMap.set(v.pais_code, (visitasPorPaisMap.get(v.pais_code) || 0) + Number(v.cantidad));
       }
       const visitasPorPaisRanking = Array.from(visitasPorPaisMap.entries())
         .map(([code, cantidad]) => ({ pais: countryName(code), cantidad }))
@@ -132,7 +135,7 @@ const AdminMetricas = () => {
       const registradosAdmins = (roles || []).filter((r) => r.rol === "admin").length;
 
       return {
-        visitas: visitas || 0,
+        visitas,
         registrados,
         registradosConCurso,
         registradosConPago,

@@ -1207,6 +1207,10 @@ export type Database = {
         }
         Returns: string
       }
+      visitas_por_pais: {
+        Args: never
+        Returns: { cantidad: number; pais_code: string | null }[]
+      }
     }
     Enums: {
       app_role: "admin" | "student" | "teacher"

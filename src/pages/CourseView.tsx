@@ -212,7 +212,7 @@ const CourseView = () => {
       return data || [];
     },
     enabled: !!courseId && hasFullAccess && course?.modalidad !== "grabado",
-    refetchInterval: 15000,
+    refetchInterval: 30000,
   });
 
   const claseEnVivo = liveLessons?.find(
