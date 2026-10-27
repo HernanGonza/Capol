@@ -14,7 +14,6 @@ import {
   GraduationCap,
   BookOpen,
   ArrowRight,
-  Sparkles,
   Play,
   CheckCircle,
   Star,
@@ -532,17 +531,9 @@ const Landing = () => {
 
       <main>
       {/* HERO SECTION */}
-      <section className="relative pt-36 pb-16 px-6">
+      <section className="relative pt-28 pb-16 px-6">
         <div className="max-w-7xl mx-auto">
-          <div className="max-w-4xl mx-auto text-center space-y-8">
-            {/* Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-white/10 backdrop-blur-sm animate-fade-in">
-              <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-              <span className="text-sm font-medium text-indigo-600 dark:text-indigo-300">
-                Capacitación Online de Calidad
-              </span>
-            </div>
-
+          <div className="max-w-4xl mx-auto text-center space-y-6">
             {/* Título principal */}
             <h1 className="text-5xl md:text-7xl font-black tracking-tight leading-[0.9] animate-fade-in">
               <span className="block text-slate-900 dark:text-white">Aprende</span>
