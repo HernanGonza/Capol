@@ -1810,7 +1810,9 @@ const AdminSubscriptions = () => {
                             onClick={() => setConfirmPermanente(sub)}
                           >
                             <Infinity className="w-4 h-4 mr-2" />
-                            Habilitar para siempre
+                            {cuotaImpaga
+                              ? "Sacar suspensión (acceso permanente)"
+                              : "Habilitar para siempre"}
                           </Button>
                         )}
 
