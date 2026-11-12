@@ -1004,6 +1004,8 @@ export type Database = {
       }
       suscripciones: {
         Row: {
+          acceso_permanente: boolean
+          deuda_condonada_en: string | null
           creado_en: string | null
           curso_id: string | null
           estado: string | null
@@ -1022,6 +1024,8 @@ export type Database = {
           usuario_id: string | null
         }
         Insert: {
+          acceso_permanente?: boolean
+          deuda_condonada_en?: string | null
           creado_en?: string | null
           curso_id?: string | null
           estado?: string | null
@@ -1040,6 +1044,8 @@ export type Database = {
           usuario_id?: string | null
         }
         Update: {
+          acceso_permanente?: boolean
+          deuda_condonada_en?: string | null
           creado_en?: string | null
           curso_id?: string | null
           estado?: string | null
@@ -1132,6 +1138,18 @@ export type Database = {
       fijar_mensaje_foro: {
         Args: { p_fijar: boolean; p_mensaje_id: string }
         Returns: undefined
+      }
+      condonar_pago_diferido: {
+        Args: { p_nota?: string; p_suscripcion_id: string }
+        Returns: string
+      }
+      quitar_acceso_permanente: {
+        Args: { p_nota?: string; p_suscripcion_id: string }
+        Returns: string
+      }
+      habilitar_acceso_permanente: {
+        Args: { p_nota?: string; p_suscripcion_id: string }
+        Returns: string
       }
       habilitar_pago_diferido: {
         Args: {

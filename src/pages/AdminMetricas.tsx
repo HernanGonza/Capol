@@ -33,7 +33,7 @@ const AdminMetricas = () => {
         // Ya agrupado en la base: una fila por país en vez de una por visita.
         supabase.rpc("visitas_por_pais"),
         supabase.from("perfiles").select("id, pais"),
-        supabase.from("suscripciones").select("id, usuario_id, estado, proveedor_pago"),
+        supabase.from("suscripciones").select("id, usuario_id, estado, proveedor_pago, deuda_condonada_en"),
         supabase.from("pagos").select("suscripcion_id"),
         supabase.from("roles_usuario").select("usuario_id, rol"),
       ]);
@@ -70,7 +70,7 @@ const AdminMetricas = () => {
       // De esos, cuántos ya tienen el pago hecho (suscripción 'active').
       const registradosConPago = new Set(
         (suscripciones || [])
-          .filter((s) => s.estado === "active" && alumnoIds.has(s.usuario_id))
+          .filter((s) => s.estado === "active" && !s.deuda_condonada_en && alumnoIds.has(s.usuario_id))
           .map((s) => s.usuario_id)
       ).size;
 

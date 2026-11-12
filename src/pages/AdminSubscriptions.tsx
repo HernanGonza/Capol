@@ -52,6 +52,7 @@ import {
   Filter,
   Calendar,
   CalendarClock,
+  Infinity,
   Edit2,
   RefreshCw,
   AlertTriangle,
@@ -133,6 +134,13 @@ const AdminSubscriptions = () => {
     fecha: string;
     nota: string;
   } | null>(null);
+
+  // Confirmación de habilitar acceso permanente (alumno que pagó todo el curso).
+  const [confirmPermanente, setConfirmPermanente] = useState<any | null>(null);
+
+  // Quitar el acceso permanente / dar por saldado un diferido (sin pago).
+  const [confirmQuitarPermanente, setConfirmQuitarPermanente] = useState<any | null>(null);
+  const [confirmCondonar, setConfirmCondonar] = useState<any | null>(null);
 
   // Confirmación de suspender / reactivar una suscripción.
   const [confirmSuspension, setConfirmSuspension] = useState<{
@@ -305,6 +313,7 @@ const AdminSubscriptions = () => {
             precio,
             moneda,
             tipo_precio,
+            cantidad_cuotas,
             cotizacion_ars
           ),
           pagos:pagos!pagos_suscripcion_id_fkey (count)
@@ -785,6 +794,81 @@ const AdminSubscriptions = () => {
       queryClient.invalidateQueries({ queryKey: ["solicitudes-pendientes-count"] });
       toast.success("Suscripción eliminada");
       setConfirmDelete(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const permanenteMutation = useMutation({
+    mutationFn: async (motivo: string) => {
+      if (!confirmPermanente) return;
+      const { error } = await supabase.rpc("habilitar_acceso_permanente", {
+        p_suscripcion_id: confirmPermanente.id,
+        p_nota: motivo || null,
+      });
+      if (error) throw error;
+
+      await registrarMovimiento({
+        accion: "acceso_permanente_habilitado",
+        usuarioId: confirmPermanente.usuario_id,
+        cursoId: confirmPermanente.curso_id,
+        suscripcionId: confirmPermanente.id,
+        motivo,
+      });
+    },
+    onSuccess: () => {
+      invalidarSuscripciones();
+      toast.success("Acceso permanente habilitado — el alumno ya no vence");
+      setConfirmPermanente(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const quitarPermanenteMutation = useMutation({
+    mutationFn: async (motivo: string) => {
+      if (!confirmQuitarPermanente) return;
+      const { error } = await supabase.rpc("quitar_acceso_permanente", {
+        p_suscripcion_id: confirmQuitarPermanente.id,
+        p_nota: motivo || null,
+      });
+      if (error) throw error;
+
+      await registrarMovimiento({
+        accion: "acceso_permanente_quitado",
+        usuarioId: confirmQuitarPermanente.usuario_id,
+        cursoId: confirmQuitarPermanente.curso_id,
+        suscripcionId: confirmQuitarPermanente.id,
+        motivo,
+      });
+    },
+    onSuccess: () => {
+      invalidarSuscripciones();
+      toast.success("Acceso permanente quitado");
+      setConfirmQuitarPermanente(null);
+    },
+    onError: (e: any) => toast.error(e.message),
+  });
+
+  const condonarMutation = useMutation({
+    mutationFn: async (motivo: string) => {
+      if (!confirmCondonar) return;
+      const { error } = await supabase.rpc("condonar_pago_diferido", {
+        p_suscripcion_id: confirmCondonar.id,
+        p_nota: motivo || null,
+      });
+      if (error) throw error;
+
+      await registrarMovimiento({
+        accion: "pago_diferido_condonado",
+        usuarioId: confirmCondonar.usuario_id,
+        cursoId: confirmCondonar.curso_id,
+        suscripcionId: confirmCondonar.id,
+        motivo,
+      });
+    },
+    onSuccess: () => {
+      invalidarSuscripciones();
+      toast.success("Diferido dado por saldado — sin pago registrado");
+      setConfirmCondonar(null);
     },
     onError: (e: any) => toast.error(e.message),
   });
@@ -1475,6 +1559,15 @@ const AdminSubscriptions = () => {
                               ]}
                         </Badge>
 
+                        {sub.acceso_permanente && (
+                          <Badge className="bg-emerald-600 text-white border-none">
+                            <Infinity className="w-3 h-3 mr-1" />
+                            {sub.deuda_condonada_en
+                              ? "SALDADO SIN PAGO"
+                              : "ACCESO PERMANENTE"}
+                          </Badge>
+                        )}
+
                         {isNearExp && (
                           <Badge className="bg-amber-500 text-white border-none animate-pulse">
                             <AlertTriangle className="w-3 h-3 mr-1" />
@@ -1662,6 +1755,7 @@ const AdminSubscriptions = () => {
                       )}
 
                       {!esGrabado &&
+                        !sub.acceso_permanente &&
                         sub.estado ===
                           "active" && (
                           <Button
@@ -1679,9 +1773,52 @@ const AdminSubscriptions = () => {
                           </Button>
                         )}
 
+                      {!esGrabado && sub.acceso_permanente && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setConfirmQuitarPermanente(sub)}
+                        >
+                          <Infinity className="w-4 h-4 mr-2" />
+                          Quitar acceso permanente
+                        </Button>
+                      )}
+
+                      {/* Dar por saldado un diferido sin registrar pago (el curso ya terminó). */}
+                      {!esGrabado &&
+                        !suspendida &&
+                        sub.estado === "pago_diferido" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                            onClick={() => setConfirmCondonar(sub)}
+                          >
+                            <Ban className="w-4 h-4 mr-2" />
+                            Dar por saldado
+                          </Button>
+                        )}
+
+                      {/* Acceso permanente: alumno que ya pagó todo el curso. Solo cursos en vivo al día. */}
+                      {!esGrabado &&
+                        !suspendida &&
+                        !sub.acceso_permanente &&
+                        sub.estado === "active" && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                            onClick={() => setConfirmPermanente(sub)}
+                          >
+                            <Infinity className="w-4 h-4 mr-2" />
+                            Habilitar para siempre
+                          </Button>
+                        )}
+
                       {/* Pago diferido: habilitar (desde pendiente/al día) o extender la fecha. Solo cursos en vivo. */}
                       {!esGrabado &&
                         !suspendida &&
+                        !sub.acceso_permanente &&
                         (sub.estado ===
                           "pago_pendiente" ||
                           sub.estado ===
@@ -1889,6 +2026,56 @@ const AdminSubscriptions = () => {
         motivoLabel="Motivo de la eliminación"
         loading={eliminarSubMutation.isPending}
         onConfirm={(motivo) => eliminarSubMutation.mutate(motivo)}
+      />
+
+      {/* Confirmación de acceso permanente */}
+      {(() => {
+        const sub = confirmPermanente;
+        const pagos = sub?.pagos?.[0]?.count ?? 0;
+        const cuotas = sub?.cursos?.cantidad_cuotas ?? null;
+        const incompleto = cuotas != null && pagos < cuotas;
+        return (
+          <ConfirmWithReason
+            open={!!confirmPermanente}
+            onOpenChange={(v) => !v && setConfirmPermanente(null)}
+            title="¿Habilitar acceso para siempre?"
+            description={`${sub?.perfiles?.nombre_completo} va a tener acceso a "${sub?.cursos?.titulo}" sin fecha de vencimiento: ya no se le cobra ni se le corta por mensualidad. Tiene ${pagos}${cuotas != null ? ` de ${cuotas}` : ""} pago(s) registrado(s).${incompleto ? " ATENCIÓN: todavía no completó todas las cuotas del curso." : ""} Solo la suspensión manual puede cortarle el acceso.`}
+            confirmLabel="Habilitar para siempre"
+            motivoRequerido
+            motivoLabel="Motivo (ej: pagó el curso completo)"
+            loading={permanenteMutation.isPending}
+            onConfirm={(motivo) => permanenteMutation.mutate(motivo)}
+          />
+        );
+      })()}
+
+      <ConfirmWithReason
+        open={!!confirmQuitarPermanente}
+        onOpenChange={(v) => !v && setConfirmQuitarPermanente(null)}
+        title="¿Quitar el acceso permanente?"
+        description={
+          confirmQuitarPermanente?.deuda_condonada_en
+            ? `${confirmQuitarPermanente?.perfiles?.nombre_completo} nunca pagó este curso (se lo dio por saldado), así que vuelve a "Pago pendiente" y pierde el acceso a "${confirmQuitarPermanente?.cursos?.titulo}" hasta que se registre un pago.`
+            : `${confirmQuitarPermanente?.perfiles?.nombre_completo} vuelve al ciclo mensual de "${confirmQuitarPermanente?.cursos?.titulo}": se le calcula el vencimiento del período en curso y después hay que registrar la mensualidad.`
+        }
+        confirmLabel="Quitar acceso permanente"
+        destructive
+        motivoRequerido
+        motivoLabel="Motivo"
+        loading={quitarPermanenteMutation.isPending}
+        onConfirm={(motivo) => quitarPermanenteMutation.mutate(motivo)}
+      />
+
+      <ConfirmWithReason
+        open={!!confirmCondonar}
+        onOpenChange={(v) => !v && setConfirmCondonar(null)}
+        title="¿Dar por saldado el diferido?"
+        description={`${confirmCondonar?.perfiles?.nombre_completo} no debe nada más de "${confirmCondonar?.cursos?.titulo}". NO se registra ningún pago, así que no cambian los ingresos ni los reportes financieros. Sale de la lista de deudores y queda con acceso permanente, marcado como "saldado sin pago" (no cuenta como alumno que pagó en las métricas).`}
+        confirmLabel="Dar por saldado"
+        motivoRequerido
+        motivoLabel="Motivo (ej: el curso ya terminó)"
+        loading={condonarMutation.isPending}
+        onConfirm={(motivo) => condonarMutation.mutate(motivo)}
       />
 
       {/* Confirmación de suspender / reactivar */}

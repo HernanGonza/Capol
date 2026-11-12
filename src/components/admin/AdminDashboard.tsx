@@ -42,7 +42,7 @@ const AdminDashboard = () => {
         { data: pagos },
       ] = await Promise.all([
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "student"),
-        supabase.from("suscripciones").select("usuario_id, curso_id, estado, price, moneda, suspendida_en, pago_diferido_hasta"),
+        supabase.from("suscripciones").select("usuario_id, curso_id, estado, price, moneda, suspendida_en, pago_diferido_hasta, deuda_condonada_en"),
         supabase.from("cursos").select("id, titulo, publicado"),
         supabase.from("progreso_lecciones").select("completado"),
         supabase.from("roles_usuario").select("usuario_id").eq("rol", "teacher"),
@@ -84,7 +84,7 @@ const AdminDashboard = () => {
       // Contamos ALUMNOS distintos, no filas de suscripción: un alumno con 2 cursos
       // tiene 2 filas en "suscripciones" pero sigue siendo 1 solo alumno.
       const alumnosInscriptos = new Set(inscritosSubs.map((s) => s.usuario_id)).size;
-      const alumnosAlDia = new Set(activeSubs.map((s) => s.usuario_id)).size;
+      const alumnosAlDia = new Set(activeSubs.filter((s) => !s.deuda_condonada_en).map((s) => s.usuario_id)).size;
       const alumnosVencidos = new Set(expiredSubs.map((s) => s.usuario_id)).size;
       // "Pagos pendientes" = inscripciones a un curso que todavía no se pagaron
       // (una por alumno+curso), no alumnos distintos.

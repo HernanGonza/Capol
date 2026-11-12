@@ -314,6 +314,76 @@ const TeacherLessons = () => {
     }
   };
 
+  // Jitsi corta las videollamadas a los 90 minutos: el profesor puede generar
+  // una sala nueva para la misma clase. El nombre lleva un sufijo " /N"
+  // ("Clase 1 en vivo: Curso" -> "... /2" -> "... /3"). Los alumnos toman la
+  // sala nueva solos (la clase se vuelve a leer cada 30 s).
+  const [nuevaSalaLesson, setNuevaSalaLesson] = useState<any>(null);
+
+  const siguienteNombreSala = (actual: string | null | undefined) => {
+    const base = (actual || "").trim();
+    const m = base.match(/^(.*?)\s*\/(\d+)$/);
+    if (m) return `${m[1]} /${parseInt(m[2], 10) + 1}`;
+    return `${base || `Clase ${course?.titulo || "CapOL"}`} /2`;
+  };
+
+  const nuevaSalaMutation = useMutation({
+    mutationFn: async ({ lesson, nombre }: { lesson: any; nombre: string }) => {
+      const { error } = await supabase
+        .from("lecciones")
+        .update({ sala_jitsi: nombre })
+        .eq("id", lesson.id);
+      if (error) throw error;
+      return { lesson, nombre };
+    },
+    onSuccess: ({ lesson, nombre }) => {
+      queryClient.invalidateQueries({ queryKey: ["teacher-lessons", courseId] });
+      if (showJitsi && activeLesson?.id === lesson.id) {
+        setActiveRoom(nombre);
+        setActiveLesson({ ...activeLesson, sala_jitsi: nombre });
+      }
+      toast.success(`Nueva videollamada creada: ${nombre}`);
+      setNuevaSalaLesson(null);
+    },
+    onError: (e: any) => toast.error(e.message || "No se pudo crear la nueva videollamada"),
+  });
+
+  const confirmNuevaSala = () => {
+    const lesson = nuevaSalaLesson;
+    if (!lesson) return;
+    const nombre = siguienteNombreSala(lesson.sala_jitsi);
+    // Abrimos la sala nueva dentro del click (gesto del usuario) para que el
+    // navegador no la bloquee.
+    window.open(
+      buildJitsiUrl(nombre, profile?.nombre_completo || "Profesor", {
+        courseTitle: course?.titulo,
+        lessonTitle: lesson.titulo,
+      }),
+      "_blank",
+      "noopener,noreferrer",
+    );
+    nuevaSalaMutation.mutate({ lesson, nombre });
+  };
+
+  const nuevaSalaDialog = (
+    <AlertDialog open={!!nuevaSalaLesson} onOpenChange={(o) => !o && setNuevaSalaLesson(null)}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Crear una nueva videollamada?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Se genera una sala nueva para esta clase ({siguienteNombreSala(nuevaSalaLesson?.sala_jitsi)}) y se abre en otra pestaña. Los alumnos pasan a la sala nueva en menos de 30 segundos (o recargando la página). Usalo cuando la llamada actual se corta por el límite de 90 minutos.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction onClick={confirmNuevaSala} disabled={nuevaSalaMutation.isPending}>
+            {nuevaSalaMutation.isPending ? "Creando..." : "Crear nueva videollamada"}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   const endClassDialog = (
     <AlertDialog open={!!endClassConfirmLesson} onOpenChange={(o) => !o && setEndClassConfirmLesson(null)}>
       <AlertDialogContent>
@@ -574,6 +644,16 @@ const TeacherLessons = () => {
                 </Button>
               )
             ) : null}
+            <Button
+              variant="outline"
+              size="sm"
+              className="shadow-sm"
+              onClick={() => setNuevaSalaLesson(activeLesson)}
+              title="Crear una sala nueva (la de Jitsi se corta a los 90 minutos)"
+            >
+              <Video className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Nueva videollamada</span>
+            </Button>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -634,6 +714,7 @@ const TeacherLessons = () => {
             />
           </div>
         </div>
+        {nuevaSalaDialog}
         {endClassDialog}
         {closeClassDialog}
         {deleteLessonDialog}
@@ -952,6 +1033,17 @@ const TeacherLessons = () => {
                               {startLiveClassMutation.isPending ? "Iniciando..." : lesson.clase_iniciada_en ? "Volver a Entrar" : "Iniciar Clase"}
                             </Button>
                           )}
+                          {course?.modalidad !== "grabado" && lesson.sala_jitsi && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => setNuevaSalaLesson(lesson)}
+                              title="Crear una sala nueva (la de Jitsi se corta a los 90 minutos)"
+                            >
+                              <Video className="w-4 h-4 mr-1" />
+                              Nueva videollamada
+                            </Button>
+                          )}
                           <Button
                             size="sm"
                             variant="outline"
@@ -1044,6 +1136,7 @@ const TeacherLessons = () => {
         courseTitle={course?.titulo}
         courseModalidad={course?.modalidad}
       />
+      {nuevaSalaDialog}
       {endClassDialog}
       {resetClassDialog}
       {deleteLessonDialog}
