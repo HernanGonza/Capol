@@ -1786,7 +1786,6 @@ const AdminSubscriptions = () => {
 
                       {/* Dar por saldado un diferido sin registrar pago (el curso ya terminó). */}
                       {!esGrabado &&
-                        !suspendida &&
                         sub.estado === "pago_diferido" && (
                           <Button
                             variant="outline"
@@ -1803,7 +1802,7 @@ const AdminSubscriptions = () => {
                       {!esGrabado &&
                         !suspendida &&
                         !sub.acceso_permanente &&
-                        sub.estado === "active" && (
+                        (sub.estado === "active" || cuotaImpaga) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -1852,12 +1851,12 @@ const AdminSubscriptions = () => {
                         )}
 
                       {/* Suspender / reactivar. Solo cursos en vivo con acceso concedido. */}
-                      {!esGrabado &&
-                        (suspendida ||
-                          sub.estado ===
+                      {(suspendida ||
+                        (!esGrabado &&
+                          (sub.estado ===
                             "active" ||
                           sub.estado ===
-                            "pago_diferido") && (
+                            "pago_diferido"))) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -1877,7 +1876,7 @@ const AdminSubscriptions = () => {
                             {suspendida ? (
                               <>
                                 <PlayCircle className="w-4 h-4 mr-2" />
-                                Reactivar
+                                Sacar suspensión
                               </>
                             ) : (
                               <>
@@ -2070,7 +2069,7 @@ const AdminSubscriptions = () => {
         open={!!confirmCondonar}
         onOpenChange={(v) => !v && setConfirmCondonar(null)}
         title="¿Dar por saldado el diferido?"
-        description={`${confirmCondonar?.perfiles?.nombre_completo} no debe nada más de "${confirmCondonar?.cursos?.titulo}". NO se registra ningún pago, así que no cambian los ingresos ni los reportes financieros. Sale de la lista de deudores y queda con acceso permanente, marcado como "saldado sin pago" (no cuenta como alumno que pagó en las métricas).`}
+        description={`${confirmCondonar?.perfiles?.nombre_completo} no debe nada más de "${confirmCondonar?.cursos?.titulo}". NO se registra ningún pago, así que no cambian los ingresos ni los reportes financieros. Sale de la lista de deudores y queda con acceso permanente${confirmCondonar?.suspendida_en ? " (y se le saca la suspensión)" : ""}, marcado como \"saldado sin pago\" (no cuenta como alumno que pagó en las métricas).`}
         confirmLabel="Dar por saldado"
         motivoRequerido
         motivoLabel="Motivo (ej: el curso ya terminó)"
@@ -2085,14 +2084,14 @@ const AdminSubscriptions = () => {
         title={
           confirmSuspension?.suspender
             ? "¿Suspender la suscripción?"
-            : "¿Reactivar la suscripción?"
+            : "¿Sacar la suspensión?"
         }
         description={
           confirmSuspension?.suspender
             ? `${confirmSuspension?.sub?.perfiles?.nombre_completo} va a perder el acceso a "${confirmSuspension?.sub?.cursos?.titulo}" hasta que lo reactives. No se pierde ningún dato: la suscripción y las fechas quedan igual.`
             : `${confirmSuspension?.sub?.perfiles?.nombre_completo} recupera el acceso a "${confirmSuspension?.sub?.cursos?.titulo}".`
         }
-        confirmLabel={confirmSuspension?.suspender ? "Suspender" : "Reactivar"}
+        confirmLabel={confirmSuspension?.suspender ? "Suspender" : "Sacar suspensión"}
         destructive={confirmSuspension?.suspender}
         motivoRequerido={confirmSuspension?.suspender}
         motivoLabel={confirmSuspension?.suspender ? "Motivo de la suspensión" : "Nota"}
